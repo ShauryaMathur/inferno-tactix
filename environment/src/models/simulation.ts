@@ -84,14 +84,23 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
       // Parse the message from the server (assuming it's a JSON string)
       const message = JSON.parse(event.data);
       const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
-      
+      console.log(action,typeof(action))
       // Handle different actions from the server
       if (action === 'reset') {
         // If the action is 'reset', call the restart function
         this.restart();
 
-        this.setSpark(0, 60000-1, 40000-1);
+        this.setSpark(0, 80000-1, 40000-1);
         this.start();
+        console.log(this.engine);
+        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
+          console.log(cells2D);
+          
+          this.socket.send(JSON.stringify({
+            "cells":JSON.stringify(cells2D)
+          }));
+        // this.gymAllowedContinue = true
+        // this.tick(10)
       } else if (action === '4') {
         // If the action is 4, set the helicopter coordinates
         if (helicopter_coord) {
@@ -99,9 +108,9 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
           let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
           let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
           console.log(canvas_x, canvas_y);
-          
+          console.log(this.engine?.cells)
           this.setHelitackPoint(canvas_x-1, canvas_y-1);
-          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
           console.log(cells2D);
           
           this.socket.send(JSON.stringify({
@@ -109,6 +118,7 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
           }));
         } 
       } else {
+        console.log(this.engine)
         const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
         console.log(cells2D);
         
@@ -296,6 +306,8 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     }
     if (!this.engine) {
       this.engine = new FireEngine(this.cells, this.wind, this.sparks, this.config);
+      console.log(this.engine);
+      
     }
 
     this.applyFireLineMarkers();
@@ -345,6 +357,8 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
   }
 
   @action.bound public rafCallback(time: number) {
+    console.log('Time', time);
+    
     if (!this.simulationRunning || !this.gymAllowedContinue) {
       return;
     }
