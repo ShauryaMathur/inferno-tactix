@@ -74,7 +74,20 @@ export class SimulationModel {
     };
     this.socket.onmessage = (event) => {
       console.log('Received message:', event.data);
-      // this.load(JSON.parse(event.data));
+      const {action} = JSON.parse(event.data);
+      console.log(action);
+      if (action === 'reset'){
+        this.restart();
+        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+      // console.log(cells2D);
+    
+      this.socket.send(JSON.stringify({
+        "ignitionTimes":JSON.stringify(cells2D)
+      }))
+    this.gymAllowedContinue = false
+      }else if(action === 'heli'){
+
+      }
       this.gymAllowedContinue = true;
       requestAnimationFrame(this.rafCallback);
     };
@@ -188,7 +201,7 @@ export class SimulationModel {
       getZoneIndex(config, this.zoneIndex), getElevationData(config, zones), getRiverData(config), getUnburntIslandsData(config, zones)
     ]).then(values => {
       const zoneIndex = values[0];
-      console.log(zoneIndex);
+      // console.log(zoneIndex);
       const elevation = values[1];
       const river = values[2];
       const unburntIsland = values[3];
@@ -324,11 +337,46 @@ export class SimulationModel {
     }
 
     this.tick(timeStep);
+
+    
+    // Usage:
+    // const gridWidth = 240;
+    // const gridHeight = 160;
+    // const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+    // console.log(cells2D);
+    
     this.socket.send(JSON.stringify({
-      "check":JSON.stringify(this.engine?.cells[0])
+      "ignitionTimes":JSON.stringify(cells2D),
+      "print":this.time
     }))
     this.gymAllowedContinue = false
+    // this.simulationRunning = false
   }
+
+  @action.bound private reshapeTo2D(cells: any[], width: number, height: number): any[][] {
+    const grid: any[][] = [];
+  
+    for (let row = 0; row < height; row++) {
+      const start = row * width;
+      const end = start + width;
+      const rowIgnitionTimes = cells.slice(start, end).map(cell => {
+        if(cell.fireState === FireState.Burnt){
+          return -1
+        }else if(cell.ignitionTime !== Infinity){
+          return cell.ignitionTime
+        }else{
+          return 0
+        }
+
+        
+      });
+      grid.push(rowIgnitionTimes);
+    }
+  
+    return grid;
+  }
+  
+  
 
   @action.bound public tick(timeStep: number) {
 
