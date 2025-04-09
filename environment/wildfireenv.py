@@ -4,14 +4,23 @@ import websockets
 import json
 import gym
 from gym import spaces
-import random
+
+# Custom JSON encoder to handle NumPy types
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
 
 class FireSimulationGymEnv(gym.Env):
     def __init__(self):
         super(FireSimulationGymEnv, self).__init__()
 
         # Define action space as discrete actions
-        # 0: 'U' (Up), 1: 'D' (Down), 2: 'L' (Left), 3: 'R' (Right), 4: 'Helitack'
         self.action_space = spaces.Discrete(5)
         
         # Initial state setup
@@ -41,60 +50,92 @@ class FireSimulationGymEnv(gym.Env):
         # Return the initial state (observation)
         return self.state
 
-    def step(self, action):
-        """
-        Perform one step in the environment given the action, then return the new state and reward.
-        """
+    async def step(self, action):
+
+        # Initialize reward to 0 by default
+        reward = 0
+
         # Get current helicopter coordinates
         heli_x, heli_y = self.state['helicopter_coord']
         
-        # Define response dictionary
-        response = {}
-        reward = 0  # Default reward (can be modified later based on environment behavior)
-        done = False  # Whether the episode is done
-        
         # Map discrete actions to behaviors
         if action == 0:  # 'U' - Move Up
-            heli_y += 1
+            heli_y += 5
         elif action == 1:  # 'D' - Move Down
-            heli_y -= 1
+            heli_y -= 5
         elif action == 2:  # 'L' - Move Left
-            heli_x -= 1
+            heli_x -= 5
         elif action == 3:  # 'R' - Move Right
-            heli_x += 1
+            heli_x += 5
         elif action == 4:  # 'Helitack' - Perform heli attack
-            response = {"action": "Helitack", "heli_coord": (heli_x, heli_y)}
-            reward = 10  # Example reward for performing the heli attack
+            print(f"Helitack performed at ({heli_x}, {heli_y})")
+            reward = 10  # Reward for performing heli attack
 
         # Clip helicopter coordinates to stay within the grid limits (240x160)
-        heli_x = np.clip(heli_x, 0, 239)  # x should be between 0 and 239
-        heli_y = np.clip(heli_y, 0, 159)  # y should be between 0 and 159
+        heli_x = np.clip(heli_x, 10, 239)  # x should be between 0 and 239
+        heli_y = np.clip(heli_y, 10, 159)  # y should be between 0 and 159
+        
+        # Convert NumPy values to Python native types
+        heli_x = int(heli_x)
+        heli_y = int(heli_y)
         
         # Update helicopter coordinates in the state
         self.state['helicopter_coord'] = (heli_x, heli_y)
-        
-        # If it's not a heli attack, update response with new state
-        if action != 4:
-            response = {"state": self.state}
-        
-        # Send action and updated state to client (websocket)
+
+        # Prepare action message to send to the client (physics engine)
+        try:
+            action_message = json.dumps({
+                "action": str(action),
+                "helicopter_coord": list(self.state['helicopter_coord'])
+            }, cls=NumpyEncoder)
+        except Exception as e:
+            print(f"Error creating action message: {e}")
+            return self.state, reward, False, {}
+
+        # Send action to client (websocket)
         if self.websocket:
-            asyncio.create_task(self.websocket.send(json.dumps(response)))
-            print(f"Step message sent to frontend: {action}, heli coordinates: {(heli_x, heli_y)}")
+            await self.websocket.send(action_message)
+            print(f"Step message sent to frontend: {action_message}")
 
-        # Example condition to end the episode: if the helicopter goes out of bounds
-        if heli_x < 0 or heli_x >= 240 or heli_y < 0 or heli_y >= 160:
-            done = True  # Episode ends if helicopter moves out of bounds
+        # Wait for the client to send back the updated cells
+        new_state = await self.wait_for_client_update()
 
-        # Return the next state, reward, and whether the episode is done
+        # Combine the new state (cells) with the helicopter coordinates
+        self.state['cells'] = new_state['cells']
+        
+        # Return the combined state, reward, and done flag
+        done = False  # Example condition for episode termination can be added later
         return self.state, reward, done, {}
 
-    def set_state_from_client(self, client_state):
+    async def wait_for_client_update(self):
         """
-        Set the state of the environment from the client-provided state.
+        This function asynchronously waits for the client to send back the updated cells data.
         """
-        self.state['cells'] = np.array(client_state['cells'])
-        self.state['helicopter_coord'] = tuple(client_state['helicopter_coord'])
+        try:
+            message = await self.websocket.recv()  # Waits for a message from the client
+            # print(f"Received message from client: {message}")
+            
+            # Parse the message from the client
+            client_state = json.loads(message)
+            
+            # Extract the updated 'cells' from the client state
+            if 'cells' in client_state:
+                new_state = {
+                    'cells': np.array(client_state['cells'])  # Update cells from client
+                }
+                return new_state
+            else:
+                print("Error: No 'cells' data received from client.")
+                return {
+                    'cells': np.zeros((240, 160))  # Return default empty cells if no valid data
+                }
+
+        except Exception as e:
+            print(f"Error while receiving data from client: {e}")
+            return {
+                'cells': np.zeros((240, 160))  # Return default empty cells in case of an error
+            }
+
 
 async def websocket_handler(websocket, path):
     # Create Gym environment
@@ -105,33 +146,33 @@ async def websocket_handler(websocket, path):
         # Reset environment when starting
         initial_state = env.reset()
 
-        # Send initial state to the React frontend
-        await websocket.send(json.dumps({"state": initial_state}))
+        for step in range(1000):  # Run 100 steps
+            # Automatically pick a discrete action from the action space
+            action = env.action_space.sample()  # Random action from the action space
+            print(f"Chosen action at step {step}: {action}")
 
-        # Process incoming messages from React frontend
-        async for message in websocket:
-            # Parse incoming action (or reset)
-            action_data = json.loads(message)
-            print(f"Received action from frontend: {action_data}")
+            # Perform the environment step (sending action to the client)
+            new_state, reward, done, _ = await env.step(action)
 
-            # Handle reset action
-            if action_data.get("action") == "reset":
-                initial_state = env.reset()
-                await websocket.send(json.dumps({"state": initial_state}))
-            else:
-                # Set environment state from client data (if provided)
-                if "state" in action_data:
-                    client_state = action_data["state"]
-                    env.set_state_from_client(client_state)
-                
-                # Perform the next step in the environment
-                action = action_data.get("action")
-                new_state, reward, done, info = env.step(action)
-                await websocket.send(json.dumps({"state": new_state, "reward": reward, "done": done}))
+            # # Send updated state, reward, and done flag back to the client
+            # # Convert NumPy arrays and types to JSON-serializable format
+            # message = {
+            #     "state": {
+            #         "helicopter_coord": list(new_state['helicopter_coord']),
+            #         "cells": new_state['cells'].tolist()  # Convert NumPy array to list
+            #     },
+            #     "reward": float(reward),  # Convert to Python native float
+            #     "done": bool(done)  # Convert to Python native boolean
+            # }
+            
+            # await websocket.send(json.dumps(message, cls=NumpyEncoder))
+
+            if done:
+                print("Episode finished!")
+                break
 
     except websockets.exceptions.ConnectionClosedOK:
         print("Connection closed")
-
 
 # Start the WebSocket server
 start_server = websockets.serve(websocket_handler, "localhost", 8765)
