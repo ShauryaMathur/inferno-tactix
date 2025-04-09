@@ -102,7 +102,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   zoneIndex: undefined,
   sparks: [],
   maxTimeStep: 180, // minutes
-  modelDayInSeconds: 8, // one day in model should last X seconds in real world
+  modelDayInSeconds: 48, // one day in model should last X seconds in real world
   windSpeed: 0, // mph
   windDirection: 0, // degrees, northern wind
   // Note that 0.5 helps to create a nicer, more round shape of neighbours set for a given cell

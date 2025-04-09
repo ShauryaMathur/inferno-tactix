@@ -8,6 +8,7 @@ import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
 import { getGridIndexForLocation, forEachPointBetween, dist } from "./utils/grid-utils";
 
+
 interface ICoords {
   x: number;
   y: number;
@@ -62,36 +63,77 @@ export class SimulationModel {
   @observable public cellsStateFlag = 0;
   @observable public cellsElevationFlag = 0;
 
-  // Create a new WebSocket object
-  private socket = new WebSocket('ws://localhost:8765');
+ // Create a new WebSocket object
+private socket = new WebSocket('ws://localhost:8765');
 
-  
-  constructor(presetConfig: Partial<ISimulationConfig>) {
+// WebSocket Event Handlers
+constructor(presetConfig: Partial<ISimulationConfig>) {
     makeObservable(this);
     this.load(presetConfig);
+
+    // WebSocket connection open handler
     this.socket.onopen = () => {
       console.log('Connected to the WebSocket server');
     };
-    this.socket.onmessage = (event) => {
-      console.log('Received message:', event.data);
-      const {action} = JSON.parse(event.data);
-      console.log(action);
-      if (action === 'reset'){
-        this.restart();
-        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-      // console.log(cells2D);
-    
-      this.socket.send(JSON.stringify({
-        "ignitionTimes":JSON.stringify(cells2D)
-      }))
-    this.gymAllowedContinue = false
-      }else if(action === 'heli'){
 
+    // WebSocket message handler
+    this.socket.onmessage = (event) => {
+      // Log the received message for debugging
+      console.log('Received message:', event.data);
+
+      // Parse the message from the server (assuming it's a JSON string)
+      const message = JSON.parse(event.data);
+      const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
+      
+      // Handle different actions from the server
+      if (action === 'reset') {
+        // If the action is 'reset', call the restart function
+        this.restart();
+
+        this.setSpark(0, 60000-1, 40000-1);
+        this.start();
+      } else if (action === '4') {
+        // If the action is 4, set the helicopter coordinates
+        if (helicopter_coord) {
+          
+          let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
+          let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
+          console.log(canvas_x, canvas_y);
+          
+          this.setHelitackPoint(canvas_x-1, canvas_y-1);
+          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+          console.log(cells2D);
+          
+          this.socket.send(JSON.stringify({
+            "cells":JSON.stringify(cells2D)
+          }));
+        } 
+      } else {
+        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+        console.log(cells2D);
+        
+        this.socket.send(JSON.stringify({
+          "cells":JSON.stringify(cells2D)
+        }));
       }
+      
+      // Allow further actions in the simulation (if any)
       this.gymAllowedContinue = true;
+
+      // Optionally, request the next animation frame to continue the simulation
       requestAnimationFrame(this.rafCallback);
     };
-  }
+
+    // Handle WebSocket error
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    // Handle WebSocket close event
+    this.socket.onclose = () => {
+      console.log('Disconnected from WebSocket server');
+    };
+}
 
   @computed public get ready() {
     return this.dataReady && this.sparks.length > 0;
@@ -345,10 +387,10 @@ export class SimulationModel {
     // const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
     // console.log(cells2D);
     
-    this.socket.send(JSON.stringify({
-      "ignitionTimes":JSON.stringify(cells2D),
-      "print":this.time
-    }))
+    // this.socket.send(JSON.stringify({
+    //   "ignitionTimes":JSON.stringify(cells2D),
+    //   "print":this.time
+    // }))
     this.gymAllowedContinue = false
     // this.simulationRunning = false
   }
@@ -399,7 +441,7 @@ export class SimulationModel {
     // let burntCells = this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt)
     // let burningCells = this.engine?.cells
     const index = getGridIndexForLocation(204, 78, this.gridWidth)
-    console.log(this.time,this.cells[index]);
+    // console.log(this.time,this.cells[index]);
     
     
   }
@@ -537,6 +579,8 @@ export class SimulationModel {
   }
 
   @action.bound public setHelitackPoint(px: number, py: number) {
+    console.log(px,py);
+    
     const startGridX = Math.floor(px / this.config.cellSize);
     const startGridY = Math.floor(py / this.config.cellSize);
     const cell = this.cells[getGridIndexForLocation(startGridX, startGridY, this.gridWidth)];
