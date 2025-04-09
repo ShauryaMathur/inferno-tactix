@@ -123,19 +123,17 @@ class FireSimulationGymEnv(gym.Env):
             print(f"Step message sent to frontend: {action_message}")
 
         # Wait for the client to send back the updated cells
-        new_state = await self.wait_for_client_update()
-        # print('Step response',new_state['cells'], type(new_state['cells']))
-        # Combine the new state (cells) with the helicopter coordinates
-        self.state['cells'] = new_state['cells']
+        self.state = await self.wait_for_client_update()
+        print(self.state)
 
         # print(self.state['cells'], type(self.state['cells']))
         
-        if stepcount in [400, 500, 600, 700, 800]:
+        if stepcount in [450]:
             self.plotHeatmap()
 
         # Return the combined state, reward, and done flag
-        done = False  # Example condition for episode termination can be added later
-        return self.state, reward, done, {}
+        
+        return self.state, reward, self.state['done'], {}
 
     async def wait_for_client_update(self):
         """
@@ -147,19 +145,24 @@ class FireSimulationGymEnv(gym.Env):
             
             # Parse the message from the client
             client_state = json.loads(message)
+            print(client_state)
             # Extract the updated 'cells' from the client state
             cells_list = json.loads(client_state['cells'])
 
-            if 'cells' in client_state:
-                new_state = {
-                    'cells': np.array(cells_list)  # Update cells from client
-                }
-                return new_state
-            else:
-                print("Error: No 'cells' data received from client.")
-                return {
-                    'cells': np.zeros((240, 160))  # Return default empty cells if no valid data
-                }
+            # if 'cells' in client_state:
+                
+            # else:
+            #     print("Error: No 'cells' data received from client.")
+            #     return {
+            #         'cells': np.zeros((240, 160))  # Return default empty cells if no valid data
+            #     }
+
+            new_state = {
+                    **self.state,
+                    **client_state,
+                    'cells': np.array(cells_list) 
+                    }
+            return new_state
 
         except Exception as e:
             print(f"Error while receiving data from client: {e}")
@@ -174,33 +177,35 @@ async def websocket_handler(websocket, path):
     env.websocket = websocket  # Assign the WebSocket to the environment
 
     try:
-        # Reset environment when starting
-        initial_state = await env.reset()
+        
+        for episodes in range(5):
+            # Reset environment when starting
+            initial_state = await env.reset()
+            for step in range(500):  # Run 100 steps
+                # Automatically pick a discrete action from the action space
+                action = env.action_space.sample()  # Random action from the action space
+                print(f"Chosen action at step {step}: {action}")
 
-        for step in range(1000):  # Run 100 steps
-            # Automatically pick a discrete action from the action space
-            action = env.action_space.sample()  # Random action from the action space
-            print(f"Chosen action at step {step}: {action}")
+                # Perform the environment step (sending action to the client)
+                new_state, reward, done, _ = await env.step(action,step)
 
-            # Perform the environment step (sending action to the client)
-            new_state, reward, done, _ = await env.step(action,step)
+                # # Send updated state, reward, and done flag back to the client
+                # # Convert NumPy arrays and types to JSON-serializable format
+                # message = {
+                #     "state": {
+                #         "helicopter_coord": list(new_state['helicopter_coord']),
+                #         "cells": new_state['cells'].tolist()  # Convert NumPy array to list
+                #     },
+                #     "reward": float(reward),  # Convert to Python native float
+                #     "done": bool(done)  # Convert to Python native boolean
+                # }
+                
+                # await websocket.send(json.dumps(message, cls=NumpyEncoder))
 
-            # # Send updated state, reward, and done flag back to the client
-            # # Convert NumPy arrays and types to JSON-serializable format
-            # message = {
-            #     "state": {
-            #         "helicopter_coord": list(new_state['helicopter_coord']),
-            #         "cells": new_state['cells'].tolist()  # Convert NumPy array to list
-            #     },
-            #     "reward": float(reward),  # Convert to Python native float
-            #     "done": bool(done)  # Convert to Python native boolean
-            # }
+                if done:
+                    print("Episode finished!")
+                    break
             
-            # await websocket.send(json.dumps(message, cls=NumpyEncoder))
-
-            if done:
-                print("Episode finished!")
-                break
 
     except websockets.exceptions.ConnectionClosedOK:
         print("Connection closed")

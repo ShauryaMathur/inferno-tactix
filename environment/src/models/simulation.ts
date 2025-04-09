@@ -84,21 +84,25 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
       // Parse the message from the server (assuming it's a JSON string)
       const message = JSON.parse(event.data);
       const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
-      console.log(action,typeof(action))
+      console.log('Time: ',this.time);
       // Handle different actions from the server
       if (action === 'reset') {
         // If the action is 'reset', call the restart function
+        // let animationFrameId = requestAnimationFrame(this.rafCallback);
+        // cancelAnimationFrame(animationFrameId)
         this.restart();
-
-        this.setSpark(0, 80000-1, 40000-1);
+        this.setSpark(0, 120000-1, 80000-1);
         this.start();
-        console.log(this.engine);
         const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
-          console.log(cells2D);
-          
-          this.socket.send(JSON.stringify({
-            "cells":JSON.stringify(cells2D)
-          }));
+        
+        const response ={
+          "cells":JSON.stringify(cells2D),
+          "done":false,
+          "cellsBurning": 0,
+          "cellsBurnt": 0
+        }
+        console.log(response);
+        this.socket.send(JSON.stringify(response));
         // this.gymAllowedContinue = true
         // this.tick(10)
       } else if (action === '4') {
@@ -107,23 +111,26 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
           
           let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
           let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
-          console.log(canvas_x, canvas_y);
-          console.log(this.engine?.cells)
+
           this.setHelitackPoint(canvas_x-1, canvas_y-1);
           const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
-          console.log(cells2D);
           
           this.socket.send(JSON.stringify({
-            "cells":JSON.stringify(cells2D)
+            "cells":JSON.stringify(cells2D),
+            "done":this.engine?.fireDidStop,
+            "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
+            "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length
           }));
         } 
       } else {
-        console.log(this.engine)
+
         const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-        console.log(cells2D);
         
         this.socket.send(JSON.stringify({
-          "cells":JSON.stringify(cells2D)
+          "cells":JSON.stringify(cells2D),
+          "done":this.simulationRunning && this.engine?.fireDidStop,
+          "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
+          "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length
         }));
       }
       
@@ -357,7 +364,6 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
   }
 
   @action.bound public rafCallback(time: number) {
-    console.log('Time', time);
     
     if (!this.simulationRunning || !this.gymAllowedContinue) {
       return;
