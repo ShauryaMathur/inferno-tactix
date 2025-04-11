@@ -49,8 +49,11 @@ class FireSimulationGymEnv(gym.Env):
         
         # Initial state setup
         self.state = {
-            'helicopter_coord': (0, 0),  # Initial coordinates (x, y)
-            'cells': np.zeros((240, 160))  # Placeholder for the grid of ignition times
+            'helicopter_coord': (0, 0), 
+            'cells': np.zeros((240, 160)),
+            'done': False,
+            'cellsBurning': 0,
+            'cellsBurnt': 0
         }
         
         self.websocket = None  # Will be assigned when connecting
@@ -61,7 +64,7 @@ class FireSimulationGymEnv(gym.Env):
         """
         # Reset the environment state
         self.state = {
-            'helicopter_coord': (195, 90),
+            'helicopter_coord': (0, 0),
             'cells': np.zeros((240, 160))  # Reset the grid of ignition times
         }
         
@@ -94,8 +97,9 @@ class FireSimulationGymEnv(gym.Env):
             heli_x += 5
         elif action == 4:  # 'Helitack' - Perform heli attack
             print(f"Helitack performed at ({heli_x}, {heli_y})")
-            reward = 10  # Reward for performing heli attack
+            reward -= 4  # Reward for performing heli attack
 
+        reward -= 1
         # Clip helicopter coordinates to stay within the grid limits (240x160)
         heli_x = np.clip(heli_x, 10, 239)  # x should be between 0 and 239
         heli_y = np.clip(heli_y, 10, 159)  # y should be between 0 and 159
@@ -120,16 +124,18 @@ class FireSimulationGymEnv(gym.Env):
         # Send action to client (websocket)
         if self.websocket:
             await self.websocket.send(action_message)
-            print(f"Step message sent to frontend: {action_message}")
+            # print(f"Step message sent to frontend: {action_message}")
 
         # Wait for the client to send back the updated cells
         self.state = await self.wait_for_client_update()
-        print(self.state)
+
+        reward += (192000 - 15*self.state['cellsBurning'] - 6*self.state['cellsBurnt'])/38400
+        # print(self.state)
 
         # print(self.state['cells'], type(self.state['cells']))
         
-        if stepcount in [450]:
-            self.plotHeatmap()
+        # if stepcount in [450]:
+        #     self.plotHeatmap()
 
         # Return the combined state, reward, and done flag
         
@@ -145,7 +151,7 @@ class FireSimulationGymEnv(gym.Env):
             
             # Parse the message from the client
             client_state = json.loads(message)
-            print(client_state)
+            # print('client_state',client_state)
             # Extract the updated 'cells' from the client state
             cells_list = json.loads(client_state['cells'])
 
@@ -165,7 +171,7 @@ class FireSimulationGymEnv(gym.Env):
             return new_state
 
         except Exception as e:
-            print(f"Error while receiving data from client: {e}")
+            print(f"Error while receiving data from client: {e.with_traceback}")
             return {
                 'cells': np.zeros((240, 160))  # Return default empty cells in case of an error
             }
@@ -209,6 +215,58 @@ async def websocket_handler(websocket, path):
 
     except websockets.exceptions.ConnectionClosedOK:
         print("Connection closed")
+
+# async def websocket_handler(websocket, path):
+#     print("Client connected!")
+    
+#     # Create Gym environment
+#     env = FireSimulationGymEnv()
+#     env.websocket = websocket  # Assign the WebSocket to the environment
+
+#     try:
+#         episode = 0
+#         while True:  # Run indefinitely until client disconnects
+#             print(f"\nStarting Episode {episode + 1}")
+#             state = await env.reset()
+#             step = 0
+
+#             while True:
+#                 action = env.action_space.sample()
+                
+#                 new_state, reward, done, _ = await env.step(action, step)
+#                 print(f"Episode {episode + 1} | Step {step}: Action -> {action} | Reward -> {reward}")
+                
+#                 # Optional: send state/reward/done back to client if needed
+#                 # message = {
+#                 #     "state": {
+#                 #         "helicopter_coord": list(new_state['helicopter_coord']),
+#                 #         "cells": new_state['cells'].tolist()
+#                 #     },
+#                 #     "reward": float(reward),
+#                 #     "done": bool(done)
+#                 # }
+#                 # await websocket.send(json.dumps(message))
+
+#                 if done:
+#                     print(f"Episode {episode + 1} finished after {step + 1} steps.")
+#                     break
+
+#                 step += 1
+
+#             episode += 1
+
+#     except websockets.exceptions.ConnectionClosedOK:
+#         print("Client disconnected gracefully.")
+
+#     except websockets.exceptions.ConnectionClosedError as e:
+#         print(f"WebSocket closed with error: {e}")
+
+#     except Exception as e:
+#         print(f"Unexpected error: {e}")
+
+#     finally:
+#         print("Shutting down environment...")
+#         env.close()
 
 # Start the WebSocket server
 start_server = websockets.serve(websocket_handler, "localhost", 8765)

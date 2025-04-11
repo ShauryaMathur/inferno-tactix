@@ -84,16 +84,19 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
       // Parse the message from the server (assuming it's a JSON string)
       const message = JSON.parse(event.data);
       const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
-      console.log('Time: ',this.time);
+      console.log(action, helicopter_coord);
+      
       // Handle different actions from the server
       if (action === 'reset') {
         // If the action is 'reset', call the restart function
         // let animationFrameId = requestAnimationFrame(this.rafCallback);
         // cancelAnimationFrame(animationFrameId)
         this.restart();
-        this.setSpark(0, 120000-1, 80000-1);
+        // this.reload()
+        // this.load(presetConfig)
+        this.setSpark(0, 60000-1, 40000-1);
         this.start();
-        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
+        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
         
         const response ={
           "cells":JSON.stringify(cells2D),
@@ -107,13 +110,16 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
         // this.tick(10)
       } else if (action === '4') {
         // If the action is 4, set the helicopter coordinates
+        console.log(helicopter_coord);
         if (helicopter_coord) {
           
           let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
           let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
-
+          console.log(canvas_x, canvas_y);
+          
           this.setHelitackPoint(canvas_x-1, canvas_y-1);
-          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [0], this.gridWidth, this.gridHeight);
+          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+          console.log(cells2D);
           
           this.socket.send(JSON.stringify({
             "cells":JSON.stringify(cells2D),
@@ -429,16 +435,12 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
         }else{
           return 0
         }
-
-        
       });
       grid.push(rowIgnitionTimes);
     }
   
     return grid;
   }
-  
-  
 
   @action.bound public tick(timeStep: number) {
 
@@ -449,8 +451,6 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
         this.simulationRunning = false;
         console.log(timeStep);
         console.log(this.time);
-        
-        
       }
     }
 
