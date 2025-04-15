@@ -17,7 +17,7 @@ def main():
     print("Checked env")
     # Train the agent
     model = DQN("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=1000)
 
     # Save model
     model.save("ppo_firefighter")

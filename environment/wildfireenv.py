@@ -7,6 +7,8 @@ from gym import spaces
 import plotly.graph_objects as go
 import numpy as np
 
+EPISODES = 5
+MAX_TIMESTEPS = 1000
 
 # Custom JSON encoder to handle NumPy types
 class NumpyEncoder(json.JSONEncoder):
@@ -51,7 +53,7 @@ class FireSimulationGymEnv(gym.Env):
         self.state = {
             'helicopter_coord': (0, 0), 
             'cells': np.zeros((240, 160)),
-            'done': False,
+            'done': 0,
             'cellsBurning': 0,
             'cellsBurnt': 0
         }
@@ -73,8 +75,8 @@ class FireSimulationGymEnv(gym.Env):
             reset_message = json.dumps({"action": "reset"})
             asyncio.create_task(self.websocket.send(reset_message))
             print("Reset message sent to frontend")
-        new_state = await self.wait_for_client_update()
-        self.state['cells'] = new_state['cells']
+        self.state = await self.wait_for_client_update()
+        # self.state['cells'] = new_state['cells']
 
         # Return the initial state (observation)
         return self.state
@@ -129,7 +131,9 @@ class FireSimulationGymEnv(gym.Env):
         # Wait for the client to send back the updated cells
         self.state = await self.wait_for_client_update()
 
-        reward += (192000 - 15*self.state['cellsBurning'] - 6*self.state['cellsBurnt'])/38400
+        # reward += (192000 - 15*self.state['cellsBurning'] - 6*self.state['cellsBurnt'])/38400
+        reward += 20*self.state['quenchedCells']
+
         # print(self.state)
 
         # print(self.state['cells'], type(self.state['cells']))
@@ -138,7 +142,9 @@ class FireSimulationGymEnv(gym.Env):
         #     self.plotHeatmap()
 
         # Return the combined state, reward, and done flag
-        
+        # print(self.state)
+        if stepcount == MAX_TIMESTEPS:
+            self.state['done'] = 1
         return self.state, reward, self.state['done'], {}
 
     async def wait_for_client_update(self):
@@ -166,7 +172,9 @@ class FireSimulationGymEnv(gym.Env):
             new_state = {
                     **self.state,
                     **client_state,
-                    'cells': np.array(cells_list) 
+                    'cells': np.array(cells_list) ,
+                    'done': 1 if client_state['done'] else 0,
+                    'quenchedCells':client_state['quenchedCells']
                     }
             return new_state
 
@@ -178,16 +186,15 @@ class FireSimulationGymEnv(gym.Env):
 
 
 async def websocket_handler(websocket, path):
-    # Create Gym environment
     env = FireSimulationGymEnv()
-    env.websocket = websocket  # Assign the WebSocket to the environment
+    env.websocket = websocket 
 
     try:
         
-        for episodes in range(5):
-            # Reset environment when starting
+        for episode in range(EPISODES):
+            print(f"\nStarting Episode {episode + 1}")
             initial_state = await env.reset()
-            for step in range(500):  # Run 100 steps
+            for step in range(MAX_TIMESTEPS):  # Run 100 steps
                 # Automatically pick a discrete action from the action space
                 action = env.action_space.sample()  # Random action from the action space
                 print(f"Chosen action at step {step}: {action}")
@@ -209,67 +216,68 @@ async def websocket_handler(websocket, path):
                 # await websocket.send(json.dumps(message, cls=NumpyEncoder))
 
                 if done:
-                    print("Episode finished!")
+                    print(f"Episode {episode + 1} finished!")
                     break
             
 
     except websockets.exceptions.ConnectionClosedOK:
         print("Connection closed")
 
-# async def websocket_handler(websocket, path):
-#     print("Client connected!")
+async def training_websocket_handler(websocket, path):
+    print("Client connected!")
     
-#     # Create Gym environment
-#     env = FireSimulationGymEnv()
-#     env.websocket = websocket  # Assign the WebSocket to the environment
+    # Create Gym environment
+    env = FireSimulationGymEnv()
+    env.websocket = websocket  # Assign the WebSocket to the environment
 
-#     try:
-#         episode = 0
-#         while True:  # Run indefinitely until client disconnects
-#             print(f"\nStarting Episode {episode + 1}")
-#             state = await env.reset()
-#             step = 0
+    try:
+        episode = 0
+        while True:  # Run indefinitely until client disconnects
+            print(f"\nStarting Episode {episode + 1}")
+            state = await env.reset()
+            step = 0
 
-#             while True:
-#                 action = env.action_space.sample()
+            while True:
+                action = env.action_space.sample()
                 
-#                 new_state, reward, done, _ = await env.step(action, step)
-#                 print(f"Episode {episode + 1} | Step {step}: Action -> {action} | Reward -> {reward}")
+                new_state, reward, done, _ = await env.step(action, step)
+                print(f"Episode {episode + 1} | Step {step}: Action -> {action} | Reward -> {reward}")
                 
-#                 # Optional: send state/reward/done back to client if needed
-#                 # message = {
-#                 #     "state": {
-#                 #         "helicopter_coord": list(new_state['helicopter_coord']),
-#                 #         "cells": new_state['cells'].tolist()
-#                 #     },
-#                 #     "reward": float(reward),
-#                 #     "done": bool(done)
-#                 # }
-#                 # await websocket.send(json.dumps(message))
+                # Optional: send state/reward/done back to client if needed
+                # message = {
+                #     "state": {
+                #         "helicopter_coord": list(new_state['helicopter_coord']),
+                #         "cells": new_state['cells'].tolist()
+                #     },
+                #     "reward": float(reward),
+                #     "done": bool(done)
+                # }
+                # await websocket.send(json.dumps(message))
 
-#                 if done:
-#                     print(f"Episode {episode + 1} finished after {step + 1} steps.")
-#                     break
+                if done:
+                    print(f"Episode {episode + 1} finished after {step + 1} steps.")
+                    break
 
-#                 step += 1
+                step += 1
 
-#             episode += 1
+            episode += 1
 
-#     except websockets.exceptions.ConnectionClosedOK:
-#         print("Client disconnected gracefully.")
+    except websockets.exceptions.ConnectionClosedOK:
+        print("Client disconnected gracefully.")
 
-#     except websockets.exceptions.ConnectionClosedError as e:
-#         print(f"WebSocket closed with error: {e}")
+    except websockets.exceptions.ConnectionClosedError as e:
+        print(f"WebSocket closed with error: {e}")
 
-#     except Exception as e:
-#         print(f"Unexpected error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
-#     finally:
-#         print("Shutting down environment...")
-#         env.close()
+    finally:
+        print("Shutting down environment...")
+        env.close()
 
 # Start the WebSocket server
-start_server = websockets.serve(websocket_handler, "localhost", 8765)
+MODE = 'training'
+start_server = websockets.serve(training_websocket_handler if MODE == 'training' else websocket_handler, "localhost", 8765)
 
 print("WebSocket server started on ws://localhost:8765")
 

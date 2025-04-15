@@ -17,14 +17,12 @@ class FireEnvSyncWrapper(gym.Env):
         self.action_space = env.action_space
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=0, high=240, shape=(2,), dtype=np.int32),
-            'cells': spaces.Box(low=0, high=1000, shape=(240, 160), dtype=np.float32),
-            'cellsBurning': spaces.Discrete(40000),
-            'cellsBurnt': spaces.Discrete(40000),
-            'done': spaces.Discrete(2)
+            'cells': spaces.Box(low=0, high=500, shape=(240, 160), dtype=np.float32)
         })
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._start_loop, daemon=True)
         self.thread.start()
+        self.step_count = 0
 
     def _start_loop(self):
         asyncio.set_event_loop(self.loop)
@@ -38,9 +36,9 @@ class FireEnvSyncWrapper(gym.Env):
         return state
 
     def step(self, action):
-        global step_count
-        step_count += 1
-        state, reward, done, info = self._run_async(self._async_env.step(action, step_count))
+        self.step_count += 1
+
+        state, reward, done, info = self._run_async(self._async_env.step(action, self.step_count))
         return state, reward, done, info
 
     def close(self):

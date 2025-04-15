@@ -79,64 +79,95 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     // WebSocket message handler
     this.socket.onmessage = (event) => {
       // Log the received message for debugging
-      console.log('Received message:', event.data);
+      // console.log('Received message:', event.data);
 
       // Parse the message from the server (assuming it's a JSON string)
       const message = JSON.parse(event.data);
       const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
-      console.log(action, helicopter_coord);
+      // console.log(action, helicopter_coord);
       
       // Handle different actions from the server
       if (action === 'reset') {
+        // debugger;
         // If the action is 'reset', call the restart function
         // let animationFrameId = requestAnimationFrame(this.rafCallback);
         // cancelAnimationFrame(animationFrameId)
-        this.restart();
-        // this.reload()
         // this.load(presetConfig)
-        this.setSpark(0, 60000-1, 40000-1);
-        this.start();
-        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+        // this.restart();
+        this.reload()
+
+        this.dataReadyPromise.then(()=>{
+          this.setSpark(0, 60000-1, 40000-1);
+          // this.dataReady = true
+          this.start();
+          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+          
+          const response ={
+            "cells":JSON.stringify(cells2D),
+            "done":false,
+            "cellsBurning": 0,
+            "cellsBurnt": 0,
+            "quenchedCells":0
+          }
+          // console.log(response);
+          this.socket.send(JSON.stringify(response));
+          console.log(this.engine?.fireDidStop);
+        }).catch(error => {
+          console.error("Error loading simulation data:", error);
+        });
         
-        const response ={
-          "cells":JSON.stringify(cells2D),
-          "done":false,
-          "cellsBurning": 0,
-          "cellsBurnt": 0
-        }
-        console.log(response);
-        this.socket.send(JSON.stringify(response));
+        // debugger;
+        
+        
         // this.gymAllowedContinue = true
         // this.tick(10)
       } else if (action === '4') {
         // If the action is 4, set the helicopter coordinates
-        console.log(helicopter_coord);
+
         if (helicopter_coord) {
           
           let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
           let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
-          console.log(canvas_x, canvas_y);
-          
-          this.setHelitackPoint(canvas_x-1, canvas_y-1);
+          // console.log(canvas_x, canvas_y);
+          // console.log('Booleans Before',this.engine?.fireDidStop,this.simulationRunning,this.simulationStarted);
+          const quenchedCells = this.setHelitackPoint(canvas_x-1, canvas_y-1);
           const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-          console.log(cells2D);
-          
-          this.socket.send(JSON.stringify({
+          // console.log(cells2D);
+          // console.log('Booleans',this.engine?.fireDidStop,this.simulationRunning,this.simulationStarted);
+          const cellsBurning = this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length
+          let done = false
+          if ((!this.simulationRunning && this.engine?.fireDidStop) || (cellsBurning === 0)){
+            done = true
+          }
+          const response = {
             "cells":JSON.stringify(cells2D),
-            "done":this.engine?.fireDidStop,
-            "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
-            "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length
-          }));
+            "done": done ,
+            // "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
+            "cellsBurning": cellsBurning,
+            "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length,
+            "quenchedCells": quenchedCells
+          }
+          // console.log(response);
+          try{
+            this.socket.send(JSON.stringify(response));
+          }catch(e){
+            console.log(e);
+          }
         } 
       } else {
 
         const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-        
+        const cellsBurning = this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length
+          let done = false
+          if ((!this.simulationRunning && this.engine?.fireDidStop) || (cellsBurning === 0)){
+            done = true
+          }
         this.socket.send(JSON.stringify({
           "cells":JSON.stringify(cells2D),
-          "done":this.simulationRunning && this.engine?.fireDidStop,
-          "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
-          "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length
+          "done":done,
+          "cellsBurning": this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length,
+          "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length,
+          "quenchedCells":0
         }));
       }
       
@@ -229,9 +260,9 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
 
   @action.bound public setInputParamsFromConfig() {
     const config = this.config;
-    console.log(config);
+
     this.zones = config.zones.map(options => new Zone(options));
-    console.log(this.zones);
+    
     if (config.zonesCount) {
       this.zones.length = config.zonesCount;
     }
@@ -366,7 +397,10 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     this.restart();
     // Reset user-controlled properties too.
     this.setInputParamsFromConfig();
+    // this.load(presetConfig)
+    // debugger;
     this.populateCellsData();
+    // debugger;
   }
 
   @action.bound public rafCallback(time: number) {
@@ -460,7 +494,7 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     // console.log(this.time,this.engine);
     // let burntCells = this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt)
     // let burningCells = this.engine?.cells
-    const index = getGridIndexForLocation(204, 78, this.gridWidth)
+    // const index = getGridIndexForLocation(204, 78, this.gridWidth)
     // console.log(this.time,this.cells[index]);
     
     
@@ -605,6 +639,7 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     const startGridY = Math.floor(py / this.config.cellSize);
     const cell = this.cells[getGridIndexForLocation(startGridX, startGridY, this.gridWidth)];
     const radius = Math.round(this.config.helitackDropRadius / this.config.cellSize);
+    let quenchedCells = 0
     for (let x = cell.x - radius; x < cell.x + radius; x++) {
       for (let y = cell.y - radius ; y <= cell.y + radius; y++) {
         if ((x - cell.x) * (x - cell.x) + (y - cell.y) * (y - cell.y) <= radius * radius) {
@@ -614,12 +649,16 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
             const targetCell = this.cells[getGridIndexForLocation(nextCellX, nextCellY, this.gridWidth)];
             targetCell.helitackDropCount++;
             targetCell.ignitionTime = Infinity;
-            if (targetCell.fireState === FireState.Burning) targetCell.fireState = FireState.Unburnt;
+            if (targetCell.fireState === FireState.Burning) {
+              targetCell.fireState = FireState.Unburnt;
+              quenchedCells++
+            }
           }
         }
       }
     }
     this.lastHelitackTimestamp = this.time;
+    return quenchedCells
   }
 
   @action.bound public setWindDirection(direction: number) {
