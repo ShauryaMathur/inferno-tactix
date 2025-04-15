@@ -159,12 +159,14 @@ export class FireEngine {
     const newIgnitionData: number[] = [];
     const newFireStateData: FireState[] = [];
     // Start with assumption that fire stopped.
+    // debugger;
     this.fireDidStop = true;
 
     for (let i = 0; i < numCells; i++) {
       const cell = this.cells[i];
       if (cell.isBurningOrWillBurn) {
         this.fireDidStop = false; // fire still going on
+        // debugger;
       }
       const ignitionTime = cell.ignitionTime;
       if (cell.fireState === FireState.Burning && time - ignitionTime > cell.burnTime) {
@@ -214,7 +216,7 @@ export class FireEngine {
         }
       }
     }
-
+    // debugger;
     for (let i = 0; i < numCells; i++) {
       if (newFireStateData[i] !== undefined) {
         this.cells[i].fireState = newFireStateData[i];

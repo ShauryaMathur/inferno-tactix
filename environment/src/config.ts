@@ -118,7 +118,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   zones: [
     {
       terrainType: TerrainType.Plains,
-      vegetation: Vegetation.Grass,
+      vegetation: Vegetation.Forest,
       droughtLevel: DroughtLevel.MildDrought
     },
     {
@@ -127,7 +127,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
       droughtLevel: DroughtLevel.MildDrought
     },
     {
-      terrainType: TerrainType.Plains,
+      terrainType: TerrainType.Mountains,
       vegetation: Vegetation.Forest,
       droughtLevel: DroughtLevel.MildDrought
     }
