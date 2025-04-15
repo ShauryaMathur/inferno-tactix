@@ -17,7 +17,9 @@ class FireEnvSyncWrapper(gym.Env):
         self.action_space = env.action_space
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=0, high=240, shape=(2,), dtype=np.int32),
-            'cells': spaces.Box(low=0, high=500, shape=(240, 160), dtype=np.float32)
+            # 'cells': spaces.Box(low=0, high=500, shape=(240, 160), dtype=np.float32),
+            'cells': spaces.Box(low=0, high=8, shape=(240,160), dtype=np.int32),
+            'on_fire':spaces.Discrete(2)
         })
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._start_loop, daemon=True)

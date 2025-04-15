@@ -55,7 +55,8 @@ class FireSimulationGymEnv(gym.Env):
             'cells': np.zeros((240, 160)),
             'done': 0,
             'cellsBurning': 0,
-            'cellsBurnt': 0
+            'cellsBurnt': 0,
+            'prevBurntCells': 0
         }
         
         self.websocket = None  # Will be assigned when connecting
@@ -99,9 +100,9 @@ class FireSimulationGymEnv(gym.Env):
             heli_x += 5
         elif action == 4:  # 'Helitack' - Perform heli attack
             print(f"Helitack performed at ({heli_x}, {heli_y})")
-            reward -= 4  # Reward for performing heli attack
+            # reward -= 4  # Reward for performing heli attack
 
-        reward -= 1
+        # reward -= 1
         # Clip helicopter coordinates to stay within the grid limits (240x160)
         heli_x = np.clip(heli_x, 10, 239)  # x should be between 0 and 239
         heli_y = np.clip(heli_y, 10, 159)  # y should be between 0 and 159
@@ -128,11 +129,12 @@ class FireSimulationGymEnv(gym.Env):
             await self.websocket.send(action_message)
             # print(f"Step message sent to frontend: {action_message}")
 
+        self.state['prevBurntCells'] = self.state['cellsBurnt']
         # Wait for the client to send back the updated cells
         self.state = await self.wait_for_client_update()
 
         # reward += (192000 - 15*self.state['cellsBurning'] - 6*self.state['cellsBurnt'])/38400
-        reward += 20*self.state['quenchedCells']
+        reward += self.compute_reward(self.state['prevBurntCells'], self.state['cellsBurnt'], self.state['cellsBurning'], self.state['quenchedCells'])
 
         # print(self.state)
 
@@ -146,6 +148,27 @@ class FireSimulationGymEnv(gym.Env):
         if stepcount == MAX_TIMESTEPS:
             self.state['done'] = 1
         return self.state, reward, self.state['done'], {}
+    
+    def compute_reward(self,prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
+        """
+        Compute reward for current step based on fire status.
+
+        :param prev_burnt: int - Number of burnt cells in previous step
+        :param curr_burnt: int - Number of burnt cells in current step
+        :param curr_burning: int - Number of currently burning cells
+        :param extinguished_by_helitack: int - Number of cells extinguished this step
+        :return: float - Calculated reward
+        """
+        newly_burnt = curr_burnt - prev_burnt
+
+        reward = 0
+
+        reward += extinguished_by_helitack * 10        # reward for extinguishing
+        reward -= newly_burnt * 5                      # penalty for fire spread
+        reward -= curr_burning * 1                     # penalty for ongoing fires
+        reward -= 0.1                                  # step penalty
+
+        return reward
 
     async def wait_for_client_update(self):
         """
@@ -171,10 +194,12 @@ class FireSimulationGymEnv(gym.Env):
 
             new_state = {
                     **self.state,
-                    **client_state,
                     'cells': np.array(cells_list) ,
                     'done': 1 if client_state['done'] else 0,
-                    'quenchedCells':client_state['quenchedCells']
+                    'quenchedCells':client_state['quenchedCells'],
+                    'cellsBurning':client_state['cellsBurning'],
+                    'cellsBurnt':client_state['cellsBurnt'],
+                    'on_fire':1 if client_state['on_fire'] else 0
                     }
             return new_state
 
