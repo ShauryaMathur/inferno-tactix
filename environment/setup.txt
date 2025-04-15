@@ -1,0 +1,2 @@
+watchmedo auto-restart --patterns="*.py" --recursive -- python train.py
+npm start

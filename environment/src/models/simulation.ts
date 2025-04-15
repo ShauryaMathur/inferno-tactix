@@ -1,6 +1,6 @@
 import { action, computed, observable, makeObservable } from "mobx";
 import { IWindProps, Town } from "../types";
-import {  Cell, CellOptions, FireState } from "./cell";
+import {  BurnIndex, Cell, CellOptions, FireState } from "./cell";
 import { getDefaultConfig, ISimulationConfig, getUrlConfig } from "../config";
 import { Vector2 } from "three";
 import { getElevationData, getRiverData, getUnburntIslandsData, getZoneIndex } from "./utils/data-loaders";
@@ -72,122 +72,122 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     this.load(presetConfig);
 
     // WebSocket connection open handler
+    this.connectSocket(); // Connect socket when the model is created   
+}
+
+  // Method to establish WebSocket connection
+  private connectSocket() {
+    this.socket = new WebSocket("ws://localhost:8765");
+
     this.socket.onopen = () => {
-      console.log('Connected to the WebSocket server');
+      console.log("Connected to the WebSocket server");
     };
 
-    // WebSocket message handler
     this.socket.onmessage = (event) => {
-      // Log the received message for debugging
-      // console.log('Received message:', event.data);
-
-      // Parse the message from the server (assuming it's a JSON string)
       const message = JSON.parse(event.data);
-      const { action, helicopter_coord } = message; // Destructure the relevant fields from the message
-      // console.log(action, helicopter_coord);
-      
-      // Handle different actions from the server
-      if (action === 'reset') {
-        // debugger;
-        // If the action is 'reset', call the restart function
-        // let animationFrameId = requestAnimationFrame(this.rafCallback);
-        // cancelAnimationFrame(animationFrameId)
-        // this.load(presetConfig)
-        // this.restart();
-        this.reload()
+      const { action, helicopter_coord } = message;
 
-        this.dataReadyPromise.then(()=>{
-          this.setSpark(0, 60000-1, 40000-1);
-          // this.dataReady = true
-          this.start();
-          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-          
-          const response ={
-            "cells":JSON.stringify(cells2D),
-            "done":false,
-            "cellsBurning": 0,
-            "cellsBurnt": 0,
-            "quenchedCells":0
-          }
-          // console.log(response);
-          this.socket.send(JSON.stringify(response));
-          console.log(this.engine?.fireDidStop);
-        }).catch(error => {
-          console.error("Error loading simulation data:", error);
-        });
-        
-        // debugger;
-        
-        
-        // this.gymAllowedContinue = true
-        // this.tick(10)
-      } else if (action === '4') {
-        // If the action is 4, set the helicopter coordinates
-
-        if (helicopter_coord) {
-          
-          let canvas_x = (helicopter_coord[0] / 240) * (120000-1) 
-          let canvas_y = (helicopter_coord[1] / 160) * (80000-1)
-          // console.log(canvas_x, canvas_y);
-          // console.log('Booleans Before',this.engine?.fireDidStop,this.simulationRunning,this.simulationStarted);
-          const quenchedCells = this.setHelitackPoint(canvas_x-1, canvas_y-1);
-          const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-          // console.log(cells2D);
-          // console.log('Booleans',this.engine?.fireDidStop,this.simulationRunning,this.simulationStarted);
-          const cellsBurning = this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length
-          let done = false
-          if ((!this.simulationRunning && this.engine?.fireDidStop) || (cellsBurning === 0)){
-            done = true
-          }
-          const response = {
-            "cells":JSON.stringify(cells2D),
-            "done": done ,
-            // "cellsBurning": Object.values(this.engine?.burnedCellsInZone as { [key: string]: number; } ?? {}).reduce((sum, value) => sum + value, 0),
-            "cellsBurning": cellsBurning,
-            "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length,
-            "quenchedCells": quenchedCells
-          }
-          // console.log(response);
-          try{
-            this.socket.send(JSON.stringify(response));
-          }catch(e){
-            console.log(e);
-          }
-        } 
+      if (action === "reset") {
+        this.handleReset();
+      } else if (action === "4") {
+        this.handleHelicopterMovement(helicopter_coord);
       } else {
-
-        const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-        const cellsBurning = this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length
-          let done = false
-          if ((!this.simulationRunning && this.engine?.fireDidStop) || (cellsBurning === 0)){
-            done = true
-          }
-        this.socket.send(JSON.stringify({
-          "cells":JSON.stringify(cells2D),
-          "done":done,
-          "cellsBurning": this.engine?.cells.filter(cell => cell.fireState === FireState.Burning).length,
-          "cellsBurnt": this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt).length,
-          "quenchedCells":0
-        }));
+        this.handleOtherActions(helicopter_coord);
       }
-      
-      // Allow further actions in the simulation (if any)
       this.gymAllowedContinue = true;
-
-      // Optionally, request the next animation frame to continue the simulation
       requestAnimationFrame(this.rafCallback);
     };
 
-    // Handle WebSocket error
     this.socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
     };
 
-    // Handle WebSocket close event
     this.socket.onclose = () => {
-      console.log('Disconnected from WebSocket server');
+      console.log("Disconnected from WebSocket server");
     };
-}
+  }
+
+  // Reset handler when receiving 'reset' action
+  @action
+  private handleReset() {
+    this.reload();
+    this.dataReadyPromise.then(() => {
+      this.setSpark(0, 60000 - 1, 40000 - 1);
+      this.start();
+      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+
+      const response = {
+        cells: JSON.stringify(cells2D),
+        done: false,
+        cellsBurning: 0,
+        cellsBurnt: 0,
+        quenchedCells: 0,
+        on_fire: false
+      };
+
+      this.socket?.send(JSON.stringify(response));
+    }).catch((error) => {
+      console.error("Error loading simulation data:", error);
+    });
+  }
+
+  // Helicopter movement handling
+  @action
+  private handleHelicopterMovement(helicopter_coord: number[]) {
+    if (helicopter_coord) {
+      let canvas_x = (helicopter_coord[0] / 240) * (120000 - 1);
+      let canvas_y = (helicopter_coord[1] / 160) * (80000 - 1);
+      const quenchedCells = this.setHelitackPoint(canvas_x - 1, canvas_y - 1);
+      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+      const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
+      let done = false;
+      if ((!this.simulationRunning && this.engine?.fireDidStop) || cellsBurning === 0) {
+        done = true;
+      }
+      let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
+      const response = {
+        cells: JSON.stringify(cells2D),
+        done,
+        cellsBurning,
+        cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
+        quenchedCells,
+        on_fire
+      };
+
+      try {
+        this.socket?.send(JSON.stringify(response));
+      } catch (e) {
+        console.log(e);
+      }
+    }
+  }
+
+  // Handle other socket actions
+  @action
+  private handleOtherActions(helicopter_coord: number[]) {
+    const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+    const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
+    const done = !this.simulationRunning && this.engine?.fireDidStop;
+    let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
+    this.socket?.send(
+      JSON.stringify({
+        cells: JSON.stringify(cells2D),
+        done,
+        cellsBurning,
+        cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
+        quenchedCells: 0,
+        on_fire
+      })
+    );
+  }
+
+  // Cleanup method to close the socket when no longer needed
+  @action
+  public cleanup() {
+    if (this.socket) {
+      this.socket.close();
+    }
+  }
 
   @computed public get ready() {
     return this.dataReady && this.sparks.length > 0;
@@ -476,6 +476,36 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     return grid;
   }
 
+  /**
+ * Generates a 2D fire status map from a flat list of cells.
+ * Each cell encodes both fire state and burn index as:
+ * fire_status = fireState * 3 + burnIndex
+ */
+@action.bound
+private generateFireStatusMapFromCells(cells: any[], width: number, height: number): number[][] {
+  const fireStatusMap: number[][] = [];
+
+  for (let row = 0; row < height; row++) {
+    const start = row * width;
+    const end = start + width;
+
+    const rowData = cells.slice(start, end).map(cell => {
+      const fireState = cell.fireState ?? FireState.Unburnt;
+      const burnIndex = cell.burnIndex ?? BurnIndex.Low;
+      return fireState * 3 + burnIndex;
+    });
+
+    fireStatusMap.push(rowData);
+  }
+
+  return fireStatusMap;
+}
+@action.bound
+private isHelicopterOnFire(fireStatusMap: number[][], x: number, y: number): boolean {
+  const fireStatus = fireStatusMap[y][x];
+  const fireState = Math.floor(fireStatus / 3);
+  return fireState === FireState.Burning;
+}
   @action.bound public tick(timeStep: number) {
 
     if (this.engine) {
