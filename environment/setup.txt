@@ -1,2 +1,3 @@
+source /Users/shauryamathur/.pyenv/versions/3.8.18/envs/myenv/bin/activate
 watchmedo auto-restart --patterns="*.py" --recursive -- python train.py
 npm start

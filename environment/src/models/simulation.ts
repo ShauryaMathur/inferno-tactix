@@ -64,7 +64,8 @@ export class SimulationModel {
   @observable public cellsElevationFlag = 0;
 
  // Create a new WebSocket object
-private socket = new WebSocket('ws://localhost:8765');
+//  private socket = new WebSocket('ws://localhost:8765');
+private socket: WebSocket | null = null;
 
 // WebSocket Event Handlers
 constructor(presetConfig: Partial<ISimulationConfig>) {
@@ -75,61 +76,88 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     this.connectSocket(); // Connect socket when the model is created   
 }
 
-  // Method to establish WebSocket connection
-  private connectSocket() {
-    this.socket = new WebSocket("ws://localhost:8765");
-
-    this.socket.onopen = () => {
-      console.log("Connected to the WebSocket server");
-    };
-
-    this.socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      const { action, helicopter_coord } = message;
-
-      if (action === "reset") {
-        this.handleReset();
-      } else if (action === "4") {
-        this.handleHelicopterMovement(helicopter_coord);
-      } else {
-        this.handleOtherActions(helicopter_coord);
-      }
-      this.gymAllowedContinue = true;
-      requestAnimationFrame(this.rafCallback);
-    };
-
-    this.socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    this.socket.onclose = () => {
-      console.log("Disconnected from WebSocket server");
-    };
+private connectSocket() {
+  if (this.socket && this.socket.readyState === 1) {
+    console.log("🔁 WebSocket already connected.");
+    return;
   }
+
+  this.socket = new WebSocket("ws://localhost:8765");
+  console.log("🌐 Connecting to WebSocket server...");
+
+  this.socket.onopen = () => {
+    console.log("✅ Connected to the WebSocket server");
+    console.log('Socket', this.socket);
+    
+    this.socket?.send(JSON.stringify({ type: "ping" }));
+  };
+
+  this.socket.onmessage = (event) => {
+    console.log("🔥 Received from Python:", event.data);
+    const message = JSON.parse(event.data);
+    const { action, helicopter_coord } = message;
+
+    if (action === "reset") {
+      this.handleReset();
+    } else if (action === "4") {
+      this.handleHelicopterMovement(helicopter_coord);
+    } else {
+      this.handleOtherActions(helicopter_coord);
+    }
+
+    this.gymAllowedContinue = true;
+    requestAnimationFrame(this.rafCallback);
+  };
+
+  this.socket.onerror = (err) => {
+    console.error("❌ WebSocket error:", err);
+  };
+
+  this.socket.onclose = (e) => {
+    console.warn("⚠️ WebSocket closed. Attempting reconnect in 1s...");
+    // setTimeout(() => this.connectSocket(), 1000); // ⬅️ auto-reconnect logic
+  };
+}
+
+  
 
   // Reset handler when receiving 'reset' action
   @action
-  private handleReset() {
+  private async handleReset() {
+    console.log('HANDLE RESET IS GETTING CALLED');
+    
     this.reload();
-    this.dataReadyPromise.then(() => {
-      this.setSpark(0, 60000 - 1, 40000 - 1);
-      this.start();
-      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
 
-      const response = {
-        cells: JSON.stringify(cells2D),
-        done: false,
-        cellsBurning: 0,
-        cellsBurnt: 0,
-        quenchedCells: 0,
-        on_fire: false
-      };
+    await this.dataReadyPromise;
+    this.setSpark(0, 60000 - 1, 40000 - 1);
+    this.start();
+    const cells2D = this.generateFireStatusMapFromCells(
+      this.engine?.cells ?? [],
+      this.gridWidth,
+      this.gridHeight
+    );
 
+    const response = {
+      cells: JSON.stringify(cells2D),
+      done: false,
+      cellsBurning: 0,
+      cellsBurnt: 0,
+      quenchedCells: 0,
+      on_fire: false
+    };
+
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log("🧩 React socket object:", this.socket);
+
+      await new Promise(res => setTimeout(res, 100));
       this.socket?.send(JSON.stringify(response));
-    }).catch((error) => {
-      console.error("Error loading simulation data:", error);
-    });
+
+      console.log("✅ Reset response sent");
+    } else {
+      console.warn("❌ Socket not open on reset");
+    }
   }
+
 
   // Helicopter movement handling
   @action
@@ -155,7 +183,11 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
       };
 
       try {
-        this.socket?.send(JSON.stringify(response));
+        if (this.socket?.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify(response));
+          console.log("✅ Step response sent (action 4)");
+        }
+
       } catch (e) {
         console.log(e);
       }
@@ -169,16 +201,19 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
     const done = !this.simulationRunning && this.engine?.fireDidStop;
     let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
-    this.socket?.send(
-      JSON.stringify({
-        cells: JSON.stringify(cells2D),
-        done,
-        cellsBurning,
-        cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
-        quenchedCells: 0,
-        on_fire
-      })
-    );
+    const response = {
+      cells: JSON.stringify(cells2D),
+      done,
+      cellsBurning,
+      cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
+      quenchedCells: 0,
+      on_fire
+    };
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(response));
+      console.log("✅ Step response sent");
+    }
+    
   }
 
   // Cleanup method to close the socket when no longer needed
