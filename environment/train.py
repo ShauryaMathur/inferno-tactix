@@ -1,37 +1,61 @@
+import asyncio
+from ws_server import start_ws_server, get_client_ws
 from wildfireenv import FireSimulationGymEnv
 from infernoenv import FireEnvSyncWrapper
-
-from stable_baselines3 import DQN,PPO
+from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 
-def main():
-    print("Starting training...")
-    # Create the async env
-    async_env = FireSimulationGymEnv()
-    print("Created async env",async_env)
-    # Wrap it
-    env = FireEnvSyncWrapper(async_env)
-    print("Wrapped env",env)
-    # Optional sanity check
-    check_env(env, warn=True)
-    print("Checked env")
-    # Train the agent
-    # model = DQN("MlpPolicy", env, verbose=1)
-    model = PPO(
-    "MlpPolicy", 
-    env, 
-    verbose=1,
-    learning_rate=3e-4,
-    n_steps=2048,
-    batch_size=64,
-    gae_lambda=0.95,
-    gamma=0.99,
-    ent_coef=0.01,
-)
-    model.learn(total_timesteps=1000)
+msg_queue = asyncio.Queue()
 
-    # Save model
+
+async def main():
+    # 1. Start WebSocket server (React will connect here)
+    await start_ws_server(msg_queue)
+    print("🧠 Waiting for React to connect...")
+    websocket = await get_client_ws(msg_queue)
+    print(f"🧩 [train.py] Got websocket id: {id(websocket)}")
+
+   # Wait for the WebSocket to be ready
+    if websocket and websocket.open:
+        print("WebSocket is already connected!")
+    else:
+        while websocket is None or not websocket.open:
+            print("Waiting for WebSocket connection...")
+            await asyncio.sleep(0.5)
+
+
+    # 2. Create env with shared websocket
+    print("🔄 Creating asynchronous environment...", flush=True)
+    loop = asyncio.get_running_loop()
+    
+    print("Loop from train.py:", loop)
+    await asyncio.sleep(0.5)
+
+    
+    async_env = FireSimulationGymEnv(websocket=websocket, loop=loop,msg_queue=msg_queue)
+    await async_env._init_async_fields()
+
+    env = FireEnvSyncWrapper(async_env)
+    
+    # Add explicit flush after each print to ensure output is visible
+    print("🧪 Beginning environment check...", flush=True)
+    print("WebSocket is open:", websocket.open)
+
+    # print("🚨 Manually calling reset() for debugging")
+    # observation, info = await env.reset(seed=0)  # Call reset() directly
+    # print("✅ Reset completed:", observation)
+
+    check_env(env)
+    print("✅ Environment check completed successfully!", flush=True)
+    
+    print("🎉 Environment created and verified.", flush=True)
+    
+    # 3. Train PPO agent
+    print("🚀 Starting training...", flush=True)
+    model = PPO("MultiInputPolicy", env, verbose=1)
+    model.learn(total_timesteps=1000)
     model.save("ppo_firefighter")
+    print("✅ Training complete and model saved.", flush=True)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

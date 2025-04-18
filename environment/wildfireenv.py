@@ -1,16 +1,11 @@
 import numpy as np
 import asyncio
-import websockets
 import json
-import gym
-from gym import spaces
-import plotly.graph_objects as go
-import numpy as np
+import websockets
+import gymnasium as gym
+from gymnasium import spaces
 
-EPISODES = 5
 MAX_TIMESTEPS = 1000
-
-# Custom JSON encoder to handle NumPy types
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -22,133 +17,128 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 class FireSimulationGymEnv(gym.Env):
+    def __init__(self, websocket=None, loop=None, msg_queue=None):
+        super().__init__()
+        self.websocket = websocket
+        self.loop = loop or asyncio.get_event_loop()
+        self.msg_queue = msg_queue
+        self._reader_task_running = False
 
-    def plotHeatmap(self):
-        
-        fig = go.Figure(data=go.Heatmap(
-                        z=self.state['cells'],
-                        colorscale='viridis',
-                        zmin=self.state['cells'].min(),
-                        zmax=self.state['cells'].max(),
-                    ))
-
-        fig.update_layout(
-            title='Elevation Heatmap',
-            xaxis_title='X-axis',
-            yaxis_title='Y-axis',
-            coloraxis_colorbar_title='Intensity',
-            width=800,
-            height=600,
-        )
-
-        # Display the heatmap
-        fig.show()
-    def __init__(self):
-        super(FireSimulationGymEnv, self).__init__()
-
-        # Define action space as discrete actions
+        # Initialize spaces
         self.action_space = spaces.Discrete(5)
-        
-        # Initial state setup
-        self.state = {
-            'helicopter_coord': (0, 0), 
-            'cells': np.zeros((240, 160)),
-            'done': 0,
-            'cellsBurning': 0,
-            'cellsBurnt': 0,
-            'prevBurntCells': 0
+        self.state = self._initial_state()
+
+        # Start the reader task only once
+        if self.loop:
+            self.loop.call_soon_threadsafe(lambda: self.loop.create_task(self._init_async_fields()))
+        else:
+            raise RuntimeError("Event loop not provided to FireSimulationGymEnv!")
+
+    async def _init_async_fields(self):
+        print("Loop inside _init_async_fields:", asyncio.get_running_loop())
+        print("Loop inside _reader_task:", asyncio.get_running_loop())
+
+        if self.websocket and not self._reader_task_running:
+            self._reader_task_running = True
+            print("🚀 Launching _reader_task from inside _init_async_fields()")
+            asyncio.create_task(self._reader_task())
+
+    async def _reader_task(self):
+        print(f"📥 _reader_task started for websocket id: {id(self.websocket)}")
+        try:
+            while True:
+                print("📥 _reader_task(): waiting for message...")
+                msg = await self.msg_queue.get()  # Read from the queue
+                print(f"📨 _reader_task(): got message: {msg}")
+                # You can process the message here (e.g., update the environment state)
+                await self.process_message(msg)
+        except Exception as e:
+            print(f"[RECV THREAD ERROR] {e}")
+            self._reader_task_running = False
+
+    async def process_message(self, msg):
+        try:
+            client_state = json.loads(msg)
+            print(f"📨 Processed message: {client_state}")
+            # Process the client message and update state
+            self.state = self._initial_state()  # Just for illustration; update this with your logic
+        except Exception as e:
+            print(f"❌ Failed to process message: {e}")
+
+    async def reset(self, *, seed=None, options=None):
+        print("🧼 async reset() called")
+
+        super().reset(seed=seed)
+        print(f"🔁 Inside async reset(), running loop: {asyncio.get_running_loop()}")
+
+        self.state = self._initial_state()
+
+        if not self.websocket:
+            raise RuntimeError("WebSocket not connected!")
+
+        print("📨 reset(): sending 'reset' message to frontend")
+        reset_message = json.dumps({"action": "reset"})
+        await self.websocket.send(reset_message)
+
+        print("⏳ reset(): waiting for client update...")
+        try:
+            # Timeout set to 30 seconds to avoid hanging indefinitely
+            self.state = await asyncio.wait_for(self.wait_for_client_update(), timeout=30.0)
+            print("✅ reset(): client responded")
+        except asyncio.TimeoutError:
+            print("⚠️ reset(): timeout waiting for client update")
+            self.state = self._initial_state()
+
+        data = self.state[0] if isinstance(self.state, tuple) else self.state
+
+        obs = {
+            'helicopter_coord': np.array(data.get('helicopter_coord', (0, 0)), dtype=np.int32),
+            'cells': np.clip(np.array(data.get('cells', np.zeros((240, 160))), dtype=np.int32), 0, 8),
+            'on_fire': int(data.get('on_fire', 0))
         }
-        
-        self.websocket = None  # Will be assigned when connecting
 
-    async def reset(self):
-        """
-        Resets the environment and sends a reset message to the client.
-        """
-        # Reset the environment state
-        self.state = {
-            'helicopter_coord': (0, 0),
-            'cells': np.zeros((240, 160))  # Reset the grid of ignition times
-        }
-        
-        # Send reset message to client (websocket)
-        if self.websocket:
-            reset_message = json.dumps({"action": "reset"})
-            asyncio.create_task(self.websocket.send(reset_message))
-            print("Reset message sent to frontend")
-        self.state = await self.wait_for_client_update()
-        # self.state['cells'] = new_state['cells']
-
-        # Return the initial state (observation)
-        return self.state
-
+        print("🎯 reset(): observation created")
+        return obs, {}
+    
     async def step(self, action, stepcount):
-        # Initialize reward to 0 by default
         reward = 0
-
-        # Get current helicopter coordinates
         heli_x, heli_y = self.state['helicopter_coord']
 
-        # Map discrete actions to behaviors
-        if action == 0:  # 'U' - Move Up
-            heli_y += 5
-        elif action == 1:  # 'D' - Move Down
-            heli_y -= 5
-        elif action == 2:  # 'L' - Move Left
-            heli_x -= 5
-        elif action == 3:  # 'R' - Move Right
-            heli_x += 5
-        elif action == 4:  # 'Helitack' - Perform heli attack
-            print(f"Helitack performed at ({heli_x}, {heli_y})")
-            # reward -= 4  # Reward for performing heli attack
+        if action == 0: heli_y += 5
+        elif action == 1: heli_y -= 5
+        elif action == 2: heli_x -= 5
+        elif action == 3: heli_x += 5
+        elif action == 4: print(f"Helitack performed at ({heli_x}, {heli_y})")
 
-        # reward -= 1
-        # Clip helicopter coordinates to stay within the grid limits (240x160)
-        heli_x = np.clip(heli_x, 10, 239)  # x should be between 0 and 239
-        heli_y = np.clip(heli_y, 10, 159)  # y should be between 0 and 159
-
-        # Convert NumPy values to Python native types
-        heli_x = int(heli_x)
-        heli_y = int(heli_y)
-
-        # Update helicopter coordinates in the state
+        heli_x = int(np.clip(heli_x, 10, 239))
+        heli_y = int(np.clip(heli_y, 10, 159))
         self.state['helicopter_coord'] = (heli_x, heli_y)
 
-        # Prepare action message to send to the client (physics engine)
-        try:
-            action_message = json.dumps({
+        if self.websocket:
+            await self.websocket.send(json.dumps({
                 "action": str(action),
                 "helicopter_coord": list(self.state['helicopter_coord'])
-            }, cls=NumpyEncoder)
-        except Exception as e:
-            print(f"Error creating action message: {e}")
-            return self.state, reward, False, {}
-
-        # Send action to client (websocket)
-        if self.websocket:
-            await self.websocket.send(action_message)
-            # print(f"Step message sent to frontend: {action_message}")
+            }, cls=NumpyEncoder))
 
         self.state['prevBurntCells'] = self.state['cellsBurnt']
-        # Wait for the client to send back the updated cells
         self.state = await self.wait_for_client_update()
 
-        # reward += (192000 - 15*self.state['cellsBurning'] - 6*self.state['cellsBurnt'])/38400
-        reward += self.compute_reward(self.state['prevBurntCells'], self.state['cellsBurnt'], self.state['cellsBurning'], self.state['quenchedCells'])
+        reward = self.compute_reward(
+            self.state['prevBurntCells'],
+            self.state['cellsBurnt'],
+            self.state['cellsBurning'],
+            self.state['quenchedCells']
+        )
 
-        # print(self.state)
-
-        # print(self.state['cells'], type(self.state['cells']))
-        
-        # if stepcount in [450]:
-        #     self.plotHeatmap()
-
-        # Return the combined state, reward, and done flag
-        # print(self.state)
-        if stepcount == MAX_TIMESTEPS:
+        if stepcount >= MAX_TIMESTEPS:
             self.state['done'] = 1
-        return self.state, reward, self.state['done'], {}
-    
+
+        observation = {
+            'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
+            'cells': np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8),
+            'on_fire': int(self.state.get('on_fire', 0)),
+        }
+        return observation, reward, self.state['done'], False, {}
     def compute_reward(self,prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         """
         Compute reward for current step based on fire status.
@@ -171,141 +161,32 @@ class FireSimulationGymEnv(gym.Env):
         return reward
 
     async def wait_for_client_update(self):
-        """
-        This function asynchronously waits for the client to send back the updated cells data.
-        """
         try:
-            message = await self.websocket.recv()  # Waits for a message from the client
-            # print(f"Received message from client: {message}")
-            
-            # Parse the message from the client
-            client_state = json.loads(message)
-            # print('client_state',client_state)
-            # Extract the updated 'cells' from the client state
-            cells_list = json.loads(client_state['cells'])
+            print("[QUEUE] Waiting for next message from queue...")
+            message = await self.msg_queue.get()  # Get message from the queue
+            print("[QUEUE] Got message from queue:", message)
 
-            # if 'cells' in client_state:
-                
-            # else:
-            #     print("Error: No 'cells' data received from client.")
-            #     return {
-            #         'cells': np.zeros((240, 160))  # Return default empty cells if no valid data
-            #     }
+            try:
+                client_state = json.loads(message)
+            except Exception as e:
+                print("❌ Failed to parse JSON:", e)
+                return self._initial_state()
 
-            new_state = {
-                    **self.state,
-                    'cells': np.array(cells_list) ,
-                    'done': 1 if client_state['done'] else 0,
-                    'quenchedCells':client_state['quenchedCells'],
-                    'cellsBurning':client_state['cellsBurning'],
-                    'cellsBurnt':client_state['cellsBurnt'],
-                    'on_fire':1 if client_state['on_fire'] else 0
-                    }
-            return new_state
+            print(f"📨 Processed message: {client_state}")
+            return client_state
 
         except Exception as e:
-            print(f"Error while receiving data from client: {e.with_traceback}")
-            return {
-                'cells': np.zeros((240, 160))  # Return default empty cells in case of an error
-            }
+            print(f"🔥 Error in client update: {e}")
+            return self._initial_state()
 
-
-async def websocket_handler(websocket, path):
-    env = FireSimulationGymEnv()
-    env.websocket = websocket 
-
-    try:
-        
-        for episode in range(EPISODES):
-            print(f"\nStarting Episode {episode + 1}")
-            initial_state = await env.reset()
-            for step in range(MAX_TIMESTEPS):  # Run 100 steps
-                # Automatically pick a discrete action from the action space
-                action = env.action_space.sample()  # Random action from the action space
-                print(f"Chosen action at step {step}: {action}")
-
-                # Perform the environment step (sending action to the client)
-                new_state, reward, done, _ = await env.step(action,step)
-
-                # # Send updated state, reward, and done flag back to the client
-                # # Convert NumPy arrays and types to JSON-serializable format
-                # message = {
-                #     "state": {
-                #         "helicopter_coord": list(new_state['helicopter_coord']),
-                #         "cells": new_state['cells'].tolist()  # Convert NumPy array to list
-                #     },
-                #     "reward": float(reward),  # Convert to Python native float
-                #     "done": bool(done)  # Convert to Python native boolean
-                # }
-                
-                # await websocket.send(json.dumps(message, cls=NumpyEncoder))
-
-                if done:
-                    print(f"Episode {episode + 1} finished!")
-                    break
-            
-
-    except websockets.exceptions.ConnectionClosedOK:
-        print("Connection closed")
-
-async def training_websocket_handler(websocket, path):
-    print("Client connected!")
-    
-    # Create Gym environment
-    env = FireSimulationGymEnv()
-    env.websocket = websocket  # Assign the WebSocket to the environment
-
-    try:
-        episode = 0
-        while True:  # Run indefinitely until client disconnects
-            print(f"\nStarting Episode {episode + 1}")
-            state = await env.reset()
-            step = 0
-
-            while True:
-                action = env.action_space.sample()
-                
-                new_state, reward, done, _ = await env.step(action, step)
-                print(f"Episode {episode + 1} | Step {step}: Action -> {action} | Reward -> {reward}")
-                
-                # Optional: send state/reward/done back to client if needed
-                # message = {
-                #     "state": {
-                #         "helicopter_coord": list(new_state['helicopter_coord']),
-                #         "cells": new_state['cells'].tolist()
-                #     },
-                #     "reward": float(reward),
-                #     "done": bool(done)
-                # }
-                # await websocket.send(json.dumps(message))
-
-                if done:
-                    print(f"Episode {episode + 1} finished after {step + 1} steps.")
-                    break
-
-                step += 1
-
-            episode += 1
-
-    except websockets.exceptions.ConnectionClosedOK:
-        print("Client disconnected gracefully.")
-
-    except websockets.exceptions.ConnectionClosedError as e:
-        print(f"WebSocket closed with error: {e}")
-
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-    finally:
-        print("Shutting down environment...")
-        env.close()
-
-# Start the WebSocket server
-MODE = 'training'
-start_server = websockets.serve(training_websocket_handler if MODE == 'training' else websocket_handler, "localhost", 8765)
-
-print("WebSocket server started on ws://localhost:8765")
-
-# Run the WebSocket server
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+    def _initial_state(self):
+        return {
+            'helicopter_coord': (0, 0),
+            'cells': np.zeros((240, 160)),
+            'done': 0,
+            'cellsBurning': 0,
+            'cellsBurnt': 0,
+            'prevBurntCells': 0,
+            'quenchedCells': 0,
+            'on_fire': 0,
+        }
