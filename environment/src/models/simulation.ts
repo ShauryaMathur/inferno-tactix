@@ -95,13 +95,18 @@ private connectSocket() {
   this.socket.onmessage = (event) => {
     console.log("🔥 Received from Python:", event.data);
     const message = JSON.parse(event.data);
+    
+    
     const { action, helicopter_coord } = message;
-
-    if (action === "reset") {
+    if (message.type === "pong") {
+      console.log("✅ Received pong from server");
+    }else if (action === "reset") {
       this.handleReset();
     } else if (action === "4") {
+      console.log("🚁 Handling HELITACK command");
       this.handleHelicopterMovement(helicopter_coord);
     } else {
+      console.log("🚁 Handling MOVEMENT command");
       this.handleOtherActions(helicopter_coord);
     }
 
@@ -138,7 +143,7 @@ private connectSocket() {
     );
 
     const response = {
-      cells: JSON.stringify(cells2D),
+      cells: cells2D,
       done: false,
       cellsBurning: 0,
       cellsBurnt: 0,
@@ -174,7 +179,7 @@ private connectSocket() {
       }
       let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
       const response = {
-        cells: JSON.stringify(cells2D),
+        cells: cells2D,
         done,
         cellsBurning,
         cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
@@ -202,7 +207,7 @@ private connectSocket() {
     const done = !this.simulationRunning && this.engine?.fireDidStop;
     let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
     const response = {
-      cells: JSON.stringify(cells2D),
+      cells: cells2D,
       done,
       cellsBurning,
       cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
@@ -532,7 +537,7 @@ private generateFireStatusMapFromCells(cells: any[], width: number, height: numb
 
     fireStatusMap.push(rowData);
   }
-
+  
   return fireStatusMap;
 }
 @action.bound
