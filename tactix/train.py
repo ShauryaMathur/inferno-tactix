@@ -329,16 +329,33 @@ class FireEnvSync(gym.Env):
         heli_x, heli_y = self.state['helicopter_coord']
         last_action = self.state.get('last_action', None)
 
-        
         # Basic rewards/penalties
         reward = 0
-        reward += extinguished_by_helitack * 10        # reward for extinguishing
+        reward += extinguished_by_helitack * 30        # Further increased reward for extinguishing
         reward -= newly_burnt * 5                      # penalty for fire spread
-        reward -= curr_burning * 1                     # penalty for ongoing fires
+        # reward -= curr_burning * 0.2                   # Further reduced penalty for ongoing fires
         reward -= 0.1                                  # step penalty
 
         cells = np.array(self.state['cells'])
 
+        # Make proximity to fire the DOMINANT reward factor
+        burning_mask = (cells // 3) == FireState.Burning
+        if np.any(burning_mask):
+            # Calculate minimum distance to any burning cell
+            burning_coords = np.argwhere(burning_mask)
+            min_distance = float('inf')
+            for by, bx in burning_coords:
+                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
+                min_distance = min(min_distance, distance)
+            
+            # Much stronger proximity reward with steep dropoff
+            proximity_reward = 50 / (min_distance + 1)  # Hyperbolic function for stronger near-fire reward
+            reward += proximity_reward
+            
+            # Extra reward for being very close to fire (within 5 cells)
+            if min_distance < 5:
+                reward += 20
+        
         if 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
             cell_value = cells[heli_y, heli_x]
             fire_state = cell_value // 3
@@ -348,13 +365,12 @@ class FireEnvSync(gym.Env):
                 if fire_state == FireState.Burning:
                     # Higher reward for higher intensity fires
                     intensity_bonus = burn_index + 1  # 1, 2, or 3 based on Low, Medium, High
-                    reward += 10 * intensity_bonus  # Bonus for using helitack on burning cells
+                    reward += 20 * intensity_bonus  # Further increased bonus
                 else:
-                    # Small penalty for using helitack on non-burning cells
-                    reward -= 10
+                    # Minimal penalty for using helitack on non-burning cells
+                    reward -= 2  # Further reduced
         
-            # Add penalty for being close to the edges
-            # Calculate distance from edges as a percentage of grid size
+            # Greatly reduce edge penalty - only significant very close to edge
             width, height = 240, 160  # Grid dimensions
             distance_from_left = heli_x / width
             distance_from_right = (width - heli_x) / width
@@ -363,15 +379,37 @@ class FireEnvSync(gym.Env):
             
             # Find the minimum distance to any edge
             min_edge_distance = min(distance_from_left, distance_from_right, 
-                                distance_from_top, distance_from_bottom)
+                            distance_from_top, distance_from_bottom)
             
-            # Apply penalty if too close to an edge (within 10% of grid size)
-            edge_threshold = 0.1
+            # Apply penalty only if extremely close to edge
+            edge_threshold = 0.05  # Reduced from 0.1 to 0.05 (closer to edge)
             if min_edge_distance < edge_threshold:
-                # Stronger penalty the closer to the edge
-                edge_penalty = (edge_threshold - min_edge_distance) * 20
+                edge_penalty = (edge_threshold - min_edge_distance) * 10
                 reward -= edge_penalty
+                
+        # Add bonus for moving toward fire centers
+        if hasattr(self, 'prev_min_distance') and np.any(burning_mask):
+            burning_coords = np.argwhere(burning_mask)
+            min_distance = float('inf')
+            for by, bx in burning_coords:
+                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
+                min_distance = min(min_distance, distance)
+                
+            # Reward for moving toward fire
+            if min_distance < self.prev_min_distance:
+                reward += 5  # Bonus for getting closer to fire
             
+            # Remember current distance for next step
+            self.prev_min_distance = min_distance
+        elif np.any(burning_mask):
+            # Initialize prev_min_distance if not yet set
+            burning_coords = np.argwhere(burning_mask)
+            min_distance = float('inf')
+            for by, bx in burning_coords:
+                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
+                min_distance = min(min_distance, distance)
+            self.prev_min_distance = min_distance
+                
         print(f"Reward: {reward}")
         return reward
     
@@ -430,7 +468,7 @@ def main():
         except Exception as e:
             print(f"❌ Environment check failed: {e}")
             print("⚠️ Attempting to continue anyway")
-        
+        env.episode_count = 0
         # Try to load existing model for resuming training
         print("🔍 Checking for existing model...")
         try:
@@ -450,11 +488,11 @@ def main():
                     n_steps=10,        # Collect exactly 10 steps before updating
                     batch_size=10,     # Use all collected steps in a single update
                     n_epochs=1,        # Perform only 1 optimization epoch per update
-                    learning_rate=0.0003,
+                    learning_rate=0.003,
                     clip_range=0.2,
                     gamma=0.99,        # Discount factor
                     gae_lambda=0.95,   # GAE parameter
-                    ent_coef=0.01,     # Entropy coefficient
+                    ent_coef=0.001,     # Entropy coefficient
                     vf_coef=0.5,       # Value function coefficient
                     max_grad_norm=0.5, # Maximum gradient norm
                     target_kl=0.01,    # Target KL divergence
@@ -470,17 +508,18 @@ def main():
                 n_steps=10,
                 batch_size=10,
                 n_epochs=1,
-                learning_rate=0.0003,
+                learning_rate=0.003,
                 clip_range=0.2,
                 gamma=0.99,
                 gae_lambda=0.95,
-                ent_coef=0.01,
+                ent_coef=0.001,
                 vf_coef=0.5,
                 max_grad_norm=0.5,
                 target_kl=0.01,
             )
             print("✅ New model initialized successfully!")
             
+
         # Train model
         print("🚀 Starting training...")
         model.learn(
