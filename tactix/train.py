@@ -14,13 +14,14 @@ import sys
 import traceback
 import os
 import pdb
+from collections import deque
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import StopTrainingOnMaxEpisodes
-from stable_baselines3.common.policies import ActorCriticPolicy
 
-from FeatureExtractor import FireEnvCNN
+
+from FeatureExtractor import FireEnvLSTMPolicy
 
 class FireState:
     Unburnt = 0
@@ -34,7 +35,7 @@ class BurnIndex:
 
 MAX_TIMESTEPS = 2000
 HELICOPTER_SPEED = 5
-USE_TRAINED_AGENT = False
+USE_TRAINED_AGENT = True
 # Global variables for the WebSocket connection
 client_websocket = None
 message_queue = queue.Queue()
@@ -141,7 +142,7 @@ class FireEnvSync(gym.Env):
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
-            'cells': spaces.Box(low=0, high=8, shape=(160, 240), dtype=np.int32),
+            'cells': spaces.Box(low=0, high=8, shape=(4, 160, 240), dtype=np.int32),  # 4 stacked frames
             'on_fire': spaces.Discrete(2)
         })
         
@@ -149,6 +150,15 @@ class FireEnvSync(gym.Env):
         self.step_count = 0
         self.episode_count = 0
         self.state = self._default_state()
+        
+        # Frame stacking
+        self.frame_history = deque(maxlen=4)
+        
+        # Initialize frame history with zeros
+        self.frame_history.clear()
+        for _ in range(4):
+            self.frame_history.append(np.zeros((160, 240), dtype=np.int32))
+
     
     def _default_state(self):
         return {
@@ -221,7 +231,9 @@ class FireEnvSync(gym.Env):
     
     def reset(self, *, seed=None, options=None):
         print(f"🧼 Resetting environment with seed={seed}")
-        super().reset(seed=seed)
+        if seed is not None:
+            super().reset(seed=seed)
+        
         self.step_count = 0
         self.episode_count += 1
         
@@ -240,10 +252,21 @@ class FireEnvSync(gym.Env):
             **response
         }
         
-        # Create observation
+        # Initialize frame history
+        self.frame_history.clear()
+        initial_cells = np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8)
+        for _ in range(4):
+            self.frame_history.append(initial_cells)
+        
+        # Create observation with stacked frames
+        stacked_cells = np.stack(list(self.frame_history), axis=0)
+        
+        # Ensure the shape is correct
+        assert stacked_cells.shape == (4, 160, 240), f"Expected shape (4, 160, 240), got {stacked_cells.shape}"
+        
         final_observation = {
             'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
-            'cells': np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8),
+            'cells': stacked_cells,
             'on_fire': int(self.state['on_fire'])
         }
         
@@ -296,7 +319,6 @@ class FireEnvSync(gym.Env):
             self.state.get('quenchedCells', 0)
         )
         
-
         done = False
         
         if self.state.get('cellsBurning', 1) == 0:
@@ -306,10 +328,19 @@ class FireEnvSync(gym.Env):
         if self.step_count >= MAX_TIMESTEPS:
             done = True
         
-        # Create observation
+        # Update frame history
+        current_cells = np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8)
+        self.frame_history.append(current_cells)
+        
+        # Create observation with stacked frames
+        stacked_cells = np.stack(list(self.frame_history), axis=0)
+        
+        # Ensure the shape is correct
+        assert stacked_cells.shape == (4, 160, 240), f"Expected shape (4, 160, 240), got {stacked_cells.shape}"
+        
         observation = {
             'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
-            'cells': np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8),
+            'cells': stacked_cells,
             'on_fire': int(self.state.get('on_fire', 0))
         }
         
@@ -322,99 +353,92 @@ class FireEnvSync(gym.Env):
         last_action = self.state.get('last_action', None)
         cells = np.array(self.state['cells'])
         
-        # Base rewards/penalties
-        reward += extinguished_by_helitack * 100  # Reward for extinguishing fires
-        reward -= newly_burnt * 10  # Penalty for new burnt cells
-        reward -= curr_burning * 2   # Penalty for ongoing fires
-        reward -= 0.1               # Small step penalty
+        # Track effectiveness metrics
+        if not hasattr(self, 'prev_burning'):
+            self.prev_burning = 0
         
-        # Extract fire states from cells
-        burning_mask = (cells // 3) == FireState.Burning
-        burnt_mask = (cells // 3) == FireState.Burnt
+        # Calculate fire reduction
+        burning_reduction = self.prev_burning - curr_burning
+        
+        # Base rewards/penalties
+        reward += extinguished_by_helitack * 200  # Large reward for direct extinguishing
+        reward -= newly_burnt * 20  # Significant penalty for fire spread
+        reward -= curr_burning * 1  # Ongoing penalty proportional to fire size
+        
+        # Time penalty that increases with fire size
+        # This encourages quick action rather than waiting
+        time_penalty = 0.1 * (1 + curr_burning / 100)
+        reward -= time_penalty
+        
+        # Reward for ANY reduction in burning cells, regardless of cause
+        # But give more reward if it's due to helitack action
+        if burning_reduction > 0:
+            if last_action == 4:  # Helitack was used
+                reward += burning_reduction * 10  # Higher reward for active suppression
+            else:
+                reward += burning_reduction * 2   # Lower reward for passive reduction
+        
+        # Extract fire states
+        fire_states = cells // 3
+        burning_mask = fire_states == FireState.Burning
         
         # Proximity reward to active fires
         if np.any(burning_mask):
             burning_coords = np.argwhere(burning_mask)
-            min_distance = float('inf')
+            distances = np.sqrt(
+                (burning_coords[:, 0] - heli_y) ** 2 + 
+                (burning_coords[:, 1] - heli_x) ** 2
+            )
+            min_distance = np.min(distances)
             
-            for by, bx in burning_coords:
-                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
-                min_distance = min(min_distance, distance)
-            
-            # Exponential decay proximity reward
-            proximity_reward = 10 * np.exp(-min_distance / 15)
+            # Stronger proximity reward
+            proximity_reward = 20 * np.exp(-min_distance / 10)
             reward += proximity_reward
         
-        # Helitack usage rewards/penalties
+        # Helitack effectiveness evaluation
         if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
-            fire_state = cells[heli_y, heli_x] // 3
+            fire_state = fire_states[heli_y, heli_x]
             burn_index = cells[heli_y, heli_x] % 3
             
             if fire_state == FireState.Burning:
-                # Major reward for extinguishing burning cells
-                intensity_bonus = (burn_index + 1) * 2  # 2, 4, or 6 based on intensity
-                reward += 50 * intensity_bonus
-                
-                # Bonus for targeting high spread potential areas
-                adjacent_unburnt = 0
-                for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
-                    ny, nx = heli_y + dy, heli_x + dx
-                    if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
-                        if (cells[ny, nx] // 3) == FireState.Unburnt:
-                            adjacent_unburnt += 1
-                
-                if adjacent_unburnt > 0:
-                    # Extra reward for fires near unburnt areas (high spread potential)
-                    reward += 20 * (adjacent_unburnt / 4)
+                # Major reward for direct hits
+                intensity_bonus = (burn_index + 1) * 3
+                reward += 100 * intensity_bonus
             
             elif fire_state == FireState.Burnt:
-                # Significant penalty for wasting helitack on burnt cells
-                reward -= 50
+                # Significant penalty for wasted helitack
+                reward -= 100
             
             elif fire_state == FireState.Unburnt:
-                # Check if creating strategic firebreak
-                nearby_burning = 0
-                fire_proximity_score = 0
-                
-                for dy in range(-5, 6):
-                    for dx in range(-5, 6):
-                        ny, nx = heli_y + dy, heli_x + dx
-                        if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
-                            if (cells[ny, nx] // 3) == FireState.Burning:
-                                distance = np.sqrt(dy**2 + dx**2)
-                                nearby_burning += 1
-                                fire_proximity_score += 1 / (distance + 1)
+                # Check for strategic firebreak creation
+                nearby_burning = np.sum(burning_mask[
+                    max(0, heli_y-5):min(160, heli_y+6),
+                    max(0, heli_x-5):min(240, heli_x+6)
+                ])
                 
                 if nearby_burning > 0:
-                    # Reward for creating firebreaks (scaled by proximity to fires)
-                    reward += 10 * fire_proximity_score
+                    # Reward for creating firebreaks near active fires
+                    reward += 30 * min(nearby_burning, 10)
                 else:
-                    # Penalty for using helitack with no fires nearby
-                    reward -= 20
+                    # Heavy penalty for using helitack far from fires
+                    reward -= 50
         
-        # Strategic positioning reward (even when not using helitack)
-        if np.any(burning_mask):
-            # Calculate fire density heat map
-            heat_map = np.zeros_like(cells, dtype=float)
-            for by, bx in np.argwhere(burning_mask):
-                for dy in range(-10, 11):
-                    for dx in range(-10, 11):
-                        ny, nx = by + dy, bx + dx
-                        if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
-                            distance = np.sqrt(dy**2 + dx**2)
-                            heat_map[ny, nx] += 1 / (distance + 1)
-            
-            # Reward for being in high-density fire areas
-            if 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
-                position_value = heat_map[heli_y, heli_x]
-                reward += position_value * 2
+        # Reward for aggressive behavior when fire is large
+        if curr_burning > 50:  # Threshold for "large" fire
+            if last_action == 4:
+                reward += 20  # Bonus for being aggressive with large fires
+            else:
+                reward -= 5   # Penalty for not being aggressive
         
-        # Edge penalty (encourage staying away from map boundaries)
+        # Edge penalty (reduced)
         edge_distance = min(heli_x, heli_y, 239 - heli_x, 159 - heli_y)
-        if edge_distance < 10:
-            reward -= (10 - edge_distance) * 0.5
+        if edge_distance < 5:
+            reward -= (5 - edge_distance) * 0.2
         
-        print(f"Reward: {reward:.2f}")
+        # Update tracking variables
+        self.prev_burning = curr_burning
+        
+        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | Reduction: {burning_reduction}")
         return reward
     
     def close(self):
@@ -427,12 +451,6 @@ class FireEnvSync(gym.Env):
         except Exception as e:
             print(f"❌ Error closing environment: {e}")
 
-class FireEnvPolicy(ActorCriticPolicy):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, 
-                        features_extractor_class=FireEnvCNN,
-                        features_extractor_kwargs=dict(features_dim=256),
-                        **kwargs)
 
 # Main function
 def main():
@@ -486,7 +504,7 @@ def main():
                 # No existing model, create a new one
                 print("🆕 No existing model found, initializing new model...")
                 model = PPO(
-                    FireEnvPolicy,
+                    FireEnvLSTMPolicy,
                     env,
                     n_steps=10,        # Collect exactly 10 steps before updating
                     batch_size=10,     # Use all collected steps in a single update
@@ -499,7 +517,7 @@ def main():
                     vf_coef=0.5,       # Value function coefficient
                     max_grad_norm=0.5, # Maximum gradient norm
                     target_kl=0.01,    # Target KL divergence
-                    # verbose=1
+                    verbose=1,
                     device='mps'
                 )
                 print("✅ New model initialized successfully!")
@@ -507,7 +525,7 @@ def main():
             print(f"❌ Error loading model: {e}")
             print("🆕 Initializing new model instead...")
             model = PPO(
-                FireEnvPolicy,
+                FireEnvLSTMPolicy,
                 env,
                 n_steps=10,
                 batch_size=10,
@@ -520,8 +538,8 @@ def main():
                 vf_coef=0.5,
                 max_grad_norm=0.5,
                 target_kl=0.01,
-                device='mps'
-                # verbose=1
+                device='mps',
+                verbose=1
             )
             print("✅ New model initialized successfully!")
             
