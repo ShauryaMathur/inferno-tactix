@@ -135,9 +135,9 @@ module.exports = (env, argv) => {
       warningsFilter: /export .* was not found in/
     },
     plugins: [
-      new MiniCssExtractPlugin({
-        filename: devMode ? 'assets/[name].css' : 'assets/[name].[contenthash].css',
-      }),
+      ...(devMode ? [] : [new MiniCssExtractPlugin({
+        filename: 'assets/[name].[contenthash].css',
+      })]),
       new HtmlWebpackPlugin({
         filename: 'index.html',
         template: 'src/index.html',
