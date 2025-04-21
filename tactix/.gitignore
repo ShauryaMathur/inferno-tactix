@@ -4,3 +4,4 @@
 /__mocks__
 .DS_Store
 /trained_agents
+/tactix-training/node_modules

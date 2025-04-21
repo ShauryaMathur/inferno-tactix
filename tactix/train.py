@@ -20,7 +20,6 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import StopTrainingOnMaxEpisodes
 from stable_baselines3.common.policies import ActorCriticPolicy
 
-from infernoenv import FireEnvSyncWrapper
 from FeatureExtractor import FireEnvCNN
 
 class FireState:
@@ -34,7 +33,8 @@ class BurnIndex:
     High = 2
 
 MAX_TIMESTEPS = 2000
-HELICOPTER_SPEED = 2
+HELICOPTER_SPEED = 5
+USE_TRAINED_AGENT = False
 # Global variables for the WebSocket connection
 client_websocket = None
 message_queue = queue.Queue()
@@ -95,7 +95,7 @@ def websocket_server_thread():
                 
                 # Put other messages in the queue for the environment
                 message_queue.put(message)
-                print(f"📨 Message added to queue. Size: {message_queue.qsize()}")
+                # print(f"📨 Message added to queue. Size: {message_queue.qsize()}")
         except Exception as e:
             print(f"Error in WebSocket handler: {e}")
         finally:
@@ -152,7 +152,7 @@ class FireEnvSync(gym.Env):
     
     def _default_state(self):
         return {
-            'helicopter_coord': np.array([100, 70], dtype=np.int32),
+            'helicopter_coord': np.array([70, 115], dtype=np.int32),
             'cells': np.zeros((160, 240), dtype=np.int32),
             'on_fire': 0,
             'prevBurntCells': 0,
@@ -265,8 +265,8 @@ class FireEnvSync(gym.Env):
         elif action == 4: print(f"Helitack performed at ({heli_x}, {heli_y})")
         
         # Clip coordinates
-        heli_x = int(np.clip(heli_x, 20, 220))
-        heli_y = int(np.clip(heli_y, 20, 140))
+        heli_x = int(np.clip(heli_x, 0, 239))
+        heli_y = int(np.clip(heli_y, 0, 159))
         
         # Create step message
         step_message = json.dumps({
@@ -316,101 +316,105 @@ class FireEnvSync(gym.Env):
         return observation, reward, done, False, {}
     
     def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
-        """
-        Compute reward for current step based on fire status and helicopter position.
-
-        :param prev_burnt: int - Number of burnt cells in previous step
-        :param curr_burnt: int - Number of burnt cells in current step
-        :param curr_burning: int - Number of currently burning cells
-        :param extinguished_by_helitack: int - Number of cells extinguished this step
-        :return: float - Calculated reward
-        """
+        reward = 0
         newly_burnt = curr_burnt - prev_burnt
         heli_x, heli_y = self.state['helicopter_coord']
         last_action = self.state.get('last_action', None)
-
-        # Basic rewards/penalties
-        reward = 0
-        reward += extinguished_by_helitack * 30        # Further increased reward for extinguishing
-        reward -= newly_burnt * 5                      # penalty for fire spread
-        # reward -= curr_burning * 0.2                   # Further reduced penalty for ongoing fires
-        reward -= 0.1                                  # step penalty
-
         cells = np.array(self.state['cells'])
-
-        # Make proximity to fire the DOMINANT reward factor
+        
+        # Base rewards/penalties
+        reward += extinguished_by_helitack * 100  # Reward for extinguishing fires
+        reward -= newly_burnt * 10  # Penalty for new burnt cells
+        reward -= curr_burning * 2   # Penalty for ongoing fires
+        reward -= 0.1               # Small step penalty
+        
+        # Extract fire states from cells
         burning_mask = (cells // 3) == FireState.Burning
+        burnt_mask = (cells // 3) == FireState.Burnt
+        
+        # Proximity reward to active fires
         if np.any(burning_mask):
-            # Calculate minimum distance to any burning cell
             burning_coords = np.argwhere(burning_mask)
             min_distance = float('inf')
+            
             for by, bx in burning_coords:
                 distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
                 min_distance = min(min_distance, distance)
             
-            # Much stronger proximity reward with steep dropoff
-            proximity_reward = 50 / (min_distance + 1)  # Hyperbolic function for stronger near-fire reward
+            # Exponential decay proximity reward
+            proximity_reward = 10 * np.exp(-min_distance / 15)
             reward += proximity_reward
-            
-            # Extra reward for being very close to fire (within 5 cells)
-            if min_distance < 5:
-                reward += 20
         
-        if 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
-            cell_value = cells[heli_y, heli_x]
-            fire_state = cell_value // 3
-            burn_index = cell_value % 3
-
-            if last_action == 4:  # Helitack was performed
-                if fire_state == FireState.Burning:
-                    # Higher reward for higher intensity fires
-                    intensity_bonus = burn_index + 1  # 1, 2, or 3 based on Low, Medium, High
-                    reward += 20 * intensity_bonus  # Further increased bonus
+        # Helitack usage rewards/penalties
+        if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
+            fire_state = cells[heli_y, heli_x] // 3
+            burn_index = cells[heli_y, heli_x] % 3
+            
+            if fire_state == FireState.Burning:
+                # Major reward for extinguishing burning cells
+                intensity_bonus = (burn_index + 1) * 2  # 2, 4, or 6 based on intensity
+                reward += 50 * intensity_bonus
+                
+                # Bonus for targeting high spread potential areas
+                adjacent_unburnt = 0
+                for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
+                    ny, nx = heli_y + dy, heli_x + dx
+                    if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
+                        if (cells[ny, nx] // 3) == FireState.Unburnt:
+                            adjacent_unburnt += 1
+                
+                if adjacent_unburnt > 0:
+                    # Extra reward for fires near unburnt areas (high spread potential)
+                    reward += 20 * (adjacent_unburnt / 4)
+            
+            elif fire_state == FireState.Burnt:
+                # Significant penalty for wasting helitack on burnt cells
+                reward -= 50
+            
+            elif fire_state == FireState.Unburnt:
+                # Check if creating strategic firebreak
+                nearby_burning = 0
+                fire_proximity_score = 0
+                
+                for dy in range(-5, 6):
+                    for dx in range(-5, 6):
+                        ny, nx = heli_y + dy, heli_x + dx
+                        if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
+                            if (cells[ny, nx] // 3) == FireState.Burning:
+                                distance = np.sqrt(dy**2 + dx**2)
+                                nearby_burning += 1
+                                fire_proximity_score += 1 / (distance + 1)
+                
+                if nearby_burning > 0:
+                    # Reward for creating firebreaks (scaled by proximity to fires)
+                    reward += 10 * fire_proximity_score
                 else:
-                    # Minimal penalty for using helitack on non-burning cells
-                    reward -= 2  # Further reduced
+                    # Penalty for using helitack with no fires nearby
+                    reward -= 20
         
-            # Greatly reduce edge penalty - only significant very close to edge
-            width, height = 240, 160  # Grid dimensions
-            distance_from_left = heli_x / width
-            distance_from_right = (width - heli_x) / width
-            distance_from_top = heli_y / height
-            distance_from_bottom = (height - heli_y) / height
+        # Strategic positioning reward (even when not using helitack)
+        if np.any(burning_mask):
+            # Calculate fire density heat map
+            heat_map = np.zeros_like(cells, dtype=float)
+            for by, bx in np.argwhere(burning_mask):
+                for dy in range(-10, 11):
+                    for dx in range(-10, 11):
+                        ny, nx = by + dy, bx + dx
+                        if 0 <= ny < cells.shape[0] and 0 <= nx < cells.shape[1]:
+                            distance = np.sqrt(dy**2 + dx**2)
+                            heat_map[ny, nx] += 1 / (distance + 1)
             
-            # Find the minimum distance to any edge
-            min_edge_distance = min(distance_from_left, distance_from_right, 
-                            distance_from_top, distance_from_bottom)
-            
-            # Apply penalty only if extremely close to edge
-            edge_threshold = 0.05  # Reduced from 0.1 to 0.05 (closer to edge)
-            if min_edge_distance < edge_threshold:
-                edge_penalty = (edge_threshold - min_edge_distance) * 10
-                reward -= edge_penalty
-                
-        # Add bonus for moving toward fire centers
-        if hasattr(self, 'prev_min_distance') and np.any(burning_mask):
-            burning_coords = np.argwhere(burning_mask)
-            min_distance = float('inf')
-            for by, bx in burning_coords:
-                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
-                min_distance = min(min_distance, distance)
-                
-            # Reward for moving toward fire
-            if min_distance < self.prev_min_distance:
-                reward += 5  # Bonus for getting closer to fire
-            
-            # Remember current distance for next step
-            self.prev_min_distance = min_distance
-        elif np.any(burning_mask):
-            # Initialize prev_min_distance if not yet set
-            burning_coords = np.argwhere(burning_mask)
-            min_distance = float('inf')
-            for by, bx in burning_coords:
-                distance = np.sqrt((heli_y - by)**2 + (heli_x - bx)**2)
-                min_distance = min(min_distance, distance)
-            self.prev_min_distance = min_distance
-                
-        print(f"Reward: {reward}")
+            # Reward for being in high-density fire areas
+            if 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
+                position_value = heat_map[heli_y, heli_x]
+                reward += position_value * 2
+        
+        # Edge penalty (encourage staying away from map boundaries)
+        edge_distance = min(heli_x, heli_y, 239 - heli_x, 159 - heli_y)
+        if edge_distance < 10:
+            reward -= (10 - edge_distance) * 0.5
+        
+        print(f"Reward: {reward:.2f}")
         return reward
     
     def close(self):
@@ -465,7 +469,7 @@ def main():
         try:
             check_env(env)
             print("✅ Environment check completed successfully!")
-        except Exception as e:
+        except Exception as e: 
             print(f"❌ Environment check failed: {e}")
             print("⚠️ Attempting to continue anyway")
         env.episode_count = 0
@@ -473,7 +477,7 @@ def main():
         print("🔍 Checking for existing model...")
         try:
             # Check if model file exists before attempting to load
-            if os.path.exists("ppo_firefighter_interrupted.zip"):
+            if USE_TRAINED_AGENT and os.path.exists("ppo_firefighter_interrupted.zip"):
                 print("🔄 Found existing model, loading for continued training...")
                 model = PPO.load("ppo_firefighter_interrupted")
                 model.set_env(env)
@@ -484,18 +488,19 @@ def main():
                 model = PPO(
                     FireEnvPolicy,
                     env,
-                    verbose=1,
                     n_steps=10,        # Collect exactly 10 steps before updating
                     batch_size=10,     # Use all collected steps in a single update
                     n_epochs=1,        # Perform only 1 optimization epoch per update
-                    learning_rate=0.003,
+                    learning_rate=0.0003,
                     clip_range=0.2,
                     gamma=0.99,        # Discount factor
                     gae_lambda=0.95,   # GAE parameter
-                    ent_coef=0.001,     # Entropy coefficient
+                    ent_coef=0.01,     # Entropy coefficient
                     vf_coef=0.5,       # Value function coefficient
                     max_grad_norm=0.5, # Maximum gradient norm
                     target_kl=0.01,    # Target KL divergence
+                    # verbose=1
+                    device='mps'
                 )
                 print("✅ New model initialized successfully!")
         except Exception as e:
@@ -504,18 +509,19 @@ def main():
             model = PPO(
                 FireEnvPolicy,
                 env,
-                verbose=1,
                 n_steps=10,
                 batch_size=10,
                 n_epochs=1,
-                learning_rate=0.003,
+                learning_rate=0.0003,
                 clip_range=0.2,
                 gamma=0.99,
                 gae_lambda=0.95,
-                ent_coef=0.001,
+                ent_coef=0.01,
                 vf_coef=0.5,
                 max_grad_norm=0.5,
                 target_kl=0.01,
+                device='mps'
+                # verbose=1
             )
             print("✅ New model initialized successfully!")
             
