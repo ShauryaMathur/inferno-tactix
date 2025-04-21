@@ -68,16 +68,31 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.(png|woff|woff2|eot|ttf)$/,
-          type: 'asset',
+          use: [
+            {
+              loader: 'file-loader',
+              options: {
+                name: '[name].[hash].[ext]',
+                outputPath: 'assets/'
+              }
+            }
+          ]
         },
         {
           test: /\.svg$/i,
           exclude: /\.nosvgo\.svg$/i,
           oneOf: [
             {
-              // Do not apply SVGR import in CSS files.
               issuer: /\.(css|scss|less)$/,
-              type: 'asset',
+              use: [
+                {
+                  loader: 'file-loader',
+                  options: {
+                    name: '[name].[hash].[ext]',
+                    outputPath: 'assets/'
+                  }
+                }
+              ]
             },
             {
               issuer: /\.tsx?$/,
