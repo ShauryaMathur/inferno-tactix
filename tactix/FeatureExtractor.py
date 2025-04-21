@@ -2,25 +2,35 @@ import torch as th
 import torch.nn as nn
 import gymnasium as gym
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-import numpy as np
+from stable_baselines3.common.policies import ActorCriticPolicy
+from collections import deque
 
-class FireEnvCNN(BaseFeaturesExtractor):
+class FireEnvLSTMCNN(BaseFeaturesExtractor):
     """
-    Enhanced CNN feature extractor with multi-scale processing and attention mechanism
-    for better understanding of fire dynamics and spatial relationships.
+    Enhanced CNN feature extractor with LSTM for temporal understanding.
     """
     
     def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
         
         # Extract shapes from observation space
-        cells_shape = observation_space['cells'].shape  # (160, 240)
+        cells_shape = observation_space['cells'].shape  # (4, 160, 240) with frame stacking
+        
+        # Determine the number of channels (frames)
+        if len(cells_shape) == 3:
+            channels = cells_shape[0]  # 4 frames
+            height = cells_shape[1]    # 160
+            width = cells_shape[2]     # 240
+        else:
+            channels = 1
+            height = cells_shape[0]    # 160 (fallback for non-stacked)
+            width = cells_shape[1]     # 240
         
         # Multi-scale CNN for different receptive fields
         self.multi_scale_cnn = nn.ModuleList([
             # Small receptive field - local fire details
             nn.Sequential(
-                nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(channels, 32, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.MaxPool2d(2),
@@ -31,7 +41,7 @@ class FireEnvCNN(BaseFeaturesExtractor):
             ),
             # Medium receptive field - fire clusters
             nn.Sequential(
-                nn.Conv2d(1, 16, kernel_size=5, stride=2, padding=2),
+                nn.Conv2d(channels, 16, kernel_size=5, stride=2, padding=2),
                 nn.BatchNorm2d(16),
                 nn.ReLU(),
                 nn.Conv2d(16, 32, kernel_size=5, stride=2, padding=2),
@@ -40,7 +50,7 @@ class FireEnvCNN(BaseFeaturesExtractor):
             ),
             # Large receptive field - global fire patterns
             nn.Sequential(
-                nn.Conv2d(1, 8, kernel_size=11, stride=4, padding=5),
+                nn.Conv2d(channels, 8, kernel_size=11, stride=4, padding=5),
                 nn.BatchNorm2d(8),
                 nn.ReLU(),
                 nn.Conv2d(8, 16, kernel_size=7, stride=2, padding=3),
@@ -50,14 +60,15 @@ class FireEnvCNN(BaseFeaturesExtractor):
         ])
         
         # Calculate output dimensions for each scale
-        test_tensor = th.zeros(1, 1, cells_shape[0], cells_shape[1])
+        test_tensor = th.zeros(1, channels, height, width)
+        
         scale_outputs = []
         with th.no_grad():
             for scale_cnn in self.multi_scale_cnn:
                 output = scale_cnn(test_tensor)
                 scale_outputs.append(output.shape)
         
-        # Spatial attention mechanism for fire hotspots
+        # Spatial attention mechanism
         self.attention_conv = nn.Sequential(
             nn.Conv2d(64 + 32 + 16, 32, kernel_size=1),
             nn.BatchNorm2d(32),
@@ -66,21 +77,26 @@ class FireEnvCNN(BaseFeaturesExtractor):
             nn.Sigmoid()
         )
         
-        # Fire state decomposition layers
-        self.fire_state_conv = nn.Conv2d(1, 3, kernel_size=1)  # Split into Unburnt, Burning, Burnt
-        self.burn_index_conv = nn.Conv2d(1, 3, kernel_size=1)  # Split into Low, Medium, High
-        
         # Flatten layer for concatenation
         self.spatial_flatten = nn.Flatten()
         
         # Calculate total flattened dimension
-        combined_channels = 64 + 32 + 16  # Sum of channels from all scales
-        total_spatial_elements = scale_outputs[0][2] * scale_outputs[0][3]  # Assuming same spatial size after alignment
+        combined_channels = 64 + 32 + 16
+        total_spatial_elements = scale_outputs[0][2] * scale_outputs[0][3]
         flattened_dim = combined_channels * total_spatial_elements
+        
+        # LSTM layer for temporal understanding
+        self.lstm = nn.LSTM(
+            input_size=flattened_dim,
+            hidden_size=256,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2
+        )
         
         # Helicopter position encoding with relative positioning
         self.coord_net = nn.Sequential(
-            nn.Linear(4, 32),  # x, y, rel_to_center_x, rel_to_center_y
+            nn.Linear(4, 32),
             nn.ReLU(),
             nn.Linear(32, 64),
             nn.ReLU()
@@ -93,23 +109,25 @@ class FireEnvCNN(BaseFeaturesExtractor):
         )
         
         # Combine all features
-        combined_dim = flattened_dim + 64 + 16
+        combined_dim = 256 + 64 + 16  # LSTM output + coord + fire
         
         # Final processing with residual connections
-        self.fc1 = nn.Linear(combined_dim, features_dim)
-        self.fc2 = nn.Linear(features_dim, features_dim)
-        self.fc3 = nn.Linear(features_dim, features_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(combined_dim, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, features_dim)
+        )
         
-        self.relu = nn.ReLU()
-        self.layer_norm = nn.LayerNorm(features_dim)
+        # Initialize hidden states
+        self.hidden = None
     
     def forward(self, observations):
-        # Process cells - add channel dimension
-        cells = observations['cells'].float().unsqueeze(1)  # [B, 1, H, W]
+        # Process cells - expecting shape (batch, 4, 160, 240)
+        cells = observations['cells'].float()
         
-        # Decompose fire states and burn indices
-        fire_states_raw = cells // 3
-        burn_indices_raw = cells % 3
+        # Ensure correct shape
+        if len(cells.shape) == 3:  # If missing batch dimension
+            cells = cells.unsqueeze(0)
         
         # Process through multi-scale CNNs
         scale_features = []
@@ -117,7 +135,7 @@ class FireEnvCNN(BaseFeaturesExtractor):
             scale_output = scale_cnn(cells)
             scale_features.append(scale_output)
         
-        # Align spatial dimensions (upsample smaller scales to match the largest)
+        # Align spatial dimensions and concatenate
         target_h, target_w = scale_features[0].shape[2], scale_features[0].shape[3]
         aligned_features = [scale_features[0]]
         
@@ -133,7 +151,6 @@ class FireEnvCNN(BaseFeaturesExtractor):
             else:
                 aligned_features.append(scale_features[i])
         
-        # Concatenate aligned features
         combined_features = th.cat(aligned_features, dim=1)
         
         # Apply spatial attention
@@ -143,71 +160,48 @@ class FireEnvCNN(BaseFeaturesExtractor):
         # Flatten the features
         flattened_features = self.spatial_flatten(attended_features)
         
-        # Process helicopter coordinates with relative positioning
-        coords = observations['helicopter_coord']
-        center_x, center_y = 120, 80  # Grid center
+        # LSTM processing
+        batch_size = flattened_features.size(0)
+        lstm_input = flattened_features.unsqueeze(1)  # Add sequence dimension
+        
+        # Initialize hidden states if needed
+        if self.hidden is None or self.hidden[0].size(1) != batch_size:
+            h0 = th.zeros(2, batch_size, 256).to(lstm_input.device)
+            c0 = th.zeros(2, batch_size, 256).to(lstm_input.device)
+            self.hidden = (h0, c0)
+        
+        lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
+        
+        # Detach hidden states
+        self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
+        
+        lstm_features = lstm_out.squeeze(1)
+        
+        # Process helicopter coordinates
+        coords = observations['helicopter_coord'].float()
+        center_x, center_y = 120, 80
         rel_coords = th.stack([
-            coords[:, 0],  # absolute x
-            coords[:, 1],  # absolute y
-            coords[:, 0] - center_x,  # relative to center x
-            coords[:, 1] - center_y   # relative to center y
+            coords[:, 0],
+            coords[:, 1],
+            coords[:, 0] - center_x,
+            coords[:, 1] - center_y
         ], dim=1)
         coord_features = self.coord_net(rel_coords)
         
         # Process on_fire flag
-        fire_features = self.fire_net(observations['on_fire'])
-        
-        # Handle shape mismatch if fire_features has an extra dimension
+        fire_features = self.fire_net(observations['on_fire'].float())
         if len(fire_features.shape) == 3:
             fire_features = fire_features.squeeze(1)
         
         # Combine all features
-        combined = th.cat([flattened_features, coord_features, fire_features], dim=1)
+        combined = th.cat([lstm_features, coord_features, fire_features], dim=1)
         
-        # Process through fully connected layers with residual connections
-        x = self.fc1(combined)
-        x = self.relu(x)
-        
-        identity = x
-        x = self.fc2(x)
-        x = self.relu(x)
-        x = x + identity  # Residual connection
-        
-        x = self.layer_norm(x)
-        
-        identity = x
-        x = self.fc3(x)
-        x = self.relu(x)
-        x = x + identity  # Residual connection
-        
-        return x
-    
-    def get_attention_map(self, observations):
-        """Get the attention map for visualization purposes"""
-        cells = observations['cells'].float().unsqueeze(1)
-        
-        scale_features = []
-        for scale_cnn in self.multi_scale_cnn:
-            scale_output = scale_cnn(cells)
-            scale_features.append(scale_output)
-        
-        # Align features as in forward pass
-        target_h, target_w = scale_features[0].shape[2], scale_features[0].shape[3]
-        aligned_features = [scale_features[0]]
-        
-        for i in range(1, len(scale_features)):
-            if scale_features[i].shape[2:] != (target_h, target_w):
-                upsampled = nn.functional.interpolate(
-                    scale_features[i], 
-                    size=(target_h, target_w), 
-                    mode='bilinear', 
-                    align_corners=False
-                )
-                aligned_features.append(upsampled)
-            else:
-                aligned_features.append(scale_features[i])
-        
-        combined_features = th.cat(aligned_features, dim=1)
-        attention_map = self.attention_conv(combined_features)
-        
-        return attention_map
+        # Final processing
+        return self.fc(combined)
+
+class FireEnvLSTMPolicy(ActorCriticPolicy):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, 
+                        features_extractor_class=FireEnvLSTMCNN,
+                        features_extractor_kwargs=dict(features_dim=512),
+                        **kwargs)
