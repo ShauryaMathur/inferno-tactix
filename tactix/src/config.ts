@@ -117,7 +117,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   zonesCount: undefined,
   zones: [
     {
-      terrainType: TerrainType.Plains,
+      terrainType: TerrainType.Mountains,
       vegetation: Vegetation.Forest,
       droughtLevel: DroughtLevel.MildDrought
     },
@@ -141,7 +141,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   fireLineDelay: 1440, // a day
   helitackDelay: 240, // four hours
   maxFireLineLength: 15000, // ft
-  helitackDropRadius: 2640, // ft (5280 ft = 1 mile)
+  helitackDropRadius: 5280, // ft (5280 ft = 1 mile)
   showBurnIndex: true,
   showCoordsOnClick: false,
   unburntIslandProbability: 0.5, // [0, 1]
