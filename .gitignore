@@ -1,2 +1,3 @@
 tactix/__mocks__/fileMock.js
 tactix/node_modules/
+.DS_Store
