@@ -1,0 +1,55 @@
+version: '3.7'
+
+services:
+  react-client:
+    build:
+      context: ./  # Path to your React app directory
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    environment:
+      - REACT_APP_WEBSOCKET_URL=ws://python-backend:8765  # React connects to WebSocket server on Python container
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
+
+  python-backend:
+    build:
+      context: ./tactix-training  # Path to your Python app directory
+    ports:
+      - "8765:8765"
+    networks:
+      - app-network
+    depends_on:
+      react-client:
+        condition: service_healthy  # Ensure the React service is healthy before starting Python backend
+    environment:
+      - WEBSOCKET_HOST=python-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
+
+  pyppeteer:
+    build:
+      context: ./tactix-training/train-headless  # Path to your Pyppeteer script directory
+    networks:
+      - app-network
+    depends_on:
+      python-backend:
+        condition: service_healthy  # Ensure Python backend is ready before running Pyppeteer
+      react-client:
+        condition: service_healthy  # Ensure React is healthy before running Pyppeteer
+    environment:
+      - REACT_APP_URL=http://react-client:8080  # Pyppeteer connects to React at port 8080
+    command: python infernoenv.py  # Start your headless script when the container runs
+
+networks:
+  app-network:
+    driver: bridge
