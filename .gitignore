@@ -1,2 +1,5 @@
 tactix/__mocks__/fileMock.js
 tactix/node_modules/
+tactix/__mocks__
+tactix/__pycache__
+.ipynb_checkpoints/

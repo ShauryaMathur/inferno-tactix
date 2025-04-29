@@ -68,31 +68,16 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.(png|woff|woff2|eot|ttf)$/,
-          use: [
-            {
-              loader: 'file-loader',
-              options: {
-                name: '[name].[hash].[ext]',
-                outputPath: 'assets/'
-              }
-            }
-          ]
+          type: 'asset',
         },
         {
           test: /\.svg$/i,
           exclude: /\.nosvgo\.svg$/i,
           oneOf: [
             {
+              // Do not apply SVGR import in CSS files.
               issuer: /\.(css|scss|less)$/,
-              use: [
-                {
-                  loader: 'file-loader',
-                  options: {
-                    name: '[name].[hash].[ext]',
-                    outputPath: 'assets/'
-                  }
-                }
-              ]
+              type: 'asset',
             },
             {
               issuer: /\.tsx?$/,
@@ -135,9 +120,9 @@ module.exports = (env, argv) => {
       warningsFilter: /export .* was not found in/
     },
     plugins: [
-      ...(devMode ? [] : [new MiniCssExtractPlugin({
-        filename: 'assets/[name].[contenthash].css',
-      })]),
+      new MiniCssExtractPlugin({
+        filename: devMode ? 'assets/[name].css' : 'assets/[name].[contenthash].css',
+      }),
       new HtmlWebpackPlugin({
         filename: 'index.html',
         template: 'src/index.html',
