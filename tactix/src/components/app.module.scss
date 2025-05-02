@@ -1,0 +1,142 @@
+@import "common.scss";
+
+// .links {
+//   display: flex;
+//   align-items: center;
+//   justify-content: space-between;
+//   padding: 1rem 2rem;
+// }
+
+.links {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  padding: 1rem 0;
+
+  a {
+    position: relative;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    padding: 0.25rem 0;
+    transition: color 0.3s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -4px;
+      width: 0;
+      height: 2px;
+      background: #ff6600;
+      transition: width 0.3s ease, left 0.3s ease;
+    }
+
+    &:hover {
+      color: #ff6600;
+      &::after {
+        left: 10%;
+        width: 80%;
+      }
+      text-shadow: 0 0 6px rgba(255,102,0,0.7);
+    }
+  }
+}
+
+
+.app {
+  width: 100%;
+  // background: linear-gradient(28deg, #F0F0F0 0%, #FF6600 100%);
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  // background-color: #c8c8c8;
+}
+
+
+// a {
+//   margin: 0 1rem;
+//   color: #fff;
+//   text-decoration: none;
+//   font-size: 0.95rem;
+//   &:hover { color: #ff6600; }
+// }
+
+.mainContent{
+  overflow: hidden;
+  width: 100%;
+  height: calc(100% - #{$bottomBarHeight + $bottomBarBorderWidth});
+  position: fixed;
+  // top: $topBarHeight;
+  left: 0;
+  transition: 1s;
+  &.shrink{
+    width: calc(100% - #{$rightPanelContainerWidth});
+    left: 0;
+  }
+}
+
+.rightContent{
+  pointer-events: none;
+  overflow-x: hidden;
+  width: $rightPanelContainerWidth + $tabWidth;
+  height: calc(100% - #{$bottomBarHeight + $bottomBarBorderWidth + $topBarHeight});
+  min-height: 551px;
+  position: fixed;
+  top: $topBarHeight;
+  right: 0;
+  transition: 1s;
+  &.grow{
+    right: 0;
+  }
+}
+
+.modelInfo {
+  text-align: left;
+  position: absolute;
+  top: 10px;
+  left: 120px;
+  color: $controlText;
+  font-family: Lato;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.timeDisplay{
+  width: 82px;
+  height: 34px;
+  position: fixed;
+  top: $topBarHeight + 10px;
+  left: 10px;
+  background: white;
+  border-radius: 4px;
+  border: solid 1px $controlGray;
+  text-align: center;
+  color: $controlText;
+  z-index: 2;
+  font-family: Lato;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px;
+  padding-top: 8px;
+}
+
+.homePage::before{
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(0,0,0,0.02) 0,
+    rgba(0,0,0,0.02) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+body{
+  background: #fff;
+}
