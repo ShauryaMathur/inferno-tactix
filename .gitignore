@@ -3,3 +3,9 @@ tactix/node_modules/
 tactix/__mocks__
 tactix/__pycache__
 .ipynb_checkpoints/
+/tactix/tactix-training/*.zip
+/tactix/tactix-training/trained_agents/*.zip
+.DS_Store
+*.csv
+*.xlsx
+.ipynb_checkpoints/*.ipynb
