@@ -94,7 +94,8 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   modelWidth: 120000,
   modelHeight: 80000,
   // 240 works well with presets based on heightmap images.
-  gridWidth: 1200,
+  // gridWidth: 1200, //HD
+  gridWidth: 240, 
   get cellSize() { return this.modelWidth / this.gridWidth; },
   get gridHeight() { return Math.ceil(this.modelHeight / this.cellSize); },
   elevation: undefined, // will be derived from zone properties
