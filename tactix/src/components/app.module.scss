@@ -1,12 +1,5 @@
 @import "common.scss";
 
-// .links {
-//   display: flex;
-//   align-items: center;
-//   justify-content: space-between;
-//   padding: 1rem 2rem;
-// }
-
 .links {
   display: flex;
   justify-content: center;
@@ -46,23 +39,15 @@
 }
 
 
-.app {
-  width: 100%;
-  // background: linear-gradient(28deg, #F0F0F0 0%, #FF6600 100%);
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  // background-color: #c8c8c8;
-}
-
-
-// a {
-//   margin: 0 1rem;
-//   color: #fff;
-//   text-decoration: none;
-//   font-size: 0.95rem;
-//   &:hover { color: #ff6600; }
+// .app {
+//   width: 100%;
+//   // background: linear-gradient(28deg, #F0F0F0 0%, #FF6600 100%);
+//   display: flex;
+//   height: 100%;
+//   flex-direction: column;
+//   // background-color: #c8c8c8;
 // }
+
 
 .mainContent{
   overflow: hidden;
@@ -137,8 +122,6 @@
   pointer-events: none;
 }
 
-html,
-body,
 #app {
   margin: 0;
   padding: 0;
@@ -166,4 +149,18 @@ body,
   min-height: 100vh;
   font-family: 'Lato', sans-serif;
   user-select: none;
+
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 0%;
+    }
+  
+    50% {
+      background-position: 100% 100%;
+    }
+  
+    100% {
+      background-position: 0% 0%;
+    }
+  }
 }
