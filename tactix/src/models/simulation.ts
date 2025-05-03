@@ -359,7 +359,7 @@ private connectSocket() {
       const zoneIndex = values[0];
       // console.log(zoneIndex);
       const elevation = values[1];
-      const river = values[2];
+      const river = null; // Removing the river for now
       const unburntIsland = values[3];
 
       this.cells.length = 0;
