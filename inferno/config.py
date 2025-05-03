@@ -2,6 +2,7 @@
 Note: 
 
 - Download the pickled cache file for making the data from : https://buffalo.box.com/s/znj94lmk8gdxavswluh7umo558w99wa4.
+- Download the wildfire incidents from the same box link present above for the coordinate picker.
 
 Author:  Shreyas Bellary Manjunath <> Shaurya Mathur
 Date:    2025-05-01
@@ -10,7 +11,6 @@ Date:    2025-05-01
 
 
 import os
-
 
                                             #──────────────────────────────────────────────#
                                             #         Config for make_coords.py            #
@@ -51,7 +51,6 @@ SEED        = 42
 
 INCIDENTS = "wildfire_incidents.csv"
 OUT = "data_coordinates.csv"
-
 
 
                                             #──────────────────────────────────────────────#
@@ -95,12 +94,15 @@ BASE_URL_TMPL     = (
     "http://thredds.northwestknowledge.net:8080/"
     "thredds/dodsC/MET/{feat}/{feat}_{year}.nc"
 )
-CACHE_PICKLE_PATH = os.path.expanduser("/projects/academic/courses/cse676s25/sbellary/Inferno_Tactics/wildfire_cache.pkl") 
+CACHE_PICKLE_PATH = os.path.expanduser("/projects/academic/courses/cse676s25/sbellary/Inferno_Tactics/wildfire_cache.pkl.zst") 
+SAVE_CACHE = False
 
 #PARALLELISM & BATCHING ────────────────────────────────────────────────────
 PREFETCH_WORKERS  = 24
-PROCESS_WORKERS   = 16
-BATCH_SIZE        = 200
+PROCESS_WORKERS   = 64
+BATCH_SIZE        = 500
+ZSTD_LEVEL        = 10                      
+ZSTD_THREADS      = max(1, os.cpu_count() // 2)   
 
 #LOGGING ───────────────────────────────────────────────────────────────────
 LOG_FILE          = "make_dataset.log"

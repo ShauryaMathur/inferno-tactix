@@ -266,7 +266,10 @@ def build_year_negatives(yes_df: pd.DataFrame) -> pd.DataFrame:
 
         for yr in range(1, max_years_back + 1):
             new_ts = ts0 - timedelta(days=365 * yr)
-
+            
+            if not (in_bbox(lat0, lon0) and in_usa(lat0, lon0)):
+                continue
+            
             if (lat0, lon0, new_ts) in yes_triplets:
                 continue
                 
