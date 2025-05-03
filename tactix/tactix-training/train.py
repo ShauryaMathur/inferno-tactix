@@ -19,9 +19,64 @@ from collections import deque
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import StopTrainingOnMaxEpisodes
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
+from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
 
 from FeatureExtractor import FireEnvLSTMPolicy
+
+logdir = "runs/ppo_firefighter/"
+os.makedirs(logdir, exist_ok=True)
+
+class LearningRateScheduleCallback(BaseCallback):
+    def __init__(self, lr_schedule, verbose=0):
+        super().__init__(verbose)
+        self.lr_schedule = lr_schedule
+        
+    def _on_step(self):
+        progress = self.num_timesteps / 200000  # Normalize by total timesteps
+        new_lr = self.lr_schedule(progress)
+        self.model.learning_rate = new_lr
+        if self.verbose > 0 and self.n_calls % 1000 == 0:
+            print(f"Timestep {self.num_timesteps}/{200000}: Learning rate = {new_lr}")
+        return True
+
+# Define the schedule function
+def lr_schedule(progress):
+    return 0.0003 * (1.0 - progress)
+
+class RewardLoggingCallback(BaseCallback):
+    """
+    Custom callback for logging episode rewards to TensorBoard in real-time
+    """
+    def __init__(self, verbose=0):
+        super().__init__(verbose)
+        self.episode_rewards = []
+        self.cumulative_reward = 0
+        
+    def _on_step(self):
+        # Get reward from the last step
+        reward = self.locals['rewards'][0]
+        self.cumulative_reward += reward
+        
+        # If episode is done, log the total episode reward
+        done = self.locals['dones'][0]
+        if done:
+            # Log cumulative reward for the episode
+            self.logger.record('episode/reward', self.cumulative_reward)
+            # Log episode length
+            self.logger.record('episode/length', self.model.num_timesteps - sum(self.locals['dones']))
+            # Reset for next episode
+            self.episode_rewards.append(self.cumulative_reward)
+            self.cumulative_reward = 0
+            
+            # Log mean of last 100 episodes 
+            if len(self.episode_rewards) > 0:
+                self.logger.record('episode/mean_reward_100', np.mean(self.episode_rewards[-100:]))
+        
+        return True
 
 class FireState:
     Unburnt = 0
@@ -34,8 +89,8 @@ class BurnIndex:
     High = 2
 
 MAX_TIMESTEPS = 2000
-HELICOPTER_SPEED = 5
-USE_TRAINED_AGENT = False
+HELICOPTER_SPEED = 3
+USE_TRAINED_AGENT = True
 # Global variables for the WebSocket connection
 client_websocket = None
 message_queue = queue.Queue()
@@ -234,6 +289,8 @@ class FireEnvSync(gym.Env):
         if seed is not None:
             super().reset(seed=seed)
         
+        if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
+            self.model.policy.features_extractor.hidden = None
         self.step_count = 0
         self.episode_count += 1
         
@@ -346,43 +403,129 @@ class FireEnvSync(gym.Env):
         
         return observation, reward, done, False, {}
     
+    # def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
+    #     reward = 0
+    #     # newly_burnt = curr_burnt - prev_burnt
+    #     heli_x, heli_y = self.state['helicopter_coord']
+    #     last_action = self.state.get('last_action', None)
+    #     cells = np.array(self.state['cells'])
+        
+    #     # # Track effectiveness metrics
+    #     # if not hasattr(self, 'prev_burning'):
+    #     #     self.prev_burning = 0
+        
+    #     # # Calculate fire reduction
+    #     # burning_reduction = self.prev_burning - curr_burning
+        
+    #     # # Base rewards/penalties
+    #     reward += extinguished_by_helitack * 10  # Large reward for direct extinguishing
+    #     # reward -= newly_burnt * 20  # Significant penalty for fire spread
+    #     # reward -= curr_burning * 1  # Ongoing penalty proportional to fire size
+        
+    #     # Time penalty that increases with fire size
+    #     # This encourages quick action rather than waiting
+    #     # time_penalty = 0.1 * (1 + curr_burning / 100)
+    #     reward -= 1
+        
+    #     # # Reward for ANY reduction in burning cells, regardless of cause
+    #     # # But give more reward if it's due to helitack action
+    #     # # if burning_reduction > 0:
+    #     # #     if last_action == 4:  # Helitack was used
+    #     # #         reward += burning_reduction * 10  # Higher reward for active suppression
+    #     # #     else:
+    #     # #         reward += burning_reduction * 2   # Lower reward for passive reduction
+        
+    #     # # Extract fire states
+    #     fire_states = cells // 3
+    #     # burning_mask = fire_states == FireState.Burning
+        
+    #     # # Proximity reward to active fires
+    #     # # if np.any(burning_mask):
+    #     # #     burning_coords = np.argwhere(burning_mask)
+    #     # #     distances = np.sqrt(
+    #     # #         (burning_coords[:, 0] - heli_y) ** 2 + 
+    #     # #         (burning_coords[:, 1] - heli_x) ** 2
+    #     # #     )
+    #     # #     min_distance = np.min(distances)
+            
+    #     # #     # Stronger proximity reward
+    #     # #     proximity_reward = 20 * np.exp(-min_distance / 10)
+    #     # #     reward += proximity_reward
+        
+    #     # # Helitack effectiveness evaluation
+    #     if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
+    #         fire_state = fire_states[heli_y, heli_x]
+    #         if fire_state == FireState.Burnt:
+    #             reward -= 5
+    #     #         # Significant penalty for wasted helitack
+    #     #         reward -= 100
+    #     #     burn_index = cells[heli_y, heli_x] % 3
+            
+    #     #     if fire_state == FireState.Burning:
+    #     #         # Major reward for direct hits
+    #     #         intensity_bonus = (burn_index + 1) * 3
+    #     #         reward += 100 * intensity_bonus
+            
+    #     #     elif fire_state == FireState.Burnt:
+    #     #         # Significant penalty for wasted helitack
+    #     #         reward -= 100
+            
+    #     #     elif fire_state == FireState.Unburnt:
+    #     #         # Check for strategic firebreak creation
+    #     #         nearby_burning = np.sum(burning_mask[
+    #     #             max(0, heli_y-5):min(160, heli_y+6),
+    #     #             max(0, heli_x-5):min(240, heli_x+6)
+    #     #         ])
+                
+    #     #         if nearby_burning > 0:
+    #     #             # Reward for creating firebreaks near active fires
+    #     #             reward += 30 * min(nearby_burning, 10)
+    #     #         else:
+    #     #             # Heavy penalty for using helitack far from fires
+    #     #             reward -= 50
+        
+    #     # # Reward for aggressive behavior when fire is large
+    #     # # if curr_burning > 50:  # Threshold for "large" fire
+    #     # #     if last_action == 4:
+    #     # #         reward += 20  # Bonus for being aggressive with large fires
+    #     # #     else:
+    #     # #         reward -= 5   # Penalty for not being aggressive
+        
+    #     # # Edge penalty (reduced)
+    #     # # edge_distance = min(heli_x, heli_y, 239 - heli_x, 159 - heli_y)
+    #     # # if edge_distance < 5:
+    #     # #     reward -= (5 - edge_distance) * 0.2
+        
+    #     # # Update tracking variables
+    #     # self.prev_burning = curr_burning
+        
+    #     # print(f"Reward: {reward:.2f} | Burning: {curr_burning} | Reduction: {burning_reduction}")
+    #     print(f"Reward: {reward:.2f} | Burning: {curr_burning}")
+    #     return reward
+
     def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         reward = 0
+        
+        # Track fire progress
+        if not hasattr(self, 'prev_burning'):
+            self.prev_burning = curr_burning
         newly_burnt = curr_burnt - prev_burnt
+        burning_reduction = self.prev_burning - curr_burning
+        
+        # Core objectives with clear signals
+        reward += extinguished_by_helitack * 10       # Reward for direct fire suppression
+        reward -= newly_burnt * 5                     # Penalty for new cells burning
+        reward -= curr_burning * 0.1                  # Ongoing penalty proportional to fire size
+        reward -= 0.1                                 # Small time penalty
+        
+        # Get positional information
         heli_x, heli_y = self.state['helicopter_coord']
         last_action = self.state.get('last_action', None)
         cells = np.array(self.state['cells'])
-        
-        # Track effectiveness metrics
-        if not hasattr(self, 'prev_burning'):
-            self.prev_burning = 0
-        
-        # Calculate fire reduction
-        burning_reduction = self.prev_burning - curr_burning
-        
-        # Base rewards/penalties
-        reward += extinguished_by_helitack * 200  # Large reward for direct extinguishing
-        reward -= newly_burnt * 20  # Significant penalty for fire spread
-        reward -= curr_burning * 1  # Ongoing penalty proportional to fire size
-        
-        # Time penalty that increases with fire size
-        # This encourages quick action rather than waiting
-        time_penalty = 0.1 * (1 + curr_burning / 100)
-        reward -= time_penalty
-        
-        # Reward for ANY reduction in burning cells, regardless of cause
-        # But give more reward if it's due to helitack action
-        if burning_reduction > 0:
-            if last_action == 4:  # Helitack was used
-                reward += burning_reduction * 10  # Higher reward for active suppression
-            else:
-                reward += burning_reduction * 2   # Lower reward for passive reduction
-        
-        # Extract fire states
         fire_states = cells // 3
         burning_mask = fire_states == FireState.Burning
         
-        # Proximity reward to active fires
+        # Proximity guidance
         if np.any(burning_mask):
             burning_coords = np.argwhere(burning_mask)
             distances = np.sqrt(
@@ -390,55 +533,36 @@ class FireEnvSync(gym.Env):
                 (burning_coords[:, 1] - heli_x) ** 2
             )
             min_distance = np.min(distances)
-            
-            # Stronger proximity reward
-            proximity_reward = 20 * np.exp(-min_distance / 10)
+            proximity_reward = 2 * np.exp(-min_distance / 20)
             reward += proximity_reward
         
-        # Helitack effectiveness evaluation
+        # Helitack evaluation
         if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
             fire_state = fire_states[heli_y, heli_x]
             burn_index = cells[heli_y, heli_x] % 3
             
             if fire_state == FireState.Burning:
-                # Major reward for direct hits
-                intensity_bonus = (burn_index + 1) * 3
-                reward += 100 * intensity_bonus
-            
+                # Reward for direct hits based on intensity
+                intensity_bonus = (burn_index + 1) * 2
+                reward += 20 * intensity_bonus
             elif fire_state == FireState.Burnt:
-                # Significant penalty for wasted helitack
-                reward -= 100
-            
+                # Penalty for wasted helitack
+                reward -= 5
             elif fire_state == FireState.Unburnt:
-                # Check for strategic firebreak creation
+                # Strategic firebreak rewards
                 nearby_burning = np.sum(burning_mask[
                     max(0, heli_y-5):min(160, heli_y+6),
                     max(0, heli_x-5):min(240, heli_x+6)
                 ])
-                
                 if nearby_burning > 0:
-                    # Reward for creating firebreaks near active fires
-                    reward += 30 * min(nearby_burning, 10)
+                    reward += 5 * min(nearby_burning, 5)
                 else:
-                    # Heavy penalty for using helitack far from fires
-                    reward -= 50
+                    reward -= 10
         
-        # Reward for aggressive behavior when fire is large
-        if curr_burning > 50:  # Threshold for "large" fire
-            if last_action == 4:
-                reward += 20  # Bonus for being aggressive with large fires
-            else:
-                reward -= 5   # Penalty for not being aggressive
-        
-        # Edge penalty (reduced)
-        edge_distance = min(heli_x, heli_y, 239 - heli_x, 159 - heli_y)
-        if edge_distance < 5:
-            reward -= (5 - edge_distance) * 0.2
-        
-        # Update tracking variables
+        # Update for next timestep
         self.prev_burning = curr_burning
         
-        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | Reduction: {burning_reduction}")
+        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | New burnt: {newly_burnt} | Reduction: {burning_reduction}")
         return reward
     
     def close(self):
@@ -491,34 +615,47 @@ def main():
             print(f"❌ Environment check failed: {e}")
             print("⚠️ Attempting to continue anyway")
         env.episode_count = 0
+        env = Monitor(env, filename=logdir)  
+        vec_env = DummyVecEnv([lambda: env])
+        vec_env = VecNormalize(
+            vec_env,
+            norm_obs=True,
+            norm_obs_keys=["helicopter_coord", "cells"],
+            norm_reward=True,
+            clip_obs=10.0,
+            clip_reward=10.0,
+            gamma=0.99,
+            epsilon=1e-8,
+        )
         # Try to load existing model for resuming training
         print("🔍 Checking for existing model...")
         try:
             # Check if model file exists before attempting to load
-            if USE_TRAINED_AGENT and os.path.exists("ppo_firefighter_interrupted.zip"):
+            if USE_TRAINED_AGENT and os.path.exists("ppo_firefighter.zip"):
                 print("🔄 Found existing model, loading for continued training...")
                 model = PPO.load("ppo_firefighter")
-                model.set_env(env)
+                model.set_env(vec_env)
                 print("✅ Model loaded successfully!")
             else:
                 # No existing model, create a new one
                 print("🆕 No existing model found, initializing new model...")
                 model = PPO(
                     FireEnvLSTMPolicy,
-                    env,
-                    n_steps=10,        # Collect exactly 10 steps before updating
-                    batch_size=10,     # Use all collected steps in a single update
-                    n_epochs=1,        # Perform only 1 optimization epoch per update
+                    vec_env,
+                    n_steps=128,        # Collect exactly 10 steps before updating
+                    batch_size=32,     # Use all collected steps in a single update
+                    n_epochs=4,        # Perform only 1 optimization epoch per update
                     learning_rate=0.0003,
                     clip_range=0.2,
                     gamma=0.99,        # Discount factor
                     gae_lambda=0.95,   # GAE parameter
-                    ent_coef=0.01,     # Entropy coefficient
+                    ent_coef=0.05,     # Entropy coefficient
                     vf_coef=0.5,       # Value function coefficient
                     max_grad_norm=0.5, # Maximum gradient norm
                     target_kl=0.01,    # Target KL divergence
                     verbose=1,
-                    device='mps'
+                    device='mps',
+                    tensorboard_log=logdir
                 )
                 print("✅ New model initialized successfully!")
         except Exception as e:
@@ -526,29 +663,49 @@ def main():
             print("🆕 Initializing new model instead...")
             model = PPO(
                 FireEnvLSTMPolicy,
-                env,
-                n_steps=10,
-                batch_size=10,
-                n_epochs=1,
+                vec_env,
+                n_steps=128,
+                batch_size=32,
+                n_epochs=4,
                 learning_rate=0.0003,
                 clip_range=0.2,
                 gamma=0.99,
                 gae_lambda=0.95,
-                ent_coef=0.01,
+                ent_coef=0.05,
                 vf_coef=0.5,
                 max_grad_norm=0.5,
                 target_kl=0.01,
                 device='mps',
-                verbose=1
+                verbose=1,
+                tensorboard_log=logdir
             )
             print("✅ New model initialized successfully!")
-            
+        vec_env.model = model
+
+        # Create the custom reward logging callback
+        reward_callback = RewardLoggingCallback()
+        lr_callback = LearningRateScheduleCallback(lr_schedule)
+
+        # Checkpoint callback to save model periodically
+        checkpoint_callback = CheckpointCallback(
+            save_freq=2000,  # Save every 5000 steps
+            save_path="./models/",
+            name_prefix="ppo_firefighter",
+            verbose=1
+        )
+
+        # Combine callbacks
+        callbacks = CallbackList([reward_callback,lr_callback])
+        os.makedirs(logdir, exist_ok=True)
 
         # Train model
         print("🚀 Starting training...")
         model.learn(
             total_timesteps=200000,
-            reset_num_timesteps=False  # This ensures continued training
+            reset_num_timesteps=False,  # This ensures continued training
+            tb_log_name="run4",   # can be anything
+            callback=callbacks  # Use our callback list
+
         )
         print("✅ Training completed successfully!")
     except KeyboardInterrupt:
@@ -563,7 +720,7 @@ def main():
         if model is not None:
             try:
                 print("💾 Saving model...")
-                model.save("inferno_tactix_ppo")
+                model.save("ppo_firefighter")
                 print("✅ Model saved.")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")
