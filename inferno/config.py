@@ -1,4 +1,58 @@
+"""
+Note: 
+
+- Download the pickled cache file for making the data from : https://buffalo.box.com/s/znj94lmk8gdxavswluh7umo558w99wa4.
+
+Author:  Shreyas Bellary Manjunath <> Shaurya Mathur
+Date:    2025-05-01
+
+"""
+
+
 import os
+
+
+                                            #──────────────────────────────────────────────#
+                                            #         Config for make_coords.py            #
+                                            #──────────────────────────────────────────────#
+            
+            
+#Bounding box (CONUS) ──────────────────────────────────────────────────
+MIN_LAT = 24.396308
+MAX_LAT = 49.384358
+MIN_LON = -125.0
+MAX_LON = -66.93457
+
+#Positive-set (Wildfire = 'Yes')───────────────────────────────
+POSITIVE_MIN_DISTANCE_KM = 5       
+POSITIVE_MIN_HOURS       = 2       
+
+#Negative-set (Wildfire = 'No')──────────────────────────────────────
+FAR_NEGATIVE_COUNT       = 5_000   
+FAR_NEGATIVE_MIN_KM      = 100
+
+NEAR_NEGATIVE_PER_POS    = 1       
+NEAR_NEGATIVE_MAX_KM     = 100
+NEAR_NEGATIVE_MIN_DAYS   = 90
+NEAR_NEGATIVE_MAX_DAYS   = 120        
+
+MIN_NO_SPATIAL_KM       = 5          #radius for same 4‑km grid
+MIN_NO_TEMPORAL_DAYS    = 120        #look‑back window
+
+#Date window for random generation ─────────────────────────────────────
+DATE_START = "2014-03-01"
+DATE_END   = "2025-03-31"
+
+#Threading & performance ───────────────────────────────────────────────
+MAX_THREADS = 32    
+SEED        = 42   
+
+#INPUT/OUTPUT ─────────────────────────────────────────────────────────────
+
+INCIDENTS = "wildfire_incidents.csv"
+OUT = "data_coordinates.csv"
+
+
 
                                             #──────────────────────────────────────────────#
                                             #         Config for make_dataset.py           #
@@ -41,7 +95,7 @@ BASE_URL_TMPL     = (
     "http://thredds.northwestknowledge.net:8080/"
     "thredds/dodsC/MET/{feat}/{feat}_{year}.nc"
 )
-CACHE_PICKLE_PATH = os.path.expanduser("wildfire_cache.pkl") 
+CACHE_PICKLE_PATH = os.path.expanduser("/projects/academic/courses/cse676s25/sbellary/Inferno_Tactics/wildfire_cache.pkl") 
 
 #PARALLELISM & BATCHING ────────────────────────────────────────────────────
 PREFETCH_WORKERS  = 24
