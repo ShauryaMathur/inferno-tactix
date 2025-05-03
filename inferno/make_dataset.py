@@ -3,8 +3,9 @@ Note: Uses config.py for all settings/customizations.
 
 This gets the wildfire/no-wildfire event data with 75-day windows of climate features (e.g., temperature, humidity) fetched from remote NetCDF sources. It uses parallel processing and a local pickle cache to avoid redundant downloads, only re-fetching missing or current-year data. Configurable via config.py, it shows progress with tqdm and writes the final dataset in chunks to CSV, making it efficient, scalable, and easy to reproduce for large geospatial time series tasks.
 
-Author:  INFERNO TACTICS
+Author:  Shreyas Bellary Manjunath <> Shaurya Mathur
 Date:    2025-05-01
+
 """
 
 import os
