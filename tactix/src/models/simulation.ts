@@ -87,6 +87,8 @@ private connectSocket() {
   console.log("🌐 Connecting to WebSocket server...");
 
   this.socket.onopen = () => {
+    // this.reload();
+    // this.handleReset();
     console.log("✅ Connected to the WebSocket server");
     console.log('Socket', this.socket);
 
@@ -104,6 +106,7 @@ private connectSocket() {
     const { action, helicopter_coord } = message;
     if (message.type === "pong") {
       console.log("✅ Received pong from server");
+      // debugger;
     }else if (action === "close") {
       console.log("Simulation Done, closing!");
       this.cleanup();

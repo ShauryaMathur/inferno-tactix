@@ -105,7 +105,7 @@ def websocket_server_thread():
                 client_websocket = None
     
     async def run_server():
-        server = await websockets.serve(handler, "localhost", 8765)
+        server = await websockets.serve(handler, "localhost", 8765,max_size=None,compression='deflate')
         print("🟢 WebSocket server started on localhost:8765")
         
         # Keep server running until stop event is set
@@ -171,7 +171,7 @@ class FireEnvSync(gym.Env):
             'quenchedCells': 0
         }
     
-    def _send_and_wait(self, message, timeout=5.0):
+    def _send_and_wait(self, message, timeout=500.0):
         """Send a message to React and wait for a response"""
         global client_websocket
         
@@ -200,7 +200,7 @@ class FireEnvSync(gym.Env):
         while time.time() - start_time < timeout:
             try:
                 # Try to get a response (with a short timeout)
-                response = self.msg_queue.get(timeout=0.1)
+                response = self.msg_queue.get(timeout=500)
                 # print(f"📥 Received response: {response}")
                 
                 # Parse the response
@@ -298,7 +298,7 @@ class FireEnvSync(gym.Env):
         })
         
         # Send and wait for response
-        response = self._send_and_wait(step_message, timeout=1.0)
+        response = self._send_and_wait(step_message, timeout=500.0)
         if response is None:
             print("⚠️ No response from React, maintaining current state")
             response = {}
@@ -470,7 +470,7 @@ def main():
         
         # Wait for React to connect
         print("Waiting for React to connect...")
-        timeout = 60
+        timeout = 500
         start_time = time.time()
         while client_websocket is None:
             time.sleep(0.5)
@@ -582,7 +582,7 @@ def main():
         
         # Wait for server thread to finish
         if server_thread is not None and server_thread.is_alive():
-            server_thread.join(timeout=5)
+            server_thread.join(timeout=500)
             if server_thread.is_alive():
                 print("⚠️ WebSocket server thread did not terminate properly")
             else:
