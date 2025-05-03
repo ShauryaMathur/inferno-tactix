@@ -94,7 +94,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   modelWidth: 120000,
   modelHeight: 80000,
   // 240 works well with presets based on heightmap images.
-  gridWidth: 240,
+  gridWidth: 1200,
   get cellSize() { return this.modelWidth / this.gridWidth; },
   get gridHeight() { return Math.ceil(this.modelHeight / this.cellSize); },
   elevation: undefined, // will be derived from zone properties
@@ -112,7 +112,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   neighborsDist: 2.5,
   minCellBurnTime: 200, // minutes
   // This value works well with existing heightmap images.
-  heightmapMaxElevation: 20000,
+  heightmapMaxElevation: 10000,
   // undefined zones count will make them configurable in Terrain Setup dialog.
   zonesCount: undefined,
   zones: [
@@ -159,6 +159,8 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
 
 const getURLParam = (name: string) => {
   const url = (self || window).location.href;
+  console.log(url);
+  
   name = name.replace(/[[]]/g, "\\$&");
   const regex = new RegExp(`[?&]${name}(=([^&#]*)|&|#|$)`);
   const results = regex.exec(url);
@@ -183,11 +185,35 @@ const isJSON = (value: any) => {
   }
 };
 
+const getQueryParams = (url: string): { [key: string]: string } => {
+  console.log(url);
+  
+  const params: { [key: string]: any } = {};
+  const queryString = url.split('?')[1];
+  console.log(queryString);
+  
+  if (queryString) {
+    const pairs = queryString.split('&');
+    pairs.forEach(pair => {
+      const [key, value] = pair.split('=');
+      params[key] = decodeURIComponent(value);
+    });
+  }
+  console.log(params);
+  
+  return params;
+}
+
 export const getUrlConfig: () => IUrlConfig = () => {
   const urlConfig: any = {};
   // Populate `urlConfig` with values read from URL.
   Object.keys(getDefaultConfig()).forEach((key) => {
     const urlValue: any = getURLParam(key);
+    
+    // const params = getQueryParams((self || window).location.href);
+    // const urlValue = params[key];
+    // console.log(urlValue);
+    
     if (urlValue === true || urlValue === "true") {
       urlConfig[key] = true;
     } else if (urlValue === "false") {

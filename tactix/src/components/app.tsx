@@ -1,23 +1,12 @@
-import React, { useEffect } from "react";
 import { observer } from "mobx-react";
-import { View3d } from "./view-3d/view-3d";
-import { SimulationInfo } from "./simulation-info";
-import { TerrainPanel } from "./terrain-panel";
-import { RightPanel } from "./right-panel";
-import { BottomBar } from "./bottom-bar";
-import { useStores } from "../use-stores";
-import { TopBar } from "./top-bar/top-bar";
-import { AboutDialogContent } from "./top-bar/about-dialog-content";
-import { ShareDialogContent } from "./top-bar/share-dialog-content";
-import Shutterbug from "shutterbug";
+import React from "react";
 
-import styles from "./app.module.scss";
-import { useCustomCursor } from "./use-custom-cursors";
-import { BrowserRouter, HashRouter, Link, Route, Routes } from "react-router-dom";
-import { SimulationPage } from "../pages/SimulationPage";
-import Home from "../pages/Home";
 import 'leaflet/dist/leaflet.css';
+import { HashRouter, Link, Route, Routes } from "react-router-dom";
+import Home from "../pages/Home";
 import Inferno from "../pages/Inferno";
+import { SimulationPage } from "../pages/SimulationPage";
+import styles from "./app.module.scss";
 
 
 export const AppComponent = observer(function WrappedComponent() {

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import styles from './inferno.module.scss';
 import axios from 'axios'; // Import axios for API calls
+import 'leaflet/dist/leaflet.css';
+import React, { useEffect, useRef, useState } from 'react';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import styles from './inferno.module.scss';
 
 const DEFAULT_CENTER: [number, number] = [24.396308, -124.848974];
 const DEFAULT_ZOOM = 4;

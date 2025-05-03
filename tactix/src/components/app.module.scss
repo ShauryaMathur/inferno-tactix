@@ -137,6 +137,33 @@
   pointer-events: none;
 }
 
-body{
-  background: #fff;
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  /* background: #000; */
+  /* background: url("/bg.png") ;
+    background-size: contain;
+    background-blend-mode: lighten; */
+  background-image:
+    /* orange blob */
+    radial-gradient(circle at 30% 75%,
+      rgba(255, 102, 0, 0.9) 0%,
+      rgba(255, 102, 0, 0.7) 25%,
+      rgba(255, 102, 0, 0) 60%),
+    /* black blob */
+    radial-gradient(circle at 75% 25%,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0, 0, 0, 0.8) 30%,
+      rgba(0, 0, 0, 0) 70%);
+  background-size: 200% 200%;
+  animation: gradientShift 20s ease infinite;
+  color: #e81515;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  font-family: 'Lato', sans-serif;
+  user-select: none;
 }

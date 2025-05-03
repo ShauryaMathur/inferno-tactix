@@ -1,15 +1,22 @@
-import React, { useEffect } from "react";
 import { observer } from "mobx-react";
-import { View3d } from "../components/view-3d/view-3d";
-import { TerrainPanel } from "../components/terrain-panel";
-import { useStores } from "../use-stores";
+import React, { useEffect } from "react";
 import Shutterbug from "shutterbug";
+import { TerrainPanel } from "../components/terrain-panel";
+import { View3d } from "../components/view-3d/view-3d";
+import { useStores } from "../use-stores";
 
+import { useSearchParams } from "react-router-dom";
 import css from "../components/app.module.scss";
 import { useCustomCursor } from "../components/use-custom-cursors";
 
 export const SimulationPage = observer(function WrappedComponent() {
   const { simulation, ui } = useStores();
+  const [searchParams] = useSearchParams();
+
+  const lat = parseFloat(searchParams.get('lat') ?? '37.8');
+  const lon = parseFloat(searchParams.get('lon') ?? '-96.0');
+  const date = searchParams.get('date') ?? new Date().toISOString().slice(0,10);
+
 
   useEffect(() => {
     Shutterbug.enable("." + css.app);
