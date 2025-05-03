@@ -8,15 +8,14 @@ import Inferno from "../pages/Inferno";
 import { SimulationPage } from "../pages/SimulationPage";
 import styles from "./app.module.scss";
 
-
 export const AppComponent = observer(function WrappedComponent() {
 
   return (
     <HashRouter>
-      <div className={styles.homePage}>
+      <div id={styles.app}>
 
         <div className={styles.links}>
-        <Link to="/">Home</Link>
+          <Link to="/">Home</Link>
           <Link to="/inferno">Inferno</Link>
           <Link to="/tactics">Tactics</Link>
         </div>

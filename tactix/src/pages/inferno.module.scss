@@ -1,40 +1,6 @@
 
 /* src/pages/Home.scss */
 
-/* remove the gray */
-// .home-page {
-//     padding: 2rem 1rem;
-//     background: none;      /* <-- no more gray */
-//     min-height: 100vh;
-//     box-sizing: border-box;
-//     background: url("../assets/bg.png") no-repeat center center fixed;
-//   }
-// .searchBar {
-//   display: inline-flex;
-//   width: 100%;
-//   max-width: 600px;
-//   border-radius: 6px;
-//   overflow: hidden;
-//   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-// }
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 0%;
-  }
-
-  50% {
-    background-position: 100% 100%;
-  }
-
-  100% {
-    background-position: 0% 0%;
-  }
-}
-
-
-
-
 /* size only the map container */
 
 .map-wrapper {
@@ -45,11 +11,6 @@ border-radius: 8px;
 overflow: hidden;
 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 background: #fff;      /* a clean white “card” behind the map */
-
-/* ensure the leaflet canvas fills that box */
-
-
-
 }
 
 h1 {
