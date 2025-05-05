@@ -214,8 +214,8 @@ def generate_heightmap(coords: str) -> str:
     height_km     = 24.384   # modelHeight 80000 ft ≈ 24.384 km
     # scale         = 30       # meters per pixel
     scale         = 152.4       # meters per pixel
-    output_width  = 240     # px
-    output_height = 160      # px (keeps aspect ratio: 24.384/36.576*1200≈800)
+    output_width  = 1200     # px
+    output_height = 813      # px (keeps aspect ratio: 24.384/36.576*1200≈800)
     output_dir    = '../src/public/data'
     # =================================
 
