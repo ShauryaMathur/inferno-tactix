@@ -1,8 +1,10 @@
 gymnasium==1.0.0
-numpy==1.21.2
+numpy==1.24.3
 websockets==10.4
-stable-baselines3==1.5.0
+stable-baselines3==2.4.1
 torch==2.4.1
-pyppeteer==2.0.0
+# pyppeteer==2.0.0
 pillow==10.4.0
 # pytorch-lightning==1.7.5
+tensorboard==2.13.0
+tensorboard-data-server==0.7.2

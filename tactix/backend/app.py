@@ -3,6 +3,9 @@ from flask_cors import CORS
 import torch
 import os
 from create_env import generate_heightmap
+from generate_timeseries import get_75day_timeseries
+from datetime import datetime
+
 
 # Initialize app
 app = Flask(__name__)
@@ -49,6 +52,25 @@ def create_environment():
         'lat': lat,
         'lon': lon,
         'heightmap': heightmap
+    })
+
+@app.route('/api/predictWildfire', methods=['POST'])
+def get_timeseries():
+
+    lat = float(request.args.get('lat'))
+    lon = float(request.args.get('lon'))
+    dt_str = request.args.get('date')
+    dt_obj = datetime.strptime(dt_str, '%Y-%m-%d')
+
+    print(dt_obj,type(dt_obj))
+    out_df = get_75day_timeseries(lat, lon, dt_obj)
+
+    print(out_df.info())
+
+    return jsonify({
+        'lat': lat,
+        'lon': lon,
+        # 'df': out_df
     })
 
 
