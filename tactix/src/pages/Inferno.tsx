@@ -23,6 +23,10 @@ function Recenter({ center }: { center: [number, number] }) {
     return null;
 }
 
+interface ApiResponse {
+    prediction: number; // Adjust based on your actual API response structure
+}
+
 // Modified to only update position without API call
 function ClickableMarker({ onPositionChange }: { onPositionChange: (pos: [number, number]) => void }) {
     const [pos, setPos] = useState<[number, number] | null>(null);
@@ -45,12 +49,14 @@ export default function Inferno() {
     const [zoom, setZoom] = useState(DEFAULT_ZOOM);
     const [date, setDate] = useState(now.toISOString().slice(0, 10)); // Store only the date
     const [theme, setTheme] = useState('dark');
-    const [apiResponse, setApiResponse] = useState(null);
+    const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
     // New state for autocomplete
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const searchTimeout = useRef<any>(null);
+    // New state for environment loading
+    const [isCreatingEnvironment, setIsCreatingEnvironment] = useState(false);
 
     // Function to fetch location suggestions with debouncing
     const fetchSuggestions = async (input: string) => {
@@ -152,16 +158,45 @@ export default function Inferno() {
     // Call backend API
     const callApi = async (position: [number, number], selectedDate: string) => {
         try {
-            const response = await axios.post('/api/your-endpoint', {
-                latitude: position[0],
-                longitude: position[1],
-                date: selectedDate
+            const response = await axios.post('http://localhost:6969/api/predictWildfire', null, {
+                params: {
+                    lat: position[0],
+                    lon: position[1],
+                    date: selectedDate,
+                }
             });
+            
 
             setApiResponse(response.data);
             console.log('API Response:', response.data);
         } catch (error) {
             console.error('Error calling API:', error);
+        }
+    };
+
+    // NEW FUNCTION: Create environment and navigate to tactics
+    const createEnvironmentAndNavigate = async () => {
+        if (!markerPos) {
+            alert('Please select a location on the map first');
+            return;
+        }
+        
+        setIsCreatingEnvironment(true);
+        
+        try {
+            // Use the current marker position
+            const url = `http://localhost:6969/api/createEnvironment?lat=${markerPos[0]}&lon=${markerPos[1]}`;
+            const response = await axios.post(url);
+            
+            console.log('Environment created:', response.data);
+            
+            // Navigate to tactics page after successful response
+            window.location.href = '/#/tactics';
+        } catch (error) {
+            console.error('Error creating environment:', error);
+            alert('Failed to create environment. Please try again.');
+        } finally {
+            setIsCreatingEnvironment(false);
         }
     };
 
@@ -247,8 +282,53 @@ export default function Inferno() {
         }
     };
 
+    // Loading spinner component
+    const LoadingSpinner = () => (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999
+        }}>
+            <div style={{
+                textAlign: 'center',
+                color: '#fff'
+            }}>
+                <div style={{
+                    border: '5px solid #f3f3f3',
+                    borderTop: '5px solid #ffdf00',
+                    borderRadius: '50%',
+                    width: '50px',
+                    height: '50px',
+                    margin: '0 auto 20px',
+                    animation: 'spin 2s linear infinite'
+                }} />
+                <p>Creating environment... Please wait</p>
+            </div>
+        </div>
+    );
+
     return (
         <div className="home-page" style={{ padding: '1rem' }}>
+            {/* Create the spinner animation style */}
+            <style>
+                {`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                `}
+            </style>
+            
+            {/* Loading spinner overlay */}
+            {isCreatingEnvironment && <LoadingSpinner />}
+            
             {/* search + date */}
             <div className={styles.searchBar} style={{ maxWidth: '800px', margin: '1rem auto', display: 'flex', gap: '2.5rem', alignItems: 'center', position: 'relative' }}>
                 <div className="search-container" style={{ position: 'relative', flex: 1 }}>
@@ -365,12 +445,49 @@ export default function Inferno() {
                     maxWidth: '800px',
                     margin: '1rem auto',
                     padding: '1rem',
-                    background: theme === 'dark' ? '#333' : '#f5f5f5',
+                    // background: theme === 'dark' ? '#333' : '#f5f5f5',
                     color: theme === 'dark' ? '#fff' : '#000',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    textAlign: 'center',  // Center the content
                 }}>
-                    <h3>API Response</h3>
-                    <pre>{JSON.stringify(apiResponse, null, 2)}</pre>
+                    
+                    {/* Display the prediction result */}
+                    <div 
+                        style={{
+                            padding: '1rem 0',
+                            marginBottom: '1rem',
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            backgroundColor: apiResponse.prediction > 0.5 ? '#f44336' : '#4caf50',
+                            color: '#fff',
+                            borderRadius: '8px',
+                        }}
+                    >
+                        {apiResponse.prediction > 0.5 ? 'Yes, there is a likelihood of a wildfire.' : 'No, you are safe. No wildfire detected.'}
+                    </div>
+
+                    {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
+                    {apiResponse.prediction > 0.5 ? (
+                        <div>
+                            <button 
+                                onClick={createEnvironmentAndNavigate}
+                                disabled={isCreatingEnvironment} 
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    backgroundColor: 'red',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: isCreatingEnvironment ? 'not-allowed' : 'pointer',
+                                    fontSize: '1rem',
+                                    fontWeight: 'bold',
+                                    opacity: isCreatingEnvironment ? 0.7 : 1
+                                }}
+                            >
+                                {isCreatingEnvironment ? 'Creating Environment...' : 'Go to Tactics'}
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             )}
         </div>

@@ -85,7 +85,7 @@ private connectSocket() {
   // const host = window.location.hostname;
   // const wsUrl = `ws://${host}:8765`;
   // this.socket = new WebSocket(wsUrl);
-
+  // this.socket = new WebSocket("ws://python-backend:8765");
   this.socket = new WebSocket("ws://localhost:8765");
   console.log("🌐 Connecting to WebSocket server...");
 

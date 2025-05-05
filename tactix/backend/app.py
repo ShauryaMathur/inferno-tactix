@@ -5,12 +5,53 @@ import os
 from create_env import generate_heightmap
 from generate_timeseries import get_75day_timeseries
 from datetime import datetime
-
+import torch
+import torch.nn as nn
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 # Initialize app
 app = Flask(__name__)
 CORS(app)
 
+SEQ_LEN = 75
+# Load the trained model
+class CNN_LSTM_Wildfire(nn.Module):
+    def __init__(self, input_features, hidden_size, num_layers, dropout):
+        super().__init__()
+        self.cnn = nn.Sequential(
+            nn.Conv1d(input_features, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2)
+        )
+        self.lstm = nn.LSTM(input_size=128, hidden_size=hidden_size,
+                            num_layers=num_layers, dropout=dropout, batch_first=True)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        x = x.permute(0,2,1)  # Change shape for CNN input
+        x = self.cnn(x)
+        x = x.permute(0,2,1)  # Change back shape for LSTM input
+        _, (hn, _) = self.lstm(x)
+        out = hn[-1]
+        return self.fc(out).squeeze(1)
+
+# Instantiate the model and load the saved weights
+model = CNN_LSTM_Wildfire(
+    input_features=14,  # Assuming you have 14 features in your dataset
+    hidden_size=128,
+    num_layers=3,
+    dropout=0.25
+)
+model.load_state_dict(torch.load('infernix_model.pth', map_location='mps'))
+model.eval()  # Set to evaluation mode
 # Load models
 # MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 # model1 = torch.load(os.path.join(MODEL_DIR, 'model1.pth'), map_location='cpu')
@@ -67,10 +108,37 @@ def get_timeseries():
 
     print(out_df.info())
 
+    # Check if the dataframe has valid data
+    if out_df is None or out_df.empty:
+        return jsonify({'error': 'Invalid data for the given coordinates and date'}), 400
+
+    # Preprocess the data (e.g., scaling, reshaping)
+    features = ['pr','rmax','rmin','sph','srad','tmmn','tmmx','vs','bi','fm100','fm1000','erc','pet','vpd']
+    data = out_df[features].values
+    scaler = StandardScaler()  # Make sure to fit this scaler during training, if you used scaling
+    data_scaled = scaler.fit_transform(data)  # Apply scaling
+
+    # Reshape data to match the expected input shape of the model (batch_size, seq_len, features)
+    input_data = np.reshape(data, (1, SEQ_LEN, len(features)))  # Assuming seq_len=75
+    input_tensor = torch.tensor(input_data, dtype=torch.float32)
+
+    # Make the prediction
+    with torch.no_grad():  # Disable gradient computation for inference
+        try:
+            logits = model(input_tensor)  # Get the raw output from the model
+            print(logits)
+            prediction = torch.sigmoid(logits).item()  # Apply sigmoid and convert to scalar
+        except Exception as e:
+            print(e)
+
+
+    print(f"Prediction: {prediction}")
+
     return jsonify({
         'lat': lat,
         'lon': lon,
-        # 'df': out_df
+        'date': dt_obj.strftime('%Y-%m-%d'),
+        'prediction': prediction
     })
 
 
