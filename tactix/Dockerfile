@@ -9,6 +9,13 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
+# Set environment variables for development server
+ENV WDS_SOCKET_HOST=0.0.0.0
+ENV WDS_SOCKET_PORT=8080
+ENV DANGEROUSLY_DISABLE_HOST_CHECK=true
+
+# Expose port
 EXPOSE 8080
 
-CMD ["npm", "start"]
+# Start the development server with special flags
+CMD ["npm", "start", "--", "--host", "0.0.0.0"]

@@ -1,22 +1,18 @@
-# Pyppeteer Dockerfile
-FROM python:3.8-slim
+FROM mcr.microsoft.com/playwright/python:v1.35.0-focal
 
 WORKDIR /app
 
-# Install dependencies for Pyppeteer and Chromium
-RUN apt-get update && apt-get install -y \
-    wget \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libnss3 \
-    lsb-release \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+# Copy requirements
+COPY requirements.txt .
 
-# Install Pyppeteer (Python version of Puppeteer)
-RUN pip install pyppeteer
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy application code
+COPY headless_client.py .
 
-CMD ["python", "infernoenv.py"]
+# Create screenshots directory
+RUN mkdir -p /app/screenshots
+
+# Start the headless browser client
+CMD ["python", "headless_client.py"]

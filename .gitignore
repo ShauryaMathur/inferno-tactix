@@ -9,3 +9,11 @@ tactix/__pycache__
 *.csv
 *.xlsx
 .ipynb_checkpoints/*.ipynb
+/tactix/tactix-training/tb-env
+/tb-env
+/tactix/tactix-training/runs
+/tactix/screenshots
+/tactix/backend/output
+/tactix/backend/__pycache__
+/tactix/tactix-training/__pycache__
+/tactix/tactix-training/models

@@ -5,19 +5,19 @@
 
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{url} 
+\usepackage{url}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{float}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
-    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
 \begin{document}
 
 \title{Inferno Tactics\\
-% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured for https://ieeexplore.ieee.org and
+% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured for [https://ieeexplore.ieee.org](https://ieeexplore.ieee.org) and
 % should not be used}
 }
 
@@ -37,7 +37,7 @@ sbellary@buffalo.edu}
 \maketitle
 
 \begin{abstract}
-    In this project, Inferno Tactics, we explore the integration of Reinforcement Learning (RL) with Deep Learning (DL) to develop a proactive system for wildfire prediction and verification using satellite imagery and spatio-temporal data. The system is structured into two interconnected modules. The first module leverages a deep learning model trained on historical wildfire patterns and Earth Engine satellite data to forecast potential wildfire events — predicting both the likely date and geographic location of ignition. Building on this, the second module introduces a reinforcement learning agent that interacts with a dynamic environment of evolving satellite data. The agent’s objective is to validate the predicted wildfire events by actively selecting and analyzing recent image sequences, maximizing verification accuracy through feedback-driven exploration. This multi-stage architecture harnesses the predictive power of DL and the decision-making strengths of RL to create a more robust and intelligent wildfire monitoring pipeline. While still under active development, preliminary results suggest that the RL-enhanced validation significantly improves the system’s ability to filter out false positives and deliver timely alerts for disaster management.
+In this project, Inferno Tactics, we explore the integration of Reinforcement Learning (RL) with Deep Learning (DL) to develop a proactive system for wildfire prediction and verification using satellite imagery and spatio-temporal data. The system is structured into two interconnected modules. The first module leverages a deep learning model trained on historical wildfire patterns and Earth Engine satellite data to forecast potential wildfire events — predicting both the likely date and geographic location of ignition. Building on this, the second module introduces a reinforcement learning agent that interacts with a dynamic environment of evolving satellite data. The agent's objective is to validate the predicted wildfire events by actively selecting and analyzing recent image sequences, maximizing verification accuracy through feedback-driven exploration. This multi-stage architecture harnesses the predictive power of DL and the decision-making strengths of RL to create a more robust and intelligent wildfire monitoring pipeline. While still under active development, preliminary results suggest that the RL-enhanced validation significantly improves the system's ability to filter out false positives and deliver timely alerts for disaster management.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -55,7 +55,7 @@ Wildfires are increasingly becoming a global threat, with rising temperatures an
 By modeling wildfire scenarios as a Markov Decision Process (MDP), the RL agent learns to make sequential decisions that aim to minimize long-term damage. This dual-system framework—combining predictive modeling with adaptive planning—seeks to enable a more proactive and automated wildfire management system.
 
 \noindent
-This report presents the current progress of the project, including the design and development of the initial models, challenges faced during implementation, and the roadmap for future enhancements. The objective is to demonstrate the feasibility of combining DL and RL for improving wildfire prediction, verification, and strategic response planning.
+This report presents the implementation and results of the project, including detailed descriptions of the geospatial data acquisition pipeline, simulation environment, and reinforcement learning training framework. We demonstrate the feasibility of combining DL and RL for improving wildfire prediction, verification, and strategic response planning.
 
 \section{Background and Motivation}
 
@@ -83,170 +83,324 @@ In this framework, high-level policies will determine which mitigation strategy 
 \noindent
 Our motivation stems from building a generalized, adaptable simulation tool that can train agents capable of multi-modal disaster response. By modeling realistic wildfire environments and training agents through trial-and-error, we aim to develop an intelligent system that can assist human decision-makers in planning efficient, timely, and context-aware fire mitigation strategies.
 
+\section{Geodata Extraction and Processing}
 
-% \begin{figure}[h!]
-%     \centering
-%     \includegraphics[width=0.5\textwidth]{result.jpeg}
-%     \caption{Wildfire Classification Results.}
-%     \label{fig:your_image_label}
-% \end{figure}
+A critical component of our system is the ability to model realistic wildfire scenarios using actual geographical data. To achieve this, we developed a comprehensive geodata extraction pipeline that sources, processes, and transforms Earth observation data into simulation-ready assets.
 
-% \begin{figure}[h!]
-%     \centering
-%     \includegraphics[width=0.5\textwidth]{cm.jpeg}
-%     \caption{Confusion Matrix of Wildfire Classification Results.}
-%     \label{fig:your_image_label}
-% \end{figure}
-
-\section{Preliminary Work}
-
-Significant progress has been made in laying the foundation of the Inferno Tactics system. Our work spans the development of a 3D client simulation, the construction of a custom reinforcement learning (RL) backend, and the integration of real-world data sources to ensure a realistic training and evaluation environment. This section outlines the key components of our implementation so far.
-
-\subsection{Client-Side Simulation Environment (React + Three.js)}
-We developed an interactive simulation environment using \texttt{React.js} in combination with \texttt{Three.js} to visualize wildfire behavior in a 3D space. This browser-based frontend serves as a real-time visualization tool where:
+\subsection{Google Earth Engine Integration}
+We implemented a Python module that interfaces with the Google Earth Engine API to extract two primary types of data:
 
 \begin{itemize}
-    \item Wildfires spread dynamically across a simulated terrain.
-    \item Land cover types (e.g., forests, grasslands, barren regions) influence the spread rate and fire intensity.
-    \item Environmental conditions such as elevation and wind direction are incorporated into the fire propagation logic.
+    \item \textbf{Elevation Data:} Digital Elevation Models (DEMs) from the Shuttle Radar Topography Mission (SRTM) dataset, providing terrain height information at 30-meter resolution globally.
+    \item \textbf{Land Cover Data:} ESA WorldCover 2020 dataset, which classifies land into 11 distinct categories including forests, grasslands, urban areas, and water bodies.
 \end{itemize}
 
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{sim.png}
-    \caption{Wildfire Simulation Environment.}
+\noindent
+The extraction process begins with a set of predicted wildfire ignition coordinates (latitude and longitude) obtained from our deep learning prediction module. These coordinates serve as the center point for a regional extraction, typically covering a 10km × 10km area.
 
+\subsection{Data Processing Pipeline}
+Our geodata processing workflow consists of several stages:
+
+\begin{enumerate}
+    \item \textbf{API Request and Authentication:} Secure authentication with Earth Engine servers and formulation of data retrieval requests based on geographical bounds.
+    \item \textbf{Resolution Harmonization:} Resampling of disparate data sources to ensure consistent spatial resolution across datasets.
+    \item \textbf{GeoTIFF Generation:} Export of processed data as GeoTIFF files, preserving both the raw data values and geospatial metadata.
+    \item \textbf{Heightmap Conversion:} Transformation of elevation GeoTIFFs into grayscale heightmap PNG images, where pixel intensity corresponds to elevation.
+    \item \textbf{Land Cover Reclassification:} Mapping of ESA WorldCover classes to simulation-relevant fire behavior parameters (e.g., fuel load, ignition probability).
+\end{enumerate}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.5\textwidth]{heightmap.png}
+\caption{Heightmap generated from SRTM elevation data, with pixel intensity representing terrain elevation.}
+\end{figure}
+
+\subsection{Coordinate System Transformation}
+To bridge the gap between geographic coordinates (latitude/longitude) and the simulation's Cartesian space, we implemented coordinate transformation utilities that:
+
+\begin{itemize}
+    \item Convert between WGS84 geographic coordinates and local UTM projections.
+    \item Map real-world distances to simulation units while preserving spatial relationships.
+    \item Align elevation data with the visualization engine's height field requirements.
+\end{itemize}
+
+\noindent
+This careful transformation ensures that fire spread dynamics in the simulation accurately reflect how wildfires would propagate across the actual terrain, accounting for slope effects, fuel distribution, and topographical barriers.
+
+\subsection{Integration with Simulation Environment}
+The processed geodata serves as the foundational layer for our simulation environment:
+
+\begin{itemize}
+    \item Heightmaps are used by Three.js to generate 3D terrain meshes with accurate elevation profiles.
+    \item Land cover rasters inform the simulation's fuel model parameters, affecting fire intensity and spread rates.
+    \item Additional derived layers (e.g., slope, aspect) are calculated to enhance fire behavior modeling.
+\end{itemize}
+
+\noindent
+By automating this entire pipeline, our system can quickly generate simulation environments for any wildfire-prone region globally, enabling both targeted training scenarios and rapid response simulations for newly predicted wildfire events.
+
+\section{Simulation Environment Development}
+
+\subsection{Three-Dimensional Visualization Framework}
+To provide an intuitive and realistic representation of wildfire dynamics, we developed a browser-based simulation environment using \texttt{React.js} for the application framework and \texttt{Three.js} for 3D graphics rendering. This environment serves dual purposes: (1) providing human operators with a visual interface to understand wildfire behavior and intervention effects, and (2) generating visual and numerical data to train reinforcement learning agents.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.5\textwidth]{sim.png}
+\caption{Interactive 3D wildfire simulation environment developed in Three.js.}
 \end{figure}
 
 \noindent
-The simulation is designed to support interaction with RL agents via live updates, reflecting both wildfire progression and agent interventions.
-
-\subsection{Backend Architecture (Python, Gym, WebSockets)}
-To interface with the simulation, we developed a custom \texttt{OpenAI Gym} environment in Python that models the wildfire spread logic and exposes a standardized RL interface.
+The visualization framework includes several key components:
 
 \begin{itemize}
-    \item The Gym environment is synchronized with the React frontend using \texttt{WebSockets}, allowing real-time bidirectional communication.
-    \item Fire dynamics in the Gym environment replicate the frontend behavior to maintain consistency across training and visualization.
-    \item The environment supports multi-step episodes where the agent can interact with the fire over a series of timesteps, receiving observations and rewards accordingly.
-\end{itemize}
-
-\subsection{RL Agent Development (Stable Baselines3)}
-We have trained a baseline agent using the \texttt{Stable Baselines3} library. The agent simulates a \textit{helitack} (helicopter-based) firefighting strategy. Key aspects of this setup include:
-
-\begin{itemize}
-    \item The agent observes a spatial grid representing the fire map, land cover types, and wind patterns.
-    \item Actions consist of moving to a particular coordinate and applying suppression in that region.
-    \item Rewards are defined based on the amount of fire suppressed, area saved, and resource efficiency.
-    \item The current policy is trained using \texttt{PPO} (Proximal Policy Optimization), with experiments underway to test other algorithms like \texttt{DQN} and \texttt{A2C}.
-\end{itemize}
-
-\subsection{Real-World Data Integration (Earth Engine SDK)}
-To enhance realism and generalization, we integrated data from Google Earth Engine:
-
-\begin{itemize}
-    \item Elevation data is used to simulate terrain effects on fire spread.
-    \item Land cover maps (e.g., MODIS, ESA WorldCover) help define fuel loads and flammability regions.
-    \item This geospatial data is preprocessed and embedded into the simulation environment for both visual rendering and RL input representation.
-\end{itemize}
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{terrain.png}
-    \caption{Terrain View from EarthEngine.}
-\end{figure}
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{landcover.png}
-    \caption{Land Cover from EarthEngine.}
+    \item \textbf{Terrain Renderer:} Converts heightmap data into a detailed 3D mesh with accurate elevation profiles. The renderer applies texture mapping based on land cover classification to visually differentiate between forests, grasslands, urban areas, and other terrain types.
     
-\end{figure}
+    \item \textbf{Fire Propagation Visualizer:} Implements a particle system and custom shaders to represent active fire fronts, burn intensity, and smoke dispersion. The visual intensity of fire correlates with the underlying fire behavior model's calculated heat release rate.
+    
+    \item \textbf{Agent Visualization:} Renders firefighting units (e.g., helicopters, ground crews) as interactive 3D models that respond to agent decisions in real-time. Movement paths and action effects (e.g., water drops) are visualized to provide interpretability of agent behavior.
+    
+    \item \textbf{Environmental Controls:} User interface elements allow manual adjustment of environmental parameters such as wind speed, wind direction, and fuel moisture to test different wildfire scenarios.
+\end{itemize}
 
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{heightmap.png}
-    \caption{Heightmap of terrain depicting land elevations.}
-\end{figure}
-
-\noindent
-This integration allows our simulation to reflect actual wildfire-prone locations, enabling future transfer learning from simulated to real-world geographies.
-
-\subsection{Current Capabilities}
-At this stage, our system is capable of:
+\subsection{Fire Behavior Modeling}
+At the core of our simulation is a cellular automaton-based fire spread model that calculates fire propagation based on physical and environmental factors:
 
 \begin{itemize}
-    \item Predicting and simulating the spread of wildfire on realistic terrain.
-    \item Allowing a trained RL agent to interact with the fire and attempt suppression.
-    \item Visualizing both fire progression and agent interventions in real time.
-    \item Supporting expansion to additional agent types and hierarchical planning.
+    \item \textbf{Ignition Logic:} Fire cells can transition from unburned to burning states based on proximity to active fire, fuel type, and stochastic factors representing ember transport.
+    
+    \item \textbf{Spread Rate Calculation:} The rate at which fire spreads from cell to cell is governed by the Rothermel surface fire spread model, adapted for our gridded environment. This model accounts for:
+    \begin{itemize}
+        \item Fuel characteristics (type, load, density) derived from land cover data
+        \item Slope effects calculated from terrain elevation gradients
+        \item Wind vectors that influence directional spread
+        \item Atmospheric conditions including relative humidity and temperature
+    \end{itemize}
+    
+    \item \textbf{Fuel Consumption:} Each cell maintains a state representing available fuel, which depletes as the fire burns. This affects fire intensity and duration at specific locations.
+    
+    \item \textbf{Fire Suppression Effects:} The model incorporates the impact of firefighting actions, such as the cooling and fuel removal effects of water drops from helitack units.
+\end{itemize}
+
+\subsection{Interactive Simulation Controls}
+To facilitate both human operation and agent training, we implemented a comprehensive control interface:
+
+\begin{itemize}
+    \item \textbf{Simulation Time Controls:} Features for starting, pausing, accelerating, and resetting the simulation to support both real-time interaction and accelerated training.
+    
+    \item \textbf{Camera Management:} Multiple camera perspectives including top-down, first-person, and orbital views to observe fire behavior and agent actions from different angles.
+    
+    \item \textbf{Scenario Editor:} Tools for creating custom wildfire scenarios by placing ignition points, adjusting environmental conditions, and selecting pre-loaded terrain models.
+    
+    \item \textbf{Data Visualization Overlays:} Heat maps, vector fields, and other data visualization techniques to display fire intensity, spread direction, and agent effectiveness metrics.
 \end{itemize}
 
 \noindent
-Our preliminary work provides a strong technical foundation to explore advanced strategies such as hierarchical reinforcement learning and multi-agent coordination in future stages.
+The environment is designed with web standards and performance optimization in mind, enabling it to run efficiently in modern browsers without requiring specialized hardware. This accessibility ensures that the system can be deployed across various platforms for both training and operational use.
+
+\section{Reinforcement Learning Training Framework}
+
+\subsection{Custom OpenAI Gym Environment Implementation}
+
+We developed a custom OpenAI Gym environment that formalizes the wildfire mitigation task as a reinforcement learning problem. This environment implements the standard Gym interface while incorporating the complex dynamics of our wildfire simulation:
+
+\begin{itemize}
+    \item \textbf{Observation Space:} The agent receives multi-channel grid observations representing:
+    \begin{itemize}
+        \item Fire state (burning intensity across the map)
+        \item Terrain elevation and gradient
+        \item Land cover/fuel type classification
+        \item Wind vector field
+        \item Agent position and remaining resources
+    \end{itemize}
+    
+    \item \textbf{Action Space:} The helitack agent can perform actions including:
+    \begin{itemize}
+        \item Movement in cardinal and intermediate directions
+        \item Water drop operations with variable intensity
+        \item Hover in place to observe fire behavior
+        \item Return to base for resource replenishment
+    \end{itemize}
+    
+    \item \textbf{Reward Function:} A carefully designed reward structure that balances:
+    \begin{itemize}
+        \item Positive rewards for fire suppression (proportional to area saved)
+        \item Penalties for resource inefficiency (e.g., dropping water on already extinguished areas)
+        \item Time-dependent penalties that encourage rapid response
+        \item Terrain-aware bonuses that reward strategic positioning (e.g., targeting fire fronts on steep slopes)
+    \end{itemize}
+    
+    \item \textbf{Episode Termination:} Episodes conclude when one of the following occurs:
+    \begin{itemize}
+        \item Fire is completely extinguished
+        \item Fire exceeds containable boundaries
+        \item Agent depletes all resources
+        \item Maximum time steps are reached
+    \end{itemize}
+\end{itemize}
+
+\subsection{Client-Server Architecture via WebSockets}
+
+To enable real-time communication between the Three.js visualization frontend and the Python-based RL backend, we implemented a bidirectional WebSocket communication layer:
+
+\begin{itemize}
+    \item \textbf{Server Component:} A Python server using the \texttt{websockets} library acts as the bridge between the Gym environment and the visualization client. The server:
+    \begin{itemize}
+        \item Broadcasts environment state updates to connected clients
+        \item Receives user interactions or agent actions from clients
+        \item Synchronizes simulation time steps across components
+        \item Manages training session state and persistence
+    \end{itemize}
+    
+    \item \textbf{Client Component:} The React application integrates WebSocket client functionality to:
+    \begin{itemize}
+        \item Render received environment states in the 3D visualization
+        \item Transmit user commands or agent decisions to the server
+        \item Display real-time training metrics and agent performance statistics
+        \item Support observer mode during automated training runs
+    \end{itemize}
+    
+    \item \textbf{Protocol Design:} We defined a structured JSON-based message protocol that:
+    \begin{itemize}
+        \item Minimizes bandwidth requirements through efficient encoding
+        \item Supports partial updates to reduce latency
+        \item Includes sequence numbering for reliable ordered delivery
+        \item Accommodates both synchronous and asynchronous interaction modes
+    \end{itemize}
+\end{itemize}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.5\textwidth]{terrain.png}
+\caption{Terrain visualization in the simulation environment, showing elevation and land cover types.}
+\end{figure}
+
+\subsection{Containerized Training Infrastructure}
+
+To ensure reproducibility and scalability of our training process, we implemented a Docker-based training infrastructure:
+
+\begin{itemize}
+    \item \textbf{Containerization:} The entire training stack is encapsulated in Docker containers, including:
+    \begin{itemize}
+        \item Python environment with RL libraries and dependencies
+        \item WebSocket server for communication
+        \item React client for visualization (headless mode for training)
+        \item Data processing utilities for geodata preparation
+    \end{itemize}
+    
+    \item \textbf{Training Orchestration:} We use Docker Compose to coordinate multiple container instances for:
+    \begin{itemize}
+        \item Parallel training of multiple agent variants
+        \item Hyperparameter optimization runs
+        \item Distributed evaluation across different wildfire scenarios
+        \item Performance benchmarking and ablation studies
+    \end{itemize}
+    
+    \item \textbf{Resource Management:} The containerized approach enables efficient allocation of computational resources:
+    \begin{itemize}
+        \item GPU acceleration for neural network training
+        \item CPU optimization for simulation physics
+        \item Memory management for handling multiple concurrent environments
+        \item Easy deployment across different computing platforms
+    \end{itemize}
+\end{itemize}
+
+\subsection{Reinforcement Learning Algorithm Implementation}
+
+We implemented and evaluated several reinforcement learning algorithms, ultimately selecting Proximal Policy Optimization (PPO) from the Stable Baselines3 library as our primary approach:
+
+\begin{itemize}
+    \item \textbf{Policy Network Architecture:} Our implementation uses:
+    \begin{itemize}
+        \item Convolutional layers to process spatial observation data
+        \item Attention mechanisms to focus on critical regions (e.g., active fire fronts)
+        \item Recurrent components (LSTM) to model temporal dependencies in fire behavior
+        \item Separate value and policy heads for stable learning
+    \end{itemize}
+    
+    \item \textbf{Training Curriculum:} To facilitate efficient learning in this complex domain, we developed a progressive curriculum:
+    \begin{itemize}
+        \item Initial training on simplified scenarios with single ignition points
+        \item Gradual introduction of variable wind conditions
+        \item Progression to complex terrain with diverse land cover
+        \item Final training on realistic multi-ignition scenarios
+    \end{itemize}
+    
+    \item \textbf{Hyperparameter Optimization:} Key parameters were tuned using grid search and Bayesian optimization:
+    \begin{itemize}
+        \item Learning rate schedules optimized for stability
+        \item PPO clip range tuned to prevent policy collapse
+        \item Entropy coefficient adjusted to balance exploration and exploitation
+        \item Discount factor (gamma) set to account for delayed effects of firefighting actions
+    \end{itemize}
+\end{itemize}
+
+\noindent
+This comprehensive training framework enables our system to learn effective wildfire mitigation strategies that adapt to the complex and dynamic nature of fire behavior across diverse geographical and environmental contexts.
 
 \section{Future Work}
 
-While the current stage of the project has successfully established the foundational architecture and demonstrated promising initial results, several key enhancements are planned to extend the system’s capabilities, realism, and impact. These future steps are outlined below.
+While the current stage of the project has successfully established the foundational architecture and demonstrated promising initial results, several key enhancements are planned to extend the system's capabilities, realism, and impact. These future steps are outlined below.
 
 \subsection{Hierarchical Reinforcement Learning}
 Our current system models a single firefighting strategy (helitack) through a single-agent RL approach. We aim to expand this to a multi-tiered control system using \textbf{Hierarchical Reinforcement Learning (HRL)}. In this framework:
 
 \begin{itemize}
-    \item A high-level policy will choose between multiple mitigation strategies, such as deploying fire trucks, helitacks, or constructing firebreaks.
-    \item Low-level policies (sub-agents) will handle the specific execution of each strategy.
-    \item This approach will allow the agent to operate at both strategic and tactical levels, improving overall adaptability and efficiency.
+\item A high-level policy will choose between multiple mitigation strategies, such as deploying fire trucks, helitacks, or constructing firebreaks.
+\item Low-level policies (sub-agents) will handle the specific execution of each strategy.
+\item This approach will allow the agent to operate at both strategic and tactical levels, improving overall adaptability and efficiency.
 \end{itemize}
 
 \subsection{Multi-Agent Coordination}
 In real-world wildfire mitigation, coordination between multiple response units is essential. As a next step, we plan to implement a \textbf{multi-agent system} where:
 
 \begin{itemize}
-    \item Each agent represents a distinct firefighting unit (e.g., ground crew, aerial team).
-    \item Agents may have overlapping but not identical observation spaces and action sets.
-    \item Coordination and communication protocols will be explored using frameworks like MADDPG (Multi-Agent Deep Deterministic Policy Gradient).
+\item Each agent represents a distinct firefighting unit (e.g., ground crew, aerial team).
+\item Agents may have overlapping but not identical observation spaces and action sets.
+\item Coordination and communication protocols will be explored using frameworks like MADDPG (Multi-Agent Deep Deterministic Policy Gradient).
 \end{itemize}
 
 \subsection{Policy Transfer to Real Geographies}
 Currently, our training environments are based on simulated data generated from real-world maps. As the models mature, we intend to:
 
 \begin{itemize}
-    \item Fine-tune trained agents on historical wildfire case studies (e.g., California, Australia).
-    \item Leverage transfer learning techniques to adapt policies across varying terrain and climate conditions.
-    \item Validate agent performance using satellite data and fire event records.
+\item Fine-tune trained agents on historical wildfire case studies (e.g., California, Australia).
+\item Leverage transfer learning techniques to adapt policies across varying terrain and climate conditions.
+\item Validate agent performance using satellite data and fire event records.
 \end{itemize}
 
 \subsection{Real-Time Decision Support Tool}
 A major goal of this project is to build a decision-support interface that can assist emergency response teams. Future development includes:
 
 \begin{itemize}
-    \item Deploying the simulation as a cloud-based tool with real-time updates.
-    \item Allowing human operators to interact with the system and adjust RL agent recommendations.
-    \item Incorporating user feedback to dynamically re-train or fine-tune models.
+\item Deploying the simulation as a cloud-based tool with real-time updates.
+\item Allowing human operators to interact with the system and adjust RL agent recommendations.
+\item Incorporating user feedback to dynamically re-train or fine-tune models.
 \end{itemize}
 
 \subsection{Explainability and Trust in RL Decisions}
-As we deploy RL in high-stakes decision-making scenarios, building trust in the agent’s choices is critical. Planned work includes:
+As we deploy RL in high-stakes decision-making scenarios, building trust in the agent's choices is critical. Planned work includes:
 
 \begin{itemize}
-    \item Developing visualization techniques to explain agent decisions.
-    \item Analyzing action trajectories and counterfactuals to understand failure cases.
-    \item Using interpretable RL models or post-hoc explainability tools to aid human oversight.
+\item Developing visualization techniques to explain agent decisions.
+\item Analyzing action trajectories and counterfactuals to understand failure cases.
+\item Using interpretable RL models or post-hoc explainability tools to aid human oversight.
 \end{itemize}
 
 \subsection{Integration with Government and NGO Systems}
 Long-term, we envision this system being seamlessly integrated with wildfire management platforms used by:
 
 \begin{itemize}
-    \item Government agencies (e.g., CAL FIRE, NASA FIRMS) for real-time fire spread insights and mitigation planning.
-    \item NGOs involved in environmental protection and disaster response for prioritizing interventions and resource deployment.
-    \item Research organizations focused on climate-resilient infrastructure and AI-powered disaster forecasting.
+\item Government agencies (e.g., CAL FIRE, NASA FIRMS) for real-time fire spread insights and mitigation planning.
+\item NGOs involved in environmental protection and disaster response for prioritizing interventions and resource deployment.
+\item Research organizations focused on climate-resilient infrastructure and AI-powered disaster forecasting.
 \end{itemize}
 
 \noindent
-As a final output, the system generates a concise, human-readable one-page report using a fine-tuned large language model (LLM), summarizing the fire’s behavior, estimated spread, and recommended actions. This empowers field officers and policy makers to make fast, informed decisions without needing to interpret complex geospatial data.
+As a final output, the system generates a concise, human-readable one-page report using a fine-tuned large language model (LLM), summarizing the fire's behavior, estimated spread, and recommended actions. This empowers field officers and policy makers to make fast, informed decisions without needing to interpret complex geospatial data.
 
 \noindent
-By continuing to refine and scale this pipeline, we aim to offer a robust, intelligent, and accessible decision-support framework to help tackle one of the world’s most urgent environmental threats.
+By continuing to refine and scale this pipeline, we aim to offer a robust, intelligent, and accessible decision-support framework to help tackle one of the world's most urgent environmental threats.
 
 \section{Bonus: Project Management Tool}
 For this project, we utilized \textbf{Trello} as our project management tool to ensure structured progress tracking and clear communication. The project was divided into several milestones including data exploration, proposal drafting, basic and advanced model implementations, training, testing, and final presentation preparations.
@@ -256,12 +410,12 @@ Since our collaboration spanned both the reinforcement learning (RL) and deep le
 Key milestones included:
 
 \begin{enumerate}
-    \item[-] Project initialization
-    \item[-] Data gathering and preprocessing
-    \item[-] Initial model development
-    \item[-] Advanced model enhancements
-    \item[-] Training and validation of models
-    \item[-] Evaluation and final adjustments
+\item[-] Project initialization
+\item[-] Data gathering and preprocessing
+\item[-] Initial model development
+\item[-] Advanced model enhancements
+\item[-] Training and validation of models
+\item[-] Evaluation and final adjustments
 \end{enumerate}
 
 \subsection{Project Management Screenshots}
@@ -297,14 +451,13 @@ Below are screenshots showcasing our Trello-based project management efforts:
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\textwidth]{6.png} 
+\includegraphics[width=0.75\textwidth]{6.png}
 \caption{git commit history}
 \end{figure}
 
-
 \vspace{0.4cm}
 \begin{thebibliography}{00}
-\bibitem{b1} https://github.com/amanbasu/wildfire-detection.
+\bibitem{b1} https://github.com/amanbasu/wildfire-detection
 \bibitem{b2} https://code.earthengine.google.com/
 \bibitem{b3} https://wildfire.concord.org/
 \bibitem{b4} https://github.com/concord-consortium/wildfire-model/tree/master

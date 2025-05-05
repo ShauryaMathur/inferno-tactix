@@ -3,52 +3,61 @@ version: '3.7'
 services:
   react-client:
     build:
-      context: ./  # Path to your React app directory
+      context: ./
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     networks:
       - app-network
-    environment:
-      - REACT_APP_WEBSOCKET_URL=ws://python-backend:8765  # React connects to WebSocket server on Python container
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "wget", "-q", "--spider", "http://0.0.0.0:8080"]
       interval: 10s
       retries: 5
-      start_period: 5s
-      timeout: 5s
+      start_period: 30s
+      timeout: 10s
+    environment:
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
 
   python-backend:
     build:
-      context: ./tactix-training  # Path to your Python app directory
+      context: ./tactix-training
+      dockerfile: Dockerfile
     ports:
       - "8765:8765"
     networks:
       - app-network
+    environment:
+      - WEBSOCKET_HOST=0.0.0.0
+      - PYTHONUNBUFFERED=1
     depends_on:
       react-client:
-        condition: service_healthy  # Ensure the React service is healthy before starting Python backend
-    environment:
-      - WEBSOCKET_HOST=python-backend
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8765"]
-      interval: 10s
-      retries: 5
-      start_period: 5s
+      test: ["CMD", "/app/health.sh"]
+      interval: 5s
       timeout: 5s
+      retries: 10
+      start_period: 5s
 
-  pyppeteer:
+  headless-client:
     build:
-      context: ./tactix-training/train-headless  # Path to your Pyppeteer script directory
+      context: ./tactix-training/train-headless
+      dockerfile: Dockerfile
     networks:
       - app-network
     depends_on:
       python-backend:
-        condition: service_healthy  # Ensure Python backend is ready before running Pyppeteer
-      react-client:
-        condition: service_healthy  # Ensure React is healthy before running Pyppeteer
+        condition: service_healthy
     environment:
-      - REACT_APP_URL=http://react-client:8080  # Pyppeteer connects to React at port 8080
-    command: python infernoenv.py  # Start your headless script when the container runs
+      - REACT_APP_URL=http://react-client:8080
+      - WEBSOCKET_URL=ws://python-backend:8765
+      - LOG_LEVEL=INFO
+      - WAIT_FOR_BACKEND=true
+    volumes:
+      - ./screenshots:/app/screenshots
+    restart: on-failure
 
 networks:
   app-network:
