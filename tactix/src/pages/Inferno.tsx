@@ -469,7 +469,7 @@ export default function Inferno() {
                     </div>
 
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
-                    {apiResponse.prediction < 0.5 ? (
+                    {apiResponse.prediction > 0.5 ? (
                         <div>
                             <button
                                 onClick={createEnvironmentAndNavigate}

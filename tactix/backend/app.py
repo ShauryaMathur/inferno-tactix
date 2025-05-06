@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 import os
-#from create_env import generate_heightmap
+from create_env import generate_heightmap
 from generate_timeseries import get_75day_timeseries
 from datetime import datetime
 import torch
@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from io import StringIO
-
+from ..fire_analytics.one_pager import generate_report
 
 # Initialize app
 app = Flask(__name__)
@@ -146,15 +146,9 @@ def get_timeseries():
 
 
 # Endpoint 1: inference with model1
-# @app.route('/api/predict1', methods=['POST'])
-# def predict1():
-#     data = request.get_json()
-#     # assume data['input'] is a list or tensor-like
-#     tensor = torch.tensor(data['input'], dtype=torch.float32)
-#     with torch.no_grad():
-#         output = model1(tensor)
-#     # convert to list for JSON
-#     return jsonify({'prediction': output.tolist()})
+@app.route('/api/generateReport', methods=['GET'])
+def generateOnePager():
+    generate_report('./combined_fire_assessment.json', 'Fire_Threat_Assessment_Report.pdf')
 
 # # Endpoint 2: inference with model2
 # @app.route('/api/predict2', methods=['POST'])
