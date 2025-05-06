@@ -3,89 +3,100 @@ import { ISimulationConfig } from "../../config";
 import { getInputData } from "./image-utils";
 import { Zone } from "../zone";
 
-// Maps zones config to image data files (see data dir). E.g. it can generate file names like:
-// - data/plains-plains
-// - data/plains-mountains
-// etc.
-const zonesToImageDataFile = (zones: Zone[]) => {
-  const zoneTypes: string[] = [];
-  zones.forEach((z, i) => {
-    zoneTypes.push(TerrainType[z.terrainType].toLowerCase());
-  });
-  return "data/" + zoneTypes.join("-");
+// Maps zones config to image data files (see data dir)
+const zonesToImageDataFile = (zones: Zone[]): string => {
+  const zoneTypes = zones.map(z => TerrainType[z.terrainType].toLowerCase());
+  return `data/${zoneTypes.join("-")}`;
 };
 
-export const getZoneIndex = (config: ISimulationConfig, zoneIndex: number[][] | string): Promise<number[] | undefined> => {
-  return getInputData(zoneIndex, config.gridWidth, config.gridHeight, false,
+export const getZoneIndex = (
+  config: ISimulationConfig,
+  zoneIndex: number[][] | string
+): Promise<number[] | undefined> => {
+  return getInputData(
+    zoneIndex,
+    config.gridWidth,
+    config.gridHeight,
+    false,
     (rgba: [number, number, number, number]) => {
-      // Red is zone 1, green is zone 2, and blue is zone 3.
-      if (rgba[0] >= rgba[1] && rgba[0] >= rgba[2]) {
-        return 0;
-      }
-      if (rgba[1] >= rgba[0] && rgba[1] >= rgba[2]) {
-        return 1;
-      }
+      // Red is zone 1, green is zone 2, blue is zone 3
+      if (rgba[0] >= rgba[1] && rgba[0] >= rgba[2]) return 0;
+      if (rgba[1] >= rgba[0] && rgba[1] >= rgba[2]) return 1;
       return 2;
     }
   );
 };
 
-export const getElevationData = (config: ISimulationConfig, zones: Zone[]): Promise<number[] | undefined> => {
-  // If `elevation` height map is provided, it will be loaded during model initialization.
-  // Otherwise, height map URL will be derived from zones `terrainType` properties.
+export const getElevationData = (
+  config: ISimulationConfig,
+  zones: Zone[]
+): Promise<number[] | undefined> => {
+  // Determine elevation PNG path
   let elevation = config.elevation;
-  console.log(config);
-  console.log(zones)
   if (!elevation) {
-    // elevation = zonesToImageDataFile(zones) + "-heightmap.png";
-    elevation = "data/heightmap_1200x800.png";
+    // elevation = `${zonesToImageDataFile(zones)}-heightmap.png`;
+    // elevation = "data/heightmap_1200x800.png";
+    // elevation = "data/heightmap_1200x800_2.png";
+    elevation = "data/heightmap_1200x813_2.png";
   }
-  return getInputData(elevation, config.gridWidth, config.gridHeight, true,
-    (rgba: [number, number, number, number]) => {
-      // Elevation data is supposed to black & white image, where black is the lowest point and
-      // white is the highest.
-      return rgba[0] / 255 * config.heightmapMaxElevation;
-    }
+
+  // Decode a 16-bit RGBA heightmap where R=high byte, G=low byte
+  const heightFn = (rgba: [number, number, number, number]) => {
+    const highByte = rgba[0];
+    const lowByte = rgba[1];
+    const value16 = (highByte << 8) | lowByte;      // 0–65535
+    const hNorm = value16 / 65535;                  // normalized
+    return hNorm * config.heightmapMaxElevation;    // scale to meters
+  };
+
+  return getInputData(
+    elevation,
+    config.gridWidth,
+    config.gridHeight,
+    true,
+    heightFn
   );
 };
 
-export const getUnburntIslandsData = (config: ISimulationConfig, zones: Zone[]): Promise<number[] | undefined> => {
-  // Unburnt islands can be specified directly using unburntIslands property or they'll be generated automatically
-  // using zones terrain type.
-  let unburntIslands: number[][] | string | undefined = config.unburntIslands;
-  if (!unburntIslands) {
-    unburntIslands = zonesToImageDataFile(zones) + "-islands.png";
+export const getUnburntIslandsData = (
+  config: ISimulationConfig,
+  zones: Zone[]
+): Promise<number[] | undefined> => {
+  // Determine islands image path
+  let islandsFile = config.unburntIslands;
+  if (!islandsFile) {
+    islandsFile = `${zonesToImageDataFile(zones)}-islands.png`;
   }
-  const islandActive: { [key: number]: number } = {};
-  return getInputData(unburntIslands, config.gridWidth, config.gridHeight, true,
+
+  const islandActive: Record<number, number> = {};
+  return getInputData(
+    islandsFile,
+    config.gridWidth,
+    config.gridHeight,
+    true,
     (rgba: [number, number, number, number]) => {
-      // White areas are regular cells. Islands use gray scale colors, every island is supposed to have different
-      // shade. It's enough to look just at R value, as G and B will be equal.
-      const r = rgba[0];
-      if (r < 255) {
-        if (islandActive[r] === undefined) {
-          if (Math.random() < config.unburntIslandProbability) {
-            islandActive[r] = 1;
-          } else {
-            islandActive[r] = 0;
-          }
+      const shade = rgba[0];
+      if (shade < 255) {
+        if (islandActive[shade] === undefined) {
+          islandActive[shade] = Math.random() < config.unburntIslandProbability ? 1 : 0;
         }
-        return islandActive[r]; // island activity, 0 or 1
-      } else {
-        return 0; // white color means we're dealing with regular cell, return 0 (inactive island)
+        return islandActive[shade];
       }
+      return 0;
     }
   );
 };
 
-export const getRiverData = (config: ISimulationConfig): Promise<number[] | undefined> => {
-  if (!config.riverData) {
-    return Promise.resolve(undefined);
-  }
-  return getInputData(config.riverData, config.gridWidth, config.gridHeight, true,
-    (rgba: [number, number, number, number]) => {
-      // River texture is mostly transparent, so look for non-transparent cells to define shape
-      return rgba[3] > 0 ? 1 : 0;
-    }
+export const getRiverData = (
+  config: ISimulationConfig
+): Promise<number[] | undefined> => {
+  if (!config.riverData) return Promise.resolve(undefined);
+
+  return getInputData(
+    config.riverData,
+    config.gridWidth,
+    config.gridHeight,
+    true,
+    (rgba: [number, number, number, number]) => (rgba[3] > 0 ? 1 : 0)
   );
 };

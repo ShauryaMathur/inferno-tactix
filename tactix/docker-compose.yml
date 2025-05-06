@@ -1,0 +1,64 @@
+version: '3.7'
+
+services:
+  react-client:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://0.0.0.0:8080"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    environment:
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+
+  python-backend:
+    build:
+      context: ./tactix-training
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"
+    networks:
+      - app-network
+    environment:
+      - WEBSOCKET_HOST=0.0.0.0
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      react-client:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "/app/health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  headless-client:
+    build:
+      context: ./tactix-training/train-headless
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+    depends_on:
+      python-backend:
+        condition: service_healthy
+    environment:
+      - REACT_APP_URL=http://react-client:8080
+      - WEBSOCKET_URL=ws://python-backend:8765
+      - LOG_LEVEL=INFO
+      - WAIT_FOR_BACKEND=true
+    volumes:
+      - ./screenshots:/app/screenshots
+    restart: on-failure
+
+networks:
+  app-network:
+    driver: bridge
