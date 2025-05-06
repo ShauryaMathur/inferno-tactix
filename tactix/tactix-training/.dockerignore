@@ -1,6 +1,6 @@
 /models
 /runs
 /tb-env
-inferno_tactix_ppo.zip
+*.zip
 /trained_agents
 /train-headless
