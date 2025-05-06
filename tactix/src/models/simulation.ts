@@ -82,13 +82,22 @@ private connectSocket() {
     console.log("🔁 WebSocket already connected.");
     return;
   }
-
+  // const host = window.location.hostname;
+  // const wsUrl = `ws://${host}:8765`;
+  // this.socket = new WebSocket(wsUrl);
+  // this.socket = new WebSocket("ws://python-backend:8765");
+  // const WS_URL = process.env.REACT_APP_WS_URL
   this.socket = new WebSocket("ws://localhost:8765");
   console.log("🌐 Connecting to WebSocket server...");
 
   this.socket.onopen = () => {
+    // this.reload();
+    // this.handleReset();
     console.log("✅ Connected to the WebSocket server");
     console.log('Socket', this.socket);
+
+    console.log(this.gridHeight,this.gridWidth)
+    
     
     this.socket?.send(JSON.stringify({ type: "ping" }));
   };
@@ -101,6 +110,7 @@ private connectSocket() {
     const { action, helicopter_coord } = message;
     if (message.type === "pong") {
       console.log("✅ Received pong from server");
+      // debugger;
     }else if (action === "close") {
       console.log("Simulation Done, closing!");
       this.cleanup();
@@ -140,6 +150,7 @@ private connectSocket() {
 
     await this.dataReadyPromise;
     this.setSpark(0, 60000 - 1, 40000 - 1);
+
     this.start();
     const cells2D = this.generateFireStatusMapFromCells(
       this.engine?.cells ?? [],
@@ -168,62 +179,73 @@ private connectSocket() {
     }
   }
 
-
-  // Helicopter movement handling
   @action
   private handleHelicopterMovement(helicopter_coord: number[]) {
-    if (helicopter_coord) {
-      let canvas_x = (helicopter_coord[0] / 240) * (120000 - 1);
-      let canvas_y = (helicopter_coord[1] / 160) * (80000 - 1);
-      const quenchedCells = this.setHelitackPoint(canvas_x - 1, canvas_y - 1);
-      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-      const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
-      let done = false;
-      if ((!this.simulationRunning && this.engine?.fireDidStop) || cellsBurning === 0) {
-        done = true;
+      if (helicopter_coord) {
+        // Use coordinates directly - Python already sends them as [x, y]
+        let array_x = helicopter_coord[0];  // First element is x
+        let array_y = helicopter_coord[1];  // Second element is y
+  
+        // Ensure coordinates are within bounds
+        array_x = Math.max(0, Math.min(this.gridWidth - 1, array_x));
+        array_y = Math.max(0, Math.min(this.gridHeight - 1, array_y));
+  
+        // Pass array coordinates directly to setHelitackPoint
+        const quenchedCells = this.setHelitackPoint(array_x, array_y);
+        const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+  
+        const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
+        let done = false;
+        if ((!this.simulationRunning && this.engine?.fireDidStop) || cellsBurning === 0) {
+          done = true;
+        }
+        let on_fire = this.isHelicopterOnFire(cells2D, array_x, array_y);
+        const response = {
+          cells: cells2D,
+          done,
+          cellsBurning,
+          cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
+          quenchedCells,
+          on_fire
+        };
+  
+        try {
+          if (this.socket?.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify(response));
+            console.log("✅ Step response sent (action 4)");
+          }
+        } catch (e) {
+          console.log(e);
+        }
       }
-      let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
+  }
+  @action
+  private handleOtherActions(helicopter_coord: number[]) {
+      // Use coordinates directly - Python already sends them as [x, y]
+      let array_x = helicopter_coord[0];  // First element is x
+      let array_y = helicopter_coord[1];  // Second element is y
+  
+      // Ensure coordinates are within bounds
+      array_x = Math.max(0, Math.min(this.gridWidth - 1, array_x));
+      array_y = Math.max(0, Math.min(this.gridHeight - 1, array_y));
+  
+      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
+  
+      const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
+      const done = !this.simulationRunning && this.engine?.fireDidStop;
+      let on_fire = this.isHelicopterOnFire(cells2D, array_x, array_y);
       const response = {
         cells: cells2D,
         done,
         cellsBurning,
         cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
-        quenchedCells,
+        quenchedCells: 0,
         on_fire
       };
-
-      try {
-        if (this.socket?.readyState === WebSocket.OPEN) {
-          this.socket.send(JSON.stringify(response));
-          console.log("✅ Step response sent (action 4)");
-        }
-
-      } catch (e) {
-        console.log(e);
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify(response));
+        console.log("✅ Step response sent");
       }
-    }
-  }
-
-  // Handle other socket actions
-  @action
-  private handleOtherActions(helicopter_coord: number[]) {
-    const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-    const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
-    const done = !this.simulationRunning && this.engine?.fireDidStop;
-    let on_fire = this.isHelicopterOnFire(cells2D,helicopter_coord[0],helicopter_coord[1])
-    const response = {
-      cells: cells2D,
-      done,
-      cellsBurning,
-      cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
-      quenchedCells: 0,
-      on_fire
-    };
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(response));
-      console.log("✅ Step response sent");
-    }
-    
   }
 
   // Cleanup method to close the socket when no longer needed
@@ -344,7 +366,7 @@ private connectSocket() {
       const zoneIndex = values[0];
       // console.log(zoneIndex);
       const elevation = values[1];
-      const river = values[2];
+      const river = null; // Removing the river for now
       const unburntIsland = values[3];
 
       this.cells.length = 0;
@@ -542,16 +564,25 @@ private generateFireStatusMapFromCells(cells: any[], width: number, height: numb
 
     fireStatusMap.push(rowData);
   }
+  // console.log(fireStatusMap);
   
   return fireStatusMap;
 }
 
 @action.bound
-private isHelicopterOnFire(fireStatusMap: number[][], x: number, y: number): boolean {
-  const fireStatus = fireStatusMap[y][x];
+private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: number): boolean {
+  // Add bounds checking
+  if (!fireStatusMap || array_y < 0 || array_y >= fireStatusMap.length || 
+      array_x < 0 || array_x >= fireStatusMap[0].length) {
+    console.warn(`Invalid coordinates: x=${array_x}, y=${array_y}, map size=${fireStatusMap?.length}x${fireStatusMap[0]?.length}`);
+    return false;
+  }
+  
+  const fireStatus = fireStatusMap[array_y][array_x];
   const fireState = Math.floor(fireStatus / 3);
   return fireState === FireState.Burning;
 }
+
   @action.bound public tick(timeStep: number) {
 
     if (this.engine) {
@@ -708,34 +739,54 @@ private isHelicopterOnFire(fireStatusMap: number[][], x: number, y: number): boo
     this.lastFireLineTimestamp = this.time;
   }
 
-  @action.bound public setHelitackPoint(px: number, py: number) {
-    console.log(px,py);
+  @action.bound public setHelitackPoint(array_x: number, array_y: number) {
+    console.log(`Helitack coordinates: (${array_x}, ${array_y})`);
     
-    const startGridX = Math.floor(px / this.config.cellSize);
-    const startGridY = Math.floor(py / this.config.cellSize);
-    const cell = this.cells[getGridIndexForLocation(startGridX, startGridY, this.gridWidth)];
+    // Use array coordinates directly
+    const startGridX = array_x;
+    const startGridY = array_y;
+    
+    // Validate coordinates
+    if (startGridX < 0 || startGridX >= this.gridWidth || 
+        startGridY < 0 || startGridY >= this.gridHeight) {
+        console.warn(`Invalid helitack coordinates: (${startGridX}, ${startGridY})`);
+        return 0;
+    }
+    
+    const cellIndex = getGridIndexForLocation(startGridX, startGridY, this.gridWidth);
+    const cell = this.cells[cellIndex];
+    
+    if (!cell) {
+        console.warn(`Cell not found at index ${cellIndex} for coordinates (${startGridX}, ${startGridY})`);
+        return 0;
+    }
+    
     const radius = Math.round(this.config.helitackDropRadius / this.config.cellSize);
-    let quenchedCells = 0
+    let quenchedCells = 0;
+    
     for (let x = cell.x - radius; x < cell.x + radius; x++) {
       for (let y = cell.y - radius ; y <= cell.y + radius; y++) {
         if ((x - cell.x) * (x - cell.x) + (y - cell.y) * (y - cell.y) <= radius * radius) {
           const nextCellX = cell.x - (x - cell.x);
           const nextCellY = cell.y - (y - cell.y);
-          if (nextCellX < this.gridWidth && nextCellY < this.gridHeight) {
-            const targetCell = this.cells[getGridIndexForLocation(nextCellX, nextCellY, this.gridWidth)];
-            targetCell.helitackDropCount++;
-            targetCell.ignitionTime = Infinity;
-            if (targetCell.fireState === FireState.Burning) {
-              targetCell.fireState = FireState.Unburnt;
-              quenchedCells++
+          if (nextCellX >= 0 && nextCellX < this.gridWidth && nextCellY >= 0 && nextCellY < this.gridHeight) {
+            const targetCellIndex = getGridIndexForLocation(nextCellX, nextCellY, this.gridWidth);
+            const targetCell = this.cells[targetCellIndex];
+            if (targetCell) {
+              targetCell.helitackDropCount++;
+              targetCell.ignitionTime = Infinity;
+              if (targetCell.fireState === FireState.Burning) {
+                targetCell.fireState = FireState.Unburnt;
+                quenchedCells++;
+              }
             }
           }
         }
       }
     }
     this.lastHelitackTimestamp = this.time;
-    return quenchedCells
-  }
+    return quenchedCells;
+}
 
   @action.bound public setWindDirection(direction: number) {
     this.wind.direction = direction;

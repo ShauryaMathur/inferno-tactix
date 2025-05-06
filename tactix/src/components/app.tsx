@@ -1,59 +1,32 @@
-import React, { useEffect } from "react";
 import { observer } from "mobx-react";
-import { View3d } from "./view-3d/view-3d";
-import { SimulationInfo } from "./simulation-info";
-import { TerrainPanel } from "./terrain-panel";
-import { RightPanel } from "./right-panel";
-import { BottomBar } from "./bottom-bar";
-import { useStores } from "../use-stores";
-import { TopBar } from "./top-bar/top-bar";
-import { AboutDialogContent } from "./top-bar/about-dialog-content";
-import { ShareDialogContent } from "./top-bar/share-dialog-content";
-import Shutterbug from "shutterbug";
+import React from "react";
 
-import css from "./app.scss";
-import { useCustomCursor } from "./use-custom-cursors";
+import 'leaflet/dist/leaflet.css';
+import { HashRouter, Link, Route, Routes } from "react-router-dom";
+import Home from "../pages/Home";
+import Inferno from "../pages/Inferno";
+import { SimulationPage } from "../pages/SimulationPage";
+import styles from "./app.module.scss";
 
 export const AppComponent = observer(function WrappedComponent() {
-  const { simulation, ui } = useStores();
 
-  useEffect(() => {
-    Shutterbug.enable("." + css.app);
-    return () => {
-      Shutterbug.disable();
-    };
-  }, []);
-
-  // This will setup document cursor based on various states of UI store (interactions).
-  useCustomCursor();
-
-  const config = simulation.config;
-  // Convert time from minutes to days.
-  const timeInDays = Math.floor(simulation.time / 1440);
-  const timeHours = Math.floor((simulation.time % 1440) / 60);
-  const showModelScale = config.showModelDimensions;
-  const episodeCount = simulation.episodeCount;
   return (
-    <div className={css.app}>
-      <TopBar projectName="Wildfire Explorer" aboutContent={<AboutDialogContent />} shareContent={<ShareDialogContent />} />
-      { showModelScale &&
-        <div className={css.modelInfo}>
-          <div>Model Dimensions: { config.modelWidth } ft x { config.modelHeight } ft</div>
-          <div>Highest Point Possible: {config.heightmapMaxElevation} ft</div>
+    <HashRouter>
+      <div id={styles.app}>
+
+        <div className={styles.links}>
+          <Link to="/">Home</Link>
+          <Link to="/inferno">Inferno</Link>
+          <Link to="/tactics">Tactics</Link>
         </div>
-      }
-      <div className={css.timeDisplay} style={{height:'auto'}}>
-       Episode : {episodeCount} <br /> {timeInDays} {timeInDays === 1 ? "day" : "days"} and <br /> {timeHours} {timeHours === 1 ? "hour" : "hours"}
-      </div>
-      <div className={`${css.mainContent} ${ui.showChart && css.shrink}`}>
-        <SimulationInfo />
-        <View3d />
-        <TerrainPanel />
-      </div>
-      <div className={`${css.rightContent} ${ui.showChart && css.grow}`}>
-        <RightPanel />
-      </div>
-      <BottomBar />
-    </div>
+
+
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/inferno" element={<Inferno />} />
+          <Route path="/tactics" element={<SimulationPage />} />
+          {/* add more routes as you like */}
+        </Routes>
+      </div></HashRouter>
   );
 });

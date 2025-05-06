@@ -1,0 +1,50 @@
+.home {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: url('../public/bg_home_2.png') center/cover no-repeat;
+    overflow: scroll;
+  
+    // glowing, flickering title
+    .title {
+      position: absolute;
+      top: 28%; left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+    //   font-family: 'Playfair Display', serif;
+      font-weight: 900;
+      font-size: clamp(4rem, 15vw, 8rem);
+      color: transparent;
+      background: 
+        linear-gradient(90deg, #ffae00, #ff4500, #ffae00);
+      background-clip: text;
+      -webkit-background-clip: text;
+      animation: flicker 1.8s infinite ease-in-out alternate;
+    }
+  }
+  
+  // flame‐like flicker
+//   @keyframes flicker {
+//     0% {
+//       text-shadow:
+//         0 0 12px rgba(255,174,0,0.8),
+//         0 0 30px rgba(255,69,0,0.6),
+//         0 0 60px rgba(255,69,0,0.4);
+//       transform: translate(-50%, -50%) scale(1);
+//     }
+//     50% {
+//       text-shadow:
+//         0 0 20px rgba(255,174,0,1),
+//         0 0 40px rgba(255,69,0,0.8),
+//         0 0 80px rgba(255,69,0,0.6);
+//       transform: translate(-50%, -50%) scale(1.02);
+//     }
+//     100% {
+//       text-shadow:
+//         0 0 10px rgba(255,174,0,0.6),
+//         0 0 20px rgba(255,69,0,0.4),
+//         0 0 40px rgba(255,69,0,0.2);
+//       transform: translate(-50%, -50%) scale(0.98);
+//     }
+//   }
+  
