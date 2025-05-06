@@ -1,0 +1,11 @@
+{
+  "simulation_summary": {
+    "start_time": "2025-05-06 05:28:11",
+    "duration_steps": 209,
+    "grid_dimensions": "240\u00d7160",
+    "total_grid_cells": 38400
+  },
+  "fire_metrics": {
+    "origin_points": [
+      [
+        

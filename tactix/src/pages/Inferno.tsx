@@ -197,7 +197,8 @@ export default function Inferno() {
             console.log('Environment created:', response.data);
 
             // Navigate to tactics page after successful response
-            window.location.href = '/#/tactics';
+            // window.location.href = '/#/tactics';
+            window.open('/#/tactics', '_blank');
         } catch (error) {
             console.error('Error creating environment:', error);
             alert('Failed to create environment. Please try again.');
@@ -401,7 +402,7 @@ export default function Inferno() {
                     )}
                 </div>
                 <input type="date" value={date} onChange={handleDateChange} min={MIN_DATE} max={MAX_DATE} />
-                <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#ffdf00c2', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSearch} > Search & Get Data </button>
+                <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#ffdf00c2', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSearch} > Analyze Risk  </button>
                 {/* <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: theme === 'dark' ? '#fff' : '#333', color: theme === 'dark' ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? 'Light' : 'Dark'} Mode</button> */}
             </div>
 
@@ -468,7 +469,7 @@ export default function Inferno() {
                     </div>
 
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
-                    {apiResponse.prediction > 0.5 ? (
+                    {apiResponse.prediction < 0.5 ? (
                         <div>
                             <button
                                 onClick={createEnvironmentAndNavigate}
