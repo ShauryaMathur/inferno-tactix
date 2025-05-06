@@ -29,7 +29,7 @@ docker build -t headless-client ./tactix/headless-client
 apptainer build hc.sif docker-daemon://headless-client:latest
 
 ## Use these `.sif` images for GPU-enabled training via Apptainer
-
+```
 ---
 
 ## Prerequisites
@@ -60,16 +60,18 @@ Inferno-Tactix/
 │   │       └── headless-client/        # Playwright client + Dockerfile
 │   └── docker-compose.yaml             # brings up all three services locally
 └── README.md                           # (this file)
+```
 
 ## Running Locally via Docker Compose
 
 ```bash
 cd tactix
 docker-compose up --build
+```
 
 This brings up all three services (React, backend, headless client) and wires them automatically.
 
-## Running on HPC with Apptainer
+## Running on HPC/CCR with Apptainer
 
 Use the **exact** commands below on CCR — do **not** modify them:
 
