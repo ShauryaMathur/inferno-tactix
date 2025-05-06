@@ -22,3 +22,4 @@ tactix/__pycache__
 *.tar
 *.gz
 Reports/RL_report/.DS_Store
+.ipynb_checkpoints

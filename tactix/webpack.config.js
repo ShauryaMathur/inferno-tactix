@@ -25,18 +25,18 @@ module.exports = (env, argv) => {
       filename: 'assets/index.[contenthash].js',
     },
     // Add this devServer configuration
-    // devServer: {
-    //   allowedHosts: 'all',
-    //   host: '0.0.0.0',
-    //   port: 8080,
-    //   historyApiFallback: true,
-    //   client: {
-    //     webSocketURL: 'auto://0.0.0.0:0/ws'
-    //   },
-    //   headers: {
-    //     "Access-Control-Allow-Origin": "*"
-    //   }
-    // },
+    devServer: {
+      allowedHosts: 'all',
+      host: '0.0.0.0',
+      port: 8080,
+      historyApiFallback: true,
+      client: {
+        webSocketURL: 'auto://0.0.0.0:0/ws'
+      },
+      headers: {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
     performance: { hints: false },
     module: {
       rules: [
