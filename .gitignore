@@ -19,3 +19,6 @@ tactix/__pycache__
 /tactix/tactix-training/models
 /tactix/tactix-training/train-headless/screenshots
 .DS_Store
+*.tar
+*.gz
+Reports/RL_report/.DS_Store
