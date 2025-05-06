@@ -18,3 +18,4 @@ tactix/__pycache__
 /tactix/tactix-training/__pycache__
 /tactix/tactix-training/models
 /tactix/tactix-training/train-headless/screenshots
+.DS_Store
