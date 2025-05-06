@@ -174,3 +174,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(2);  /* makes it white */
 }
 
+/* inferno.module.scss */
+
+.predictionResult {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: background 0.3s ease, transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  .probability {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+}
+
+.highRisk {
+  background: linear-gradient(135deg, #ff6b6b 0%, #f44336 100%);
+}
+
+.lowRisk {
+  background: linear-gradient(135deg, #81c784 0%, #4caf50 100%);
+}
+
