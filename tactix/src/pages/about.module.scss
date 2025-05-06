@@ -1,0 +1,97 @@
+/* about.module.scss */
+
+/* 1 ─ page wrapper */
+.about {
+    min-height: 100vh;
+    padding: 2rem 1.25rem 4rem;
+    background: linear-gradient(180deg, #0d0d0d 0%, #1a1a1d 100%);
+    color: #f3f3f3;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* 2 ─ headline + tagline */
+  .title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #ff8c00 0%, #ffd54f 50%, #ff8c00 100%);
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  
+  .subtitle {
+    font-size: clamp(1rem, 2.3vw, 1.25rem);
+    text-align: center;
+    max-width: 60ch;
+    margin: 0 auto 3rem;
+    line-height: 1.55;
+    color: #cfcfcf;
+  }
+  
+  /* 3 ─ flexible grid for cards / sections */
+  .grid {
+    width: 100%;
+    max-width: 1200px;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  
+  /* 4 ─ glassy cards */
+  .card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+    backdrop-filter: blur(10px);
+  }
+  
+  .cardTitle {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: #ffd54f;
+  }
+  
+  .cardBody {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  
+  /* 5 ─ hero image / horizontal layout on wider screens */
+  @media (min-width: 768px) {
+    .cardHorizontal {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+  
+    .cardHorizontal img {
+      flex: 0 0 45%;
+      max-width: 45%;
+      border-radius: 8px;
+    }
+  }
+  
+  /* 6 ─ call-to-action button */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    background: #ffd54f;
+    color: #111;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 1.5rem;
+    transition: background 0.25s ease;
+  }
+  
+  .button:hover {
+    background: #ffcf40;
+  }
+  

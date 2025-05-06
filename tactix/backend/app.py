@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
+
 # Initialize app
 app = Flask(__name__)
 CORS(app)
