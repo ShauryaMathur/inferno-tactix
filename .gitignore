@@ -19,3 +19,4 @@ tactix/__pycache__
 /tactix/tactix-training/models
 /tactix/tactix-training/train-headless/screenshots
 .DS_Store
+.ipynb_checkpoints
