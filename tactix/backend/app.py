@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 import os
-from create_env import generate_heightmap
+#from create_env import generate_heightmap
 from generate_timeseries import get_75day_timeseries
 from datetime import datetime
 import torch
@@ -10,6 +10,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from io import StringIO
 
 
 # Initialize app
