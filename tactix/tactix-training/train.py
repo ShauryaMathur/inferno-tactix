@@ -20,6 +20,11 @@ from collections import deque
 
 
 print('HI! FROM TRAIN BACKEND')
+
+# Ensure the save path exists
+save_path = os.environ.get("MODEL_DIR", ".")
+MODEL_FILE = os.path.join(save_path, "ppo_firefighter.zip")
+
 def get_optimal_device():
     """
     Automatically selects the best available device for PyTorch:
@@ -382,7 +387,11 @@ def signal_handler(sig, frame):
     if model is not None:
         try:
             print("💾 Saving model...")
-            model.save("ppo_firefighter")
+            model.save(os.path.join(save_path, "ppo_firefighter"))
+
+            print(">>> MODEL_DIR:", os.environ.get("MODEL_DIR"))
+            print(">>> cwd     :", os.getcwd())
+
             print("✅ Model saved as ppo_firefighter")
         except Exception as e:
             print(f"❌ Error saving model: {e}")
@@ -908,9 +917,9 @@ def main():
         print("🔍 Checking for existing model...")
         try:
             # Check if model file exists before attempting to load
-            if USE_TRAINED_AGENT and os.path.exists("ppo_firefighter.zip"):
+            if USE_TRAINED_AGENT and os.path.isfile(MODEL_FILE):
                 print("🔄 Found existing model, loading for continued training...")
-                model = PPO.load("ppo_firefighter")
+                model = PPO.load(MODEL_FILE)
                 model.set_env(vec_env)
                 print("✅ Model loaded successfully!")
             else:
@@ -1051,7 +1060,12 @@ def main():
         if model is not None:
             try:
                 print("💾 Saving model...")
-                model.save("ppo_firefighter")
+                
+                model.save(os.path.join(save_path, "ppo_firefighter"))
+
+                print(">>> MODEL_DIR:", os.environ.get("MODEL_DIR"))
+                print(">>> cwd     :", os.getcwd())
+
                 print("✅ Model saved.")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")
