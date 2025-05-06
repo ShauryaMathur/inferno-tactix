@@ -466,6 +466,9 @@ export default function Inferno() {
                         }}
                     >
                         {apiResponse.prediction > 0.5 ? 'Yes, there is a likelihood of a wildfire.' : 'No, you are safe. No wildfire detected.'}
+                        <div className={styles.probability}>
+                            Probability: <strong>{(apiResponse.prediction * 100).toFixed(2)}%</strong>
+                        </div>
                     </div>
 
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}

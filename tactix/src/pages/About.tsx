@@ -99,7 +99,7 @@ export default function About() {
               and GPS coordinates for optimal <strong>helitack</strong> deployment under the RL policy.
             </p>
           </div>
-          <a href="/sample-report.pdf" className={styles.button}>
+          <a href="https://buffalo.app.box.com/file/1854274825450?s=jpljoklsw6y68xeq9bdxtvc7jy6b12kg" className={styles.button}>
             View sample report <span aria-hidden="true">→</span>
           </a>
         </section>
