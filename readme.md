@@ -105,10 +105,15 @@ Use the **exact** commands below on CCR — do **not** modify them:
     ```bash
     apptainer exec \
       -B ~/python-backend.hosts:/etc/hosts:ro \
-      -B /scratch/19584099:/scratch/19584099 \
+      -B /scratch:/scratch \
       -B "$(pwd)"/screenshots:/app/screenshots \
       --pwd /app \
       hc.sif python headless_client.py
     ```
-    - Custom `/etc/hosts` ensures `python-backend:8765` → `localhost`  
+    - Custom `/etc/hosts` ensures `python-backend:8765` → `localhost`
+    - python-backend.hosts is a file containing the mapping:
+      ```bash
+      127.0.0.1   localhost
+      127.0.0.1   python-backend
+      ```
     - Screenshots saved under `screenshots/`
