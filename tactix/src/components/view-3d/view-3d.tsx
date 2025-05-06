@@ -83,9 +83,9 @@ export const View3d = () => {
         />
         <hemisphereLight args={[0xC6C2B6, 0x3A403B, 1.2]} up={DEFAULT_UP} />
         <directionalLight
-  args={[0xffffff, 0.8]}
-  position={[-100, 100, -100]}
-/>
+          args={[0xffffff, 0.8]}
+          position={[-100, 100, -100]}
+        />
         <Terrain ref={terrainRef} />
         <SparksContainer dragPlane={terrainRef} />
         <FireLineMarkersContainer dragPlane={terrainRef} />
