@@ -197,7 +197,8 @@ export default function Inferno() {
             console.log('Environment created:', response.data);
 
             // Navigate to tactics page after successful response
-            window.location.href = '/#/tactics';
+            // window.location.href = '/#/tactics';
+            window.open('/#/tactics', '_blank');
         } catch (error) {
             console.error('Error creating environment:', error);
             alert('Failed to create environment. Please try again.');
@@ -468,7 +469,7 @@ export default function Inferno() {
                     </div>
 
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
-                    {apiResponse.prediction > 0.5 ? (
+                    {apiResponse.prediction < 0.5 ? (
                         <div>
                             <button
                                 onClick={createEnvironmentAndNavigate}

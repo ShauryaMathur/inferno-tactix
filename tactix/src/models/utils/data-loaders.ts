@@ -2,6 +2,7 @@ import { TerrainType } from "../../types";
 import { ISimulationConfig } from "../../config";
 import { getInputData } from "./image-utils";
 import { Zone } from "../zone";
+import { log } from "console";
 
 // Maps zones config to image data files (see data dir)
 const zonesToImageDataFile = (zones: Zone[]): string => {
@@ -33,6 +34,8 @@ export const getElevationData = (
 ): Promise<number[] | undefined> => {
   // Determine elevation PNG path
   let elevation = config.elevation;
+  console.log(elevation);
+  
   if (!elevation) {
     // elevation = `${zonesToImageDataFile(zones)}-heightmap.png`;
     // elevation = "data/heightmap_1200x800.png";
