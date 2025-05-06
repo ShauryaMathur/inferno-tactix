@@ -57,21 +57,24 @@ export default function Inferno() {
     const searchTimeout = useRef<any>(null);
     // New state for environment loading
     const [isCreatingEnvironment, setIsCreatingEnvironment] = useState(false);
+    // 1️⃣  NEW state flag
+    const [isFetchingPrediction, setIsFetchingPrediction] = useState(false);
+
 
     // Function to fetch location suggestions with debouncing
     const fetchSuggestions = async (input: string) => {
         console.log(input);
-        
+
         if (!input || input.length < 2) {
             setSuggestions([]);
             return;
         }
-        
+
         // Clear any existing timeout
         if (searchTimeout.current) {
             clearTimeout(searchTimeout.current);
         }
-        
+
         // Set a new timeout for debouncing
         searchTimeout.current = setTimeout(async () => {
             setIsLoading(true);
@@ -83,7 +86,7 @@ export default function Inferno() {
                     setShowSuggestions(false);
                     return;
                 }
-                
+
                 const resp = await fetch(
                     `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(input)}`
                 );
@@ -111,10 +114,10 @@ export default function Inferno() {
         setQuery(suggestion.display_name);
         setSuggestions([]);
         setShowSuggestions(false);
-        
+
         const lat = parseFloat(suggestion.lat);
         const lon = parseFloat(suggestion.lon);
-        
+
         // optional: bound check
         if (
             lat < USA_BOUNDS[0][0] ||
@@ -125,7 +128,7 @@ export default function Inferno() {
             alert('Out of bounds');
             return;
         }
-        
+
         const newPos: [number, number] = [lat, lon];
         setMarkerPos(newPos);
         setMapCenter(newPos);
@@ -139,7 +142,7 @@ export default function Inferno() {
                 setShowSuggestions(false);
             }
         }
-        
+
         document.addEventListener('click', handleClickOutside);
         return () => {
             document.removeEventListener('click', handleClickOutside);
@@ -155,24 +158,27 @@ export default function Inferno() {
         // No API call here anymore
     };
 
-    // Call backend API
+    // 3️⃣  Wrap the axios call with the flag
     const callApi = async (position: [number, number], selectedDate: string) => {
+        setIsFetchingPrediction(true);          // <- start spinner
         try {
             const response = await axios.post('http://localhost:6969/api/predictWildfire', null, {
-                params: {
-                    lat: position[0],
-                    lon: position[1],
-                    date: selectedDate,
-                }
+                params: { lat: position[0], lon: position[1], date: selectedDate }
             });
+            if (response.data.prediction){
+                setApiResponse(response.data);
+            }else{
+                setApiResponse(null);
+                alert('Some Error Occurred!');
+            }
             
-
-            setApiResponse(response.data);
-            console.log('API Response:', response.data);
         } catch (error) {
             console.error('Error calling API:', error);
+        } finally {
+            setIsFetchingPrediction(false);       // <- stop spinner
         }
     };
+
 
     // NEW FUNCTION: Create environment and navigate to tactics
     const createEnvironmentAndNavigate = async () => {
@@ -180,16 +186,16 @@ export default function Inferno() {
             alert('Please select a location on the map first');
             return;
         }
-        
+
         setIsCreatingEnvironment(true);
-        
+
         try {
             // Use the current marker position
             const url = `http://localhost:6969/api/createEnvironment?lat=${markerPos[0]}&lon=${markerPos[1]}`;
             const response = await axios.post(url);
-            
+
             console.log('Environment created:', response.data);
-            
+
             // Navigate to tactics page after successful response
             window.location.href = '/#/tactics';
         } catch (error) {
@@ -278,41 +284,35 @@ export default function Inferno() {
         const newPos = await performSearch();
         if (newPos) {
             // Only call API when using the Go button
+            setApiResponse(null)
             callApi(newPos, date);
         }
     };
 
     // Loading spinner component
-    const LoadingSpinner = () => (
+    // 2️⃣  Replace your existing LoadingSpinner with a generic version
+    const LoadingSpinner = ({ message }: { message: string }) => (
         <div style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
+            top: 0, left: 0, width: '100%', height: '100%',
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
             zIndex: 9999
         }}>
-            <div style={{
-                textAlign: 'center',
-                color: '#fff'
-            }}>
+            <div style={{ textAlign: 'center', color: '#fff' }}>
                 <div style={{
                     border: '5px solid #f3f3f3',
                     borderTop: '5px solid #ffdf00',
                     borderRadius: '50%',
-                    width: '50px',
-                    height: '50px',
+                    width: '50px', height: '50px',
                     margin: '0 auto 20px',
                     animation: 'spin 2s linear infinite'
                 }} />
-                <p>Creating environment... Please wait</p>
+                <p>{message}</p>
             </div>
         </div>
     );
+
 
     return (
         <div className="home-page" style={{ padding: '1rem' }}>
@@ -325,47 +325,48 @@ export default function Inferno() {
                 }
                 `}
             </style>
-            
+
             {/* Loading spinner overlay */}
-            {isCreatingEnvironment && <LoadingSpinner />}
-            
+            {isCreatingEnvironment && <LoadingSpinner message="Creating environment… Please wait" />}
+            {isFetchingPrediction  && <LoadingSpinner message="Getting prediction…" />}
+
             {/* search + date */}
             <div className={styles.searchBar} style={{ maxWidth: '800px', margin: '1rem auto', display: 'flex', gap: '2.5rem', alignItems: 'center', position: 'relative' }}>
                 <div className="search-container" style={{ position: 'relative', flex: 1 }}>
-                    <input 
-                        type="text" 
-                        placeholder="City Name or lat,lon" 
-                        value={query} 
+                    <input
+                        type="text"
+                        placeholder="City Name or lat,lon"
+                        value={query}
                         onChange={handleInputChange}
-                        onKeyDown={e => e.key === 'Enter' && performSearch()} 
+                        onKeyDown={e => e.key === 'Enter' && performSearch()}
                         style={{ width: '100%' }}
                     />
-                    
+
                     {showSuggestions && suggestions.length > 0 && (
-                        <ul 
-                            style={{ 
-                                position: 'absolute', 
-                                top: '100%', 
-                                left: 0, 
-                                width: '100%', 
+                        <ul
+                            style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                width: '100%',
                                 maxHeight: '200px',
-                                overflowY: 'auto', 
-                                margin: 0, 
-                                padding: 0, 
-                                listStyle: 'none', 
+                                overflowY: 'auto',
+                                margin: 0,
+                                padding: 0,
+                                listStyle: 'none',
                                 background: theme === 'dark' ? '#333' : '#fff',
                                 border: theme === 'dark' ? '1px solid #444' : '1px solid #ddd',
-                                borderRadius: '4px', 
+                                borderRadius: '4px',
                                 zIndex: 1000,
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                             }}
                         >
                             {suggestions.map((suggestion, index) => (
-                                <li 
+                                <li
                                     key={index}
                                     onClick={() => handleSuggestionClick(suggestion)}
                                     onMouseDown={(e) => e.preventDefault()} // Prevent blur event from hiding dropdown
-                                    style={{ 
+                                    style={{
                                         padding: '8px 12px',
                                         cursor: 'pointer',
                                         borderBottom: theme === 'dark' ? '1px solid #444' : '1px solid #eee',
@@ -386,21 +387,21 @@ export default function Inferno() {
                             ))}
                         </ul>
                     )}
-                    
+
                     {isLoading && (
-                        <div style={{ 
-                            position: 'absolute', 
-                            right: '10px', 
-                            top: '50%', 
+                        <div style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
                             transform: 'translateY(-50%)',
-                            color: '#999' 
+                            color: '#999'
                         }}>
                             Loading...
                         </div>
                     )}
                 </div>
-                <input type="date" value={date} onChange={handleDateChange} min={MIN_DATE} max={MAX_DATE} /> 
-                <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#ffdf00c2', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSearch} > Search & Get Data </button> 
+                <input type="date" value={date} onChange={handleDateChange} min={MIN_DATE} max={MAX_DATE} />
+                <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#ffdf00c2', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSearch} > Search & Get Data </button>
                 {/* <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: theme === 'dark' ? '#fff' : '#333', color: theme === 'dark' ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? 'Light' : 'Dark'} Mode</button> */}
             </div>
 
@@ -450,9 +451,9 @@ export default function Inferno() {
                     borderRadius: '8px',
                     textAlign: 'center',  // Center the content
                 }}>
-                    
+
                     {/* Display the prediction result */}
-                    <div 
+                    <div
                         style={{
                             padding: '1rem 0',
                             marginBottom: '1rem',
@@ -469,9 +470,9 @@ export default function Inferno() {
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
                     {apiResponse.prediction > 0.5 ? (
                         <div>
-                            <button 
+                            <button
                                 onClick={createEnvironmentAndNavigate}
-                                disabled={isCreatingEnvironment} 
+                                disabled={isCreatingEnvironment}
                                 style={{
                                     padding: '0.75rem 1.5rem',
                                     backgroundColor: 'red',

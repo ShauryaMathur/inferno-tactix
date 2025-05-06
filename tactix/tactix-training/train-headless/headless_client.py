@@ -18,8 +18,8 @@ logging.basicConfig(
 logger = logging.getLogger("headless-client")
 
 # Configuration from environment variables
-REACT_APP_URL = os.environ.get("REACT_APP_URL", "http://react-client:8080")
-SCREENSHOT_DIR = "/app/screenshots"
+REACT_APP_URL = os.environ.get("REACT_APP_URL", "http://localhost:8080")
+SCREENSHOT_DIR = os.getenv("SCREENSHOT_DIR", "./screenshots")
 
 # Ensure screenshot directory exists
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)

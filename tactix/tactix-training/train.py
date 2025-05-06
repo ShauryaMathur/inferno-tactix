@@ -1031,7 +1031,7 @@ def main():
             model.learn(
                 total_timesteps=1000000,
                 reset_num_timesteps=False,  # This ensures continued training
-                tb_log_name="run5",   
+                tb_log_name="run6",   
                 callback=callbacks  
             )
             print("✅ Training completed successfully!")
