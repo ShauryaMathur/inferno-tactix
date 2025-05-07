@@ -23,3 +23,5 @@ tactix/__pycache__
 *.gz
 Reports/RL_report/.DS_Store
 .ipynb_checkpoints
+*.tif
+tactix/tactix-training/fire_analytics/*.json

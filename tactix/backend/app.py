@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from io import StringIO
 import joblib
-from ..fire_analytics.one_pager import generate_report
+# from ..fire_analytics.one_pager import generate_report
 
 # Initialize app
 app = Flask(__name__)
