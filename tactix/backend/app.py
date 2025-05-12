@@ -10,9 +10,15 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from io import StringIO
+# from io import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    import StringIO
+      # fallback for very old Python
+
 import joblib
-from ..fire_analytics.one_pager import generate_report
+# from ..fire_analytics.one_pager import generate_report
 
 # Initialize app
 app = Flask(__name__)
@@ -306,6 +312,12 @@ def create_environment():
         'lon': lon,
         'heightmap': heightmap
     })
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=6969, debug=True)
