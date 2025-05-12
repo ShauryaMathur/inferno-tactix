@@ -345,6 +345,8 @@ def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame
     full_index = pd.date_range(window_start, window_end, freq="D")
     df = pd.concat(series, axis=1).reindex(full_index)
     df["vpd"] = (df["vpd"].interpolate(method="time", limit_direction="both").ffill().bfill())
+    df = df.interpolate(method="time", limit_direction="both")
+    df = df.ffill().bfill()
 
     need_rh = df["rmax"].isna() | df["rmin"].isna()
     if need_rh.any():

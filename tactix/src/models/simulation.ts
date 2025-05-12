@@ -136,6 +136,7 @@ private connectSocket() {
   this.socket.onclose = (e) => {
     console.warn("⚠️ WebSocket closed. Attempting reconnect in 1s...");
     // setTimeout(() => this.connectSocket(), 1000); // ⬅️ auto-reconnect logic
+    // alert("Generating Report...");
   };
 }
 
