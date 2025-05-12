@@ -22,7 +22,7 @@ print('🔥 Starting SIMULATION backend')
 
 # Ensure the model path exists
 model_path = os.environ.get("MODEL_DIR", ".")
-MODEL_FILE = os.path.join(model_path, "ppo_firefighter copy.zip")
+MODEL_FILE = os.path.join(model_path, "ppo_firefighter.zip")
 
 # Create output directory for analytics
 ANALYTICS_DIR = os.environ.get("ANALYTICS_DIR", "fire_analytics")
@@ -237,7 +237,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 # WebSocket server thread function
 def websocket_server_thread():
     """Run the WebSocket server in a separate thread"""
-    async def handler(websocket, path):
+    async def handler(websocket):
         global client_websocket
         
         if client_websocket is not None:
