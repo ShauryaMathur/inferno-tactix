@@ -8,7 +8,6 @@ import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
 import { getGridIndexForLocation, forEachPointBetween, dist } from "./utils/grid-utils";
 
-
 interface ICoords {
   x: number;
   y: number;
@@ -74,10 +73,10 @@ constructor(presetConfig: Partial<ISimulationConfig>) {
     this.load(presetConfig);
 
     // WebSocket connection open handler
-    this.connectSocket(); // Connect socket when the model is created   
+    // this.connectSocket(); // Connect socket when the model is created   
 }
 
-private connectSocket() {
+public connectSocket() {
   if (this.socket && this.socket.readyState === 1) {
     console.log("🔁 WebSocket already connected.");
     return;
@@ -100,6 +99,15 @@ private connectSocket() {
     
     
     this.socket?.send(JSON.stringify({ type: "ping" }));
+
+    // const location = useLocation();
+    const params = new URLSearchParams(window.location.search);
+
+    const lat = params.get('lat');
+    const lon = params.get('lon');
+    const date = params.get('date');
+
+    console.log({ lat, lon, date });
   };
 
   this.socket.onmessage = (event) => {
@@ -134,8 +142,8 @@ private connectSocket() {
   };
 
   this.socket.onclose = (e) => {
-    console.warn("⚠️ WebSocket closed. Attempting reconnect in 1s...");
-    // setTimeout(() => this.connectSocket(), 1000); // ⬅️ auto-reconnect logic
+    console.warn("⚠️ WebSocket closed. Attempting reconnect in 2s...");
+    // setTimeout(() => this.connectSocket(), 2000); // ⬅️ auto-reconnect logic
     // alert("Generating Report...");
   };
 }

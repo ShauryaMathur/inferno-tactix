@@ -18,6 +18,7 @@ except ImportError:
       # fallback for very old Python
 
 import joblib
+import subprocess
 # from ..fire_analytics.one_pager import generate_report
 
 # Initialize app
@@ -288,7 +289,7 @@ def create_environment():
     # Pull them off request.args (they’ll be strings)
     lat = request.args.get('lat')
     lon = request.args.get('lon')
-
+    date = request.args.get('date')
     if lat is None or lon is None:
         return jsonify({
             'error': 'Missing required query parameters lat and lon'
@@ -298,19 +299,29 @@ def create_environment():
     # (assuming your generate_heightmap takes (lat_str, lon_str))
     try:
         param = str(lon + ',' + lat)
-        heightmap = generate_heightmap(param)
+        # heightmap = generate_heightmap(param)
     except Exception as e:
         return jsonify({
             'error': 'Heightmap generation failed',
             'details': str(e)
         }), 500
+    # Start simulation with env vars
+    env = os.environ.copy()
+    env["LAT"] = lat
+    env["LON"] = lon
+    env["DATE"] = date
 
+    subprocess.Popen(
+        ["python3", "../tactix-training/simulation.py"],  # assuming simulation.py is in the same dir
+        env=env
+    )
     # Return whatever generate_heightmap gives you,
     # or wrap it in JSON as appropriate:
     return jsonify({
         'lat': lat,
         'lon': lon,
-        'heightmap': heightmap
+        'date': date
+        # 'heightmap': heightmap
     })
 
 
