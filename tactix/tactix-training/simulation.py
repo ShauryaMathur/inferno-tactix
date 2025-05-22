@@ -21,7 +21,9 @@ from collections import deque
 print('🔥 Starting SIMULATION backend')
 
 # Ensure the model path exists
-model_path = os.environ.get("MODEL_DIR", ".")
+# model_path = os.environ.get("MODEL_DIR", "/models")
+model_path = os.environ.get("MODEL_DIR", os.path.join(os.path.dirname(__file__), "models"))
+
 MODEL_FILE = os.path.join(model_path, "ppo_firefighter.zip")
 
 # Create output directory for analytics
@@ -30,12 +32,12 @@ os.makedirs(ANALYTICS_DIR, exist_ok=True)
 
 # Environment settings
 MAX_TIMESTEPS = 2000
-HELICOPTER_SPEED = 3
+HELICOPTER_SPEED = 2
 NUM_EPISODES = 5  # Number of episodes to run
 
 # Simulation settings
 USE_DETERMINISTIC = False  # Set to False to allow exploration (stochastic policy)
-FORCE_HELITACK_PROB = 0.35  # Force helitack with 5% probability
+FORCE_HELITACK_PROB = 0.05  # Force helitack with 5% probability
 SIMULATION_SPEED = 0.1  # Delay between steps (seconds)
 NORMALIZE_OBSERVATIONS = True  # Match training normalization
 
@@ -405,7 +407,7 @@ class MetricsTracker:
 
 # Synchronous environment implementation for simulation
 class FireEnvSync(gym.Env):
-    def __init__(self):
+    def __init__(self, lat=None, lon=None, date=None):
         super().__init__()
         global client_websocket, message_queue
         
@@ -420,6 +422,9 @@ class FireEnvSync(gym.Env):
             'cells': spaces.Box(low=0, high=8, shape=(4, 160, 240), dtype=np.int32),
             'on_fire': spaces.Discrete(2)
         })
+        self.lat = lat
+        self.lon = lon
+        self.date = date
         
         # Initialize state
         self.step_count = 0
@@ -803,6 +808,11 @@ def generate_report_data(metrics_file, output_file="fire_report_data.json"):
 def main():
     global model
     
+    lat = os.environ.get("LAT")
+    lon = os.environ.get("LON")
+    date = os.environ.get("DATE")
+
+    print(f"🌎 Running simulation at lat={lat}, lon={lon}, date={date}")
     env = None
     server_thread = None
     
@@ -830,7 +840,7 @@ def main():
         print(f"✅ React client connected: {id(client_websocket)}")
         
         # Create environment
-        env = FireEnvSync()
+        env = FireEnvSync(lat=lat, lon=lon, date=date)
         
         # Check if model file exists
         if not os.path.isfile(MODEL_FILE):
