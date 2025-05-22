@@ -4,7 +4,7 @@ import React from "react";
 import 'leaflet/dist/leaflet.css';
 import { HashRouter, Link, Route, Routes, Navigate  } from "react-router-dom";
 // import Home from "../pages/Home";
-import Inferno from "../pages/Inferno";
+import Inferno from "../pages/inferno/Inferno";
 import { SimulationPage } from "../pages/SimulationPage";
 import styles from "./app.module.scss";
 import About from "../pages/About";
