@@ -29,18 +29,16 @@ interface ApiResponse {
 
 // Modified to only update position without API call
 function ClickableMarker({ onPositionChange }: { onPositionChange: (pos: [number, number]) => void }) {
-    const [pos, setPos] = useState<[number, number] | null>(null);
-
     useMapEvents({
         click(e) {
             const newPos: [number, number] = [e.latlng.lat, e.latlng.lng];
-            setPos(newPos);
             onPositionChange(newPos);
         }
     });
 
-    return pos ? <Marker position={pos} /> : null;
+    return null;
 }
+
 
 export default function Inferno() {
     const [query, setQuery] = useState('');
@@ -191,14 +189,21 @@ export default function Inferno() {
 
         try {
             // Use the current marker position
-            const url = `http://localhost:6969/api/createEnvironment?lat=${markerPos[0]}&lon=${markerPos[1]}`;
+            const url = `http://localhost:6969/api/createEnvironment?lat=${markerPos[0]}&lon=${markerPos[1]}&date=${date}`;
             const response = await axios.post(url);
 
             console.log('Environment created:', response.data);
+            const query = new URLSearchParams({
+                lat: markerPos[0].toString(),
+                lon: markerPos[1].toString(),
+                date
+            }).toString();
 
             // Navigate to tactics page after successful response
             // window.location.href = '/#/tactics';
-            window.open('/#/tactics', '_blank');
+            await sleep(10000);
+
+            window.open(`/#/tactics?${query}`, '_blank');
         } catch (error) {
             console.error('Error creating environment:', error);
             alert('Failed to create environment. Please try again.');
@@ -206,6 +211,8 @@ export default function Inferno() {
             setIsCreatingEnvironment(false);
         }
     };
+
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     // Handle date change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,14 +288,16 @@ export default function Inferno() {
     };
 
     // This function handles search and calls the API - only triggered by Go button
-    const handleSearch = async () => {
-        const newPos = await performSearch();
-        if (newPos) {
-            // Only call API when using the Go button
-            setApiResponse(null)
-            callApi(newPos, date);
-        }
+    const handleSearch = () => {
+    if (!markerPos) {
+        alert("Please select a location first (via map click or search)");
+        return;
+    }
+
+    setApiResponse(null);
+    callApi(markerPos, date);  // ✅ Use current state
     };
+
 
     // Loading spinner component
     // 2️⃣  Replace your existing LoadingSpinner with a generic version
@@ -437,6 +446,7 @@ export default function Inferno() {
                         <ClickableMarker onPositionChange={handlePositionChange} />
                         {markerPos && <Marker position={markerPos} />}
 
+
                     </MapContainer>
                 </div>
             </div>
@@ -472,7 +482,7 @@ export default function Inferno() {
                     </div>
 
                     {/* If prediction is above 0.5, show the button that calls createEnvironment API */}
-                    {apiResponse.prediction > 0.5 ? (
+                    {true ? (
                         <div>
                             <button
                                 onClick={createEnvironmentAndNavigate}

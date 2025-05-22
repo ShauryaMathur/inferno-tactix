@@ -23,3 +23,7 @@ tactix/__pycache__
 *.gz
 Reports/RL_report/.DS_Store
 .ipynb_checkpoints
+tactix/backend/ee-shauryamathur2001-7b7c6b1280b5.json
+/tactix/backend/fire_analytics
+*.tif
+/tactix/src/public/data
