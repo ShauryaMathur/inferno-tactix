@@ -30,10 +30,9 @@ export const SimulationPage = observer(function WrappedComponent() {
   simulation.connectSocket();
 
   return () => {
-    simulation.cleanup(); // optional: close socket if you want to clean up on page exit
+    simulation.cleanup(); 
   };
 }, []);
-
 
   // This will setup document cursor based on various states of UI store (interactions).
   useCustomCursor();
