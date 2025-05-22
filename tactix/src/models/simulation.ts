@@ -71,9 +71,6 @@ private socket: WebSocket | null = null;
 constructor(presetConfig: Partial<ISimulationConfig>) {
     makeObservable(this);
     this.load(presetConfig);
-
-    // WebSocket connection open handler
-    // this.connectSocket(); // Connect socket when the model is created   
 }
 
 public connectSocket() {
@@ -143,8 +140,7 @@ public connectSocket() {
 
   this.socket.onclose = (e) => {
     console.warn("⚠️ WebSocket closed. Attempting reconnect in 2s...");
-    // setTimeout(() => this.connectSocket(), 2000); // ⬅️ auto-reconnect logic
-    // alert("Generating Report...");
+    setTimeout(() => this.connectSocket(), 2000); // ⬅️ auto-reconnect logic
   };
 }
 
