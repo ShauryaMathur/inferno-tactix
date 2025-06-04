@@ -28,28 +28,61 @@ export const getZoneIndex = (
   );
 };
 
+export const getLandCoverZoneIndex = (
+  config: ISimulationConfig
+): Promise<number[] | undefined> => {
+  const landcoverImage =  "data/landcover_1200x813.png";
+
+  // Map MODIS IGBP landcover classes (based on color palette) to raw landcover index (1-17)
+  const rgbToLandCoverIndex: Record<string, number> = {
+    "0,100,0": 1,       // Evergreen Needleleaf Forest
+    "34,139,34": 2,     // Evergreen Broadleaf Forest
+    "50,205,50": 3,     // Deciduous Needleleaf Forest
+    "0,128,0": 4,       // Deciduous Broadleaf Forest
+    "60,179,113": 5,    // Mixed Forest
+    "240,230,140": 6,   // Closed Shrublands
+    "218,165,32": 7,    // Open Shrublands
+    "128,128,0": 8,     // Woody Savannas
+    "154,205,50": 9,    // Savannas
+    "144,238,144": 10,  // Grasslands
+    "143,188,143": 11,  // Permanent Wetlands
+    "210,180,140": 12,  // Croplands
+    "128,128,128": 13,  // Urban and Built-Up
+    "222,184,135": 14,  // Cropland/Natural Vegetation Mosaic
+    "255,255,255": 15,  // Snow and Ice
+    "211,211,211": 16,  // Barren or Sparsely Vegetated
+    "0,0,255": 17       // Water
+  };
+
+  return getInputData(
+    landcoverImage,
+    config.gridWidth,
+    config.gridHeight,
+    true,
+    (rgba: [number, number, number, number]) => {
+      const key = `${rgba[0]},${rgba[1]},${rgba[2]}`;
+      return rgbToLandCoverIndex[key] ?? 1; // return 0 if unknown color
+    }
+  );
+};
+
 export const getElevationData = (
   config: ISimulationConfig,
   zones: Zone[]
 ): Promise<number[] | undefined> => {
-  // Determine elevation PNG path
   let elevation = config.elevation;
   console.log(elevation);
-  
+
   if (!elevation) {
-    // elevation = `${zonesToImageDataFile(zones)}-heightmap.png`;
-    // elevation = "data/heightmap_1200x800.png";
-    // elevation = "data/heightmap_1200x800_2.png";
     elevation = "data/heightmap_1200x813_2.png";
   }
 
-  // Decode a 16-bit RGBA heightmap where R=high byte, G=low byte
   const heightFn = (rgba: [number, number, number, number]) => {
     const highByte = rgba[0];
     const lowByte = rgba[1];
-    const value16 = (highByte << 8) | lowByte;      // 0–65535
-    const hNorm = value16 / 65535;                  // normalized
-    return hNorm * config.heightmapMaxElevation;    // scale to meters
+    const value16 = (highByte << 8) | lowByte;
+    const hNorm = value16 / 65535;
+    return hNorm * config.heightmapMaxElevation;
   };
 
   return getInputData(
@@ -65,7 +98,6 @@ export const getUnburntIslandsData = (
   config: ISimulationConfig,
   zones: Zone[]
 ): Promise<number[] | undefined> => {
-  // Determine islands image path
   let islandsFile = config.unburntIslands;
   if (!islandsFile) {
     islandsFile = `${zonesToImageDataFile(zones)}-islands.png`;
