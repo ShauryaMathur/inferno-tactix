@@ -28,10 +28,19 @@ export const vegetationLabels: Record<Vegetation, string> = {
 };
 
 export enum TerrainType {
-  Plains = 0,
-  Foothills = 1,
-  Mountains = 2
+  Mountains = "mountains",
+  Plains = "plains",
+  Hills = "hills",
+  Tropical = "tropical",
+  Desert = "desert",
+  Wetlands = "wetlands",
+  Agricultural = "agricultural",
+  Urban = "urban",
+  Mixed = "mixed",
+  Ice = "ice",
+  Water = "water"
 }
+
 
 export const terrainLabels: Record<TerrainType, string> = {
   [TerrainType.Plains]: "Plains",
@@ -52,6 +61,27 @@ export const droughtLabels: Record<DroughtLevel, string> = {
   [DroughtLevel.MediumDrought]: "Medium Drought",
   [DroughtLevel.SevereDrought]: "Severe Drought",
 };
+
+export enum VegetationType {
+  EvergreenNeedleleaf = 1,
+  EvergreenBroadleaf = 2,
+  DeciduousNeedleleaf = 3,
+  DeciduousBroadleaf = 4,
+  MixedForest = 5,
+  ClosedShrublands = 6,
+  OpenShrublands = 7,
+  WoodySavannas = 8,
+  Savannas = 9,
+  Grasslands = 10,
+  PermanentWetlands = 11,
+  Croplands = 12,
+  UrbanBuilt = 13,
+  CroplandMosaic = 14,
+  SnowIce = 15,
+  Barren = 16,
+  Water = 17
+}
+
 
 export interface IWindProps {
   // Wind speed in mph.

@@ -1,4 +1,4 @@
-import { Fuel , Vegetation, IWindProps } from "../../types";
+import { Fuel , Vegetation, IWindProps, VegetationType } from "../../types";
 import { Vector2 } from "three";
 
 interface ICellProps {
@@ -13,39 +13,162 @@ const heatContent = 8000;
 const totalMineralContent = 0.0555;
 const effectiveMineralContent = 0.01;
 
-// Values are specified in this PT story: https://www.pivotaltracker.com/story/show/170343321
-const FuelConstants: {[key in Vegetation]: Fuel} = {
-  [Vegetation.Grass]: {
+const FuelConstants: { [key in VegetationType]: Fuel } = {
+  [VegetationType.EvergreenNeedleleaf]: {
+    sav: 1900,
+    netFuelLoad: 0.25,
+    fuelBedDepth: 2.5,
+    packingRatio: 0.012,
+    mx: 0.2
+  },
+  [VegetationType.EvergreenBroadleaf]: {
+    sav: 1800,
+    netFuelLoad: 0.22,
+    fuelBedDepth: 2.0,
+    packingRatio: 0.011,
+    mx: 0.25
+  },
+  [VegetationType.DeciduousNeedleleaf]: {
+    sav: 1850,
+    netFuelLoad: 0.23,
+    fuelBedDepth: 2.0,
+    packingRatio: 0.01,
+    mx: 0.2
+  },
+  [VegetationType.DeciduousBroadleaf]: {
+    sav: 1750,
+    netFuelLoad: 0.21,
+    fuelBedDepth: 1.8,
+    packingRatio: 0.009,
+    mx: 0.25
+  },
+  [VegetationType.MixedForest]: {
+    sav: 1716,
+    netFuelLoad: 0.20,
+    fuelBedDepth: 1.5,
+    packingRatio: 0.01,
+    mx: 0.25
+  },
+  [VegetationType.ClosedShrublands]: {
+    sav: 1600,
+    netFuelLoad: 0.24,
+    fuelBedDepth: 1.2,
+    packingRatio: 0.012,
+    mx: 0.3
+  },
+  [VegetationType.OpenShrublands]: {
+    sav: 1500,
+    netFuelLoad: 0.20,
+    fuelBedDepth: 0.9,
+    packingRatio: 0.01,
+    mx: 0.3
+  },
+  [VegetationType.WoodySavannas]: {
+    sav: 1450,
+    netFuelLoad: 0.18,
+    fuelBedDepth: 0.8,
+    packingRatio: 0.009,
+    mx: 0.3
+  },
+  [VegetationType.Savannas]: {
+    sav: 1400,
+    netFuelLoad: 0.17,
+    fuelBedDepth: 0.7,
+    packingRatio: 0.0085,
+    mx: 0.25
+  },
+  [VegetationType.Grasslands]: {
     sav: 2100,
     netFuelLoad: 0.294,
-    fuelBedDepth: 3,
+    fuelBedDepth: 3.0,
     packingRatio: 0.00306,
     mx: 0.15
   },
-  [Vegetation.Shrub]: {
-    sav: 1672,
-    netFuelLoad: 0.239,
-    fuelBedDepth: 1.2,
-    packingRatio: 0.01198,
+  [VegetationType.PermanentWetlands]: {
+    sav: 800,
+    netFuelLoad: 0.12,
+    fuelBedDepth: 0.5,
+    packingRatio: 0.007,
+    mx: 0.5
+  },
+  [VegetationType.Croplands]: {
+    sav: 1400,
+    netFuelLoad: 0.22,
+    fuelBedDepth: 0.7,
+    packingRatio: 0.012,
     mx: 0.3
   },
-  // TODO: the following two land types have not yet been configured via specification,
-  // only by approximation to get the code to compile
-  [Vegetation.Forest]: {
-    sav: 1716,
-    netFuelLoad: 0.0459,
-    fuelBedDepth: 0.1,
-    packingRatio: 0.04878,
-    mx: 0.2
+  [VegetationType.UrbanBuilt]: {
+    sav: 0,
+    netFuelLoad: 0,
+    fuelBedDepth: 0,
+    packingRatio: 0,
+    mx: 0
   },
-  [Vegetation.ForestWithSuppression]: {
-    sav: 1500,
-    netFuelLoad: 0.689,
-    fuelBedDepth: 0.5,
-    packingRatio: 0.02224,
+  [VegetationType.CroplandMosaic]: {
+    sav: 1350,
+    netFuelLoad: 0.20,
+    fuelBedDepth: 0.9,
+    packingRatio: 0.015,
     mx: 0.25
+  },
+  [VegetationType.SnowIce]: {
+    sav: 0,
+    netFuelLoad: 0,
+    fuelBedDepth: 0,
+    packingRatio: 0,
+    mx: 0
+  },
+  [VegetationType.Barren]: {
+    sav: 300,
+    netFuelLoad: 0.01,
+    fuelBedDepth: 0.1,
+    packingRatio: 0.001,
+    mx: 0.1
+  },
+  [VegetationType.Water]: {
+    sav: 0,
+    netFuelLoad: 0,
+    fuelBedDepth: 0,
+    packingRatio: 0,
+    mx: 0
   }
 };
+
+
+// Values are specified in this PT story: https://www.pivotaltracker.com/story/show/170343321
+// const FuelConstants: {[key in Vegetation]: Fuel} = {
+//   [Vegetation.Grass]: {
+//     sav: 2100,
+//     netFuelLoad: 0.294,
+//     fuelBedDepth: 3,
+//     packingRatio: 0.00306,
+//     mx: 0.15
+//   },
+//   [Vegetation.Shrub]: {
+//     sav: 1672,
+//     netFuelLoad: 0.239,
+//     fuelBedDepth: 1.2,
+//     packingRatio: 0.01198,
+//     mx: 0.3
+//   },
+//   // TODO: the following two land types have not yet been configured via specification,
+//   // only by approximation to get the code to compile
+//   [Vegetation.Forest]: {
+//     sav: 1716,
+//     netFuelLoad: 0.0459,
+//     fuelBedDepth: 0.1,
+//     packingRatio: 0.04878,
+//     mx: 0.2
+//   },
+//   [Vegetation.ForestWithSuppression]: {
+//     sav: 1500,
+//     netFuelLoad: 0.689,
+//     fuelBedDepth: 0.5,
+//     packingRatio: 0.02224,
+//     mx: 0.25
+//   }
+// };
 
 // Helper vector used repeatedly in other calculations.
 const ORIGIN = new Vector2(0, 0);
@@ -110,7 +233,9 @@ export const getFireSpreadRate = (
   wind: IWindProps,
   cellSize: number
 ) => {
-  const fuel = FuelConstants[targetCell.vegetation];
+  const fuel = FuelConstants[targetCell.zone.vegetation];
+  console.log(fuel);
+  
   const sav = fuel.sav;
   const packingRatio = fuel.packingRatio;
   const netFuelLoad = fuel.netFuelLoad;
