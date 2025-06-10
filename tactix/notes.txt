@@ -78,3 +78,5 @@ Map.addLayer(region, {color: 'red', fillColor: 'rgba(0,0,0,0)'}, 'Selected Regio
 print(landCover);
 
 //http://localhost:8080/#/tactics?lat=40.7128&lng=-74.0060&date=2025-05-02
+
+//California WIldfires - (34.07022,-118.54453),(34.11923396170252,-118.55688961914103)

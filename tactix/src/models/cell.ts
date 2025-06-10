@@ -1,5 +1,5 @@
-import { Zone, moistureLookups } from "./zone";
-import { Vegetation, DroughtLevel } from "../types";
+import { Zone, moistureLookupByLandCover, moistureLookups } from "./zone";
+import { Vegetation, DroughtLevel, VegetationType } from "../types";
 
 export enum FireState {
   Unburnt = 0,
@@ -71,7 +71,7 @@ export class Cell {
     if (this.isNonburnable) {
       return Infinity;
     }
-    return moistureLookups[this.droughtLevel][this.vegetation];
+    return moistureLookupByLandCover[this.vegetation][this.droughtLevel];
   }
 
   public get droughtLevel() {
@@ -87,40 +87,64 @@ export class Cell {
   }
 
   public get canSurviveFire() {
-    return this.burnIndex === BurnIndex.Low && this.vegetation === Vegetation.Forest;
+    return this.burnIndex === BurnIndex.Low && this.vegetation === VegetationType.PermanentWetlands; //Accomodate all non-burnable vegetation types
   }
 
-  public get burnIndex() {
-    // Values based on: https://www.pivotaltracker.com/story/show/170344417/comments/209774367
-    if (this.vegetation === Vegetation.Grass) {
-      if (this.spreadRate < 45) {
+  // public get burnIndex() {
+  //   // Values based on: https://www.pivotaltracker.com/story/show/170344417/comments/209774367
+  //   if (this.vegetation === Vegetation.Grass) {
+  //     if (this.spreadRate < 45) {
+  //       return BurnIndex.Low;
+  //     }
+  //     return BurnIndex.Medium;
+  //   }
+  //   if (this.vegetation === Vegetation.Shrub) {
+  //     if (this.spreadRate < 10) {
+  //       return BurnIndex.Low;
+  //     }
+  //     if (this.spreadRate < 50) {
+  //       return BurnIndex.Medium;
+  //     }
+  //     return BurnIndex.High;
+  //   }
+  //   if (this.vegetation === Vegetation.Forest) {
+  //     if (this.spreadRate < 25) {
+  //       return BurnIndex.Low;
+  //     }
+  //     return BurnIndex.Medium;
+  //   }
+  //   // this.vegetation === Vegetation.ForestWithSuppression
+  //   if (this.spreadRate < 12) {
+  //     return BurnIndex.Low;
+  //   }
+  //   if (this.spreadRate < 40) {
+  //     return BurnIndex.Medium;
+  //   }
+  //   return BurnIndex.High;
+  // }
+
+    public get burnIndex(): BurnIndex {
+    switch (this.vegetation) {
+      case VegetationType.Grasslands:
+        return this.spreadRate < 45 ? BurnIndex.Low : BurnIndex.Medium;
+
+      case VegetationType.ClosedShrublands:
+      case VegetationType.OpenShrublands:
+        if (this.spreadRate < 10) return BurnIndex.Low;
+        if (this.spreadRate < 50) return BurnIndex.Medium;
+        return BurnIndex.High;
+
+      case VegetationType.EvergreenNeedleleaf:
+      case VegetationType.DeciduousNeedleleaf:
+      case VegetationType.MixedForest:
+      case VegetationType.EvergreenBroadleaf:
+      case VegetationType.DeciduousBroadleaf:
+        return this.spreadRate < 25 ? BurnIndex.Low : BurnIndex.Medium;
+
+      default:
+        // other vegetation types default to low burn index
         return BurnIndex.Low;
-      }
-      return BurnIndex.Medium;
     }
-    if (this.vegetation === Vegetation.Shrub) {
-      if (this.spreadRate < 10) {
-        return BurnIndex.Low;
-      }
-      if (this.spreadRate < 50) {
-        return BurnIndex.Medium;
-      }
-      return BurnIndex.High;
-    }
-    if (this.vegetation === Vegetation.Forest) {
-      if (this.spreadRate < 25) {
-        return BurnIndex.Low;
-      }
-      return BurnIndex.Medium;
-    }
-    // this.vegetation === Vegetation.ForestWithSuppression
-    if (this.spreadRate < 12) {
-      return BurnIndex.Low;
-    }
-    if (this.spreadRate < 40) {
-      return BurnIndex.Medium;
-    }
-    return BurnIndex.High;
   }
 
   public isBurnableForBI(burnIndex: BurnIndex) {

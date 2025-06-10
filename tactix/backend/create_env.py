@@ -72,13 +72,32 @@ def get_elevation_data(region, scale=30, output_dir="."):
     elevation = ee.Image('USGS/SRTMGL1_003').select('elevation').clip(ee.Geometry.Polygon(region))
     return download_image(elevation, region, scale, output_dir, 'elevation')
 
-def get_landcover_data(region, scale=500, output_dir="."):
-    landcover = ee.ImageCollection('MODIS/006/MCD12Q1') \
-        .filterDate('2020-01-01', '2020-12-31') \
-        .first() \
-        .select('LC_Type1') \
-        .clip(ee.Geometry.Polygon(region))
-    return download_image(landcover, region, scale, output_dir, 'landcover')
+def get_landcover_data(date_str,region, scale=500, output_dir="."):
+    # Parse the date
+    target_date = ee.Date(date_str)
+    
+    # Pull the annual land-cover collection (current 061 version)
+    col = ee.ImageCollection("MODIS/061/MCD12Q1") \
+             .filterDate("2000-01-01", date_str) \
+             .sort("system:time_start", False)
+             
+    # Grab the first (i.e. latest) image ≤ date_str
+    img = ee.Image(col.first())
+    
+    # Defensive: if there's no image, fall back to the very latest available
+    # (this is unlikely after 2001, but just in case)
+    latest = ee.ImageCollection("MODIS/061/MCD12Q1") \
+                 .sort("system:time_start", False) \
+                 .first()
+    img = ee.Image(ee.Algorithms.If(img, img, latest))
+    
+    # Select the LC_Type1 band and clip
+    landcover = img.select("LC_Type1") \
+                   .clip(ee.Geometry.Polygon(region))
+    
+    return download_image(
+        landcover, region, scale, output_dir, f"landcover_{date_str}"
+    )
 
 def convert_to_heightmap(tif_path, output_width=1200, output_height=800, output_dir=".") -> str:
     os.makedirs(output_dir, exist_ok=True)
@@ -145,7 +164,7 @@ def convert_landcover_to_image(tif_path, output_width=1200, output_height=800, o
     print(f"Land cover image generated at: {output_path}")
     return output_path
 
-def generate_data_and_heightmap(coords: str) -> Tuple[str, str, str]:
+def generate_data_and_heightmap(coords: str,date) -> Tuple[str, str, str]:
     width_km = 36.576
     height_km = 24.384
     scale_elev = 152.4
@@ -165,11 +184,12 @@ def generate_data_and_heightmap(coords: str) -> Tuple[str, str, str]:
         [lon + w_deg / 2, lat + h_deg / 2],
         [lon - w_deg / 2, lat + h_deg / 2]
     ]
-
-    initialize_earth_engine()
-    elev_tif = get_elevation_data(region, scale_elev, output_dir)
-    land_tif = get_landcover_data(region, scale_land, output_dir)
+    
+    print(region)
     try:
+        initialize_earth_engine()
+        elev_tif = get_elevation_data(region, scale_elev, output_dir)
+        land_tif = get_landcover_data(date,region, scale_land, output_dir)
         heightmap = convert_to_heightmap(elev_tif, output_width, output_height, output_dir)
         landcover_img = convert_landcover_to_image(land_tif, output_width, output_height, output_dir)
     except Exception as e:
@@ -179,4 +199,4 @@ def generate_data_and_heightmap(coords: str) -> Tuple[str, str, str]:
     return heightmap, land_tif, landcover_img
 
 if __name__ == "__main__":
-    generate_data_and_heightmap("-122.2,37.75")
+    generate_data_and_heightmap("-118.54453,34.07022")

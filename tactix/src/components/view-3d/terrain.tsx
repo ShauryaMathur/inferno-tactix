@@ -54,6 +54,7 @@ const getTerrainColor = (landcoverType: number): [number, number, number] => {
 const BURNING_COLOR = [1, 0, 0];
 const BURNT_COLOR = [0.2, 0.2, 0.2];
 const FIRE_LINE_UNDER_CONSTRUCTION_COLOR = [0.5, 0.5, 0];
+const HELITACK_COLOR = [0.6, 0, 0.6]; // purple
 
 export const BURN_INDEX_LOW = [1, 0.7, 0];
 export const BURN_INDEX_MEDIUM = [1, 0.5, 0];
@@ -74,7 +75,9 @@ const setVertexColor = (
 ) => {
   const idx = vertexIdx(cell, gridWidth, gridHeight) * 4;
   let color;
-  if (cell.fireState === FireState.Burning) {
+  if (cell.helitackDropCount > 0) {
+    color = HELITACK_COLOR;
+  } else if (cell.fireState === FireState.Burning) {
     color = config.showBurnIndex ? burnIndexColor(cell.burnIndex) : BURNING_COLOR;
   } else if (cell.fireState === FireState.Burnt) {
     color = cell.isFireSurvivor ? getTerrainColor(cell.vegetation) : BURNT_COLOR;
