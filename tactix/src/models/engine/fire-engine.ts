@@ -6,13 +6,25 @@ import { dist, withinDist, getGridIndexForLocation, forEachPointBetween, directN
 
 const modelDay = 1440; // minutes
 
-const endOfLowIntensityFireProbability: {[key: number]: number} = {
-  0: 0.0,
-  1: 0.6,
-  2: 0.6,
-  3: 0.7,
-  4: 0.8,
-  5: 1.0
+// const endOfLowIntensityFireProbability: {[key: number]: number} = {
+//   0: 0.0,
+//   1: 0.6,
+//   2: 0.6,
+//   3: 0.7,
+//   4: 0.8,
+//   5: 1.0
+// };
+
+// Lowered probabilities so the fire persists much longer:
+const endOfLowIntensityFireProbability: { [day: number]: number } = {
+  0: 0.0,   // cannot end on day 0
+  1: 0.1,   // only 10% chance to stop on day 1
+  2: 0.1,   // 10% on day 2
+  3: 0.2,   // 20% on day 3
+  4: 0.3,   // 30% on day 4
+  5: 0.5,   // 50% on day 5
+  6: 0.7,   // 70% on day 6
+  7: 1.0    // guaranteed to end on day 7
 };
 
 export const nonburnableCellBetween = (
@@ -146,7 +158,7 @@ export class FireEngine {
     const newDay = Math.floor(time / modelDay);
     if (newDay !== this.day) {
       this.day = newDay;
-      if (Math.random() <= endOfLowIntensityFireProbability[newDay]) {
+      if (Math.random() <= (endOfLowIntensityFireProbability[newDay] ?? 0.0)) {
         this.endOfLowIntensityFire = true;
       }
     }

@@ -16,21 +16,45 @@ import { useHelitackInteraction } from "./use-helitack-interaction";
 
 const vertexIdx = (cell: Cell, gridWidth: number, gridHeight: number) => (gridHeight - 1 - cell.y) * gridWidth + cell.x;
 
-const getTerrainColor = (droughtLevel: number) => {
-  switch (droughtLevel) {
-    case DroughtLevel.NoDrought:
-      return [0.008, 0.831, 0.039];
-    case DroughtLevel.MildDrought:
-      return [0.573, 0.839, 0.216];
-    case DroughtLevel.MediumDrought:
-      return [0.757, 0.886, 0.271];
-    default:
-      return [0.784, 0.631, 0.271];
+// const getTerrainColor = (droughtLevel: number) => {
+//   switch (droughtLevel) {
+//     case DroughtLevel.NoDrought:
+//       return [0.008, 0.831, 0.039];
+//     case DroughtLevel.MildDrought:
+//       return [0.573, 0.839, 0.216];
+//     case DroughtLevel.MediumDrought:
+//       return [0.757, 0.886, 0.271];
+//     default:
+//       return [0.784, 0.631, 0.271];
+//   }
+// };
+
+const getTerrainColor = (landcoverType: number): [number, number, number] => {
+  switch (landcoverType) {
+    case 1: return [0.0, 0.392, 0.0];       // Evergreen Needleleaf Forest
+    case 2: return [0.133, 0.545, 0.133];   // Evergreen Broadleaf Forest
+    case 3: return [0.196, 0.804, 0.196];   // Deciduous Needleleaf Forest
+    case 4: return [0.0, 0.5, 0.0];         // Deciduous Broadleaf Forest
+    case 5: return [0.235, 0.702, 0.443];   // Mixed Forest
+    case 6: return [0.941, 0.902, 0.549];   // Closed Shrublands
+    case 7: return [0.855, 0.647, 0.125];   // Open Shrublands
+    case 8: return [0.502, 0.502, 0.0];     // Woody Savannas
+    case 9: return [0.604, 0.804, 0.196];   // Savannas
+    case 10: return [0.565, 0.933, 0.565];  // Grasslands
+    case 11: return [0.561, 0.737, 0.561];  // Permanent Wetlands
+    case 12: return [0.824, 0.706, 0.549];  // Croplands
+    case 13: return [0.502, 0.502, 0.502];  // Urban and Built-Up
+    case 14: return [0.871, 0.722, 0.529];  // Cropland/Natural Vegetation Mosaic
+    case 15: return [1.0, 1.0, 1.0];        // Snow and Ice
+    case 16: return [0.827, 0.827, 0.827];  // Barren or Sparsely Vegetated
+    case 17: return [0.0, 0.0, 1.0];        // Water
+    default: return [0.5, 0.5, 0.5];        // Default: Grey
   }
 };
 const BURNING_COLOR = [1, 0, 0];
 const BURNT_COLOR = [0.2, 0.2, 0.2];
 const FIRE_LINE_UNDER_CONSTRUCTION_COLOR = [0.5, 0.5, 0];
+const HELITACK_COLOR = [0.6, 0, 0.6]; // purple
 
 export const BURN_INDEX_LOW = [1, 0.7, 0];
 export const BURN_INDEX_MEDIUM = [1, 0.5, 0];
@@ -51,16 +75,18 @@ const setVertexColor = (
 ) => {
   const idx = vertexIdx(cell, gridWidth, gridHeight) * 4;
   let color;
-  if (cell.fireState === FireState.Burning) {
+  if (cell.helitackDropCount > 0) {
+    color = HELITACK_COLOR;
+  } else if (cell.fireState === FireState.Burning) {
     color = config.showBurnIndex ? burnIndexColor(cell.burnIndex) : BURNING_COLOR;
   } else if (cell.fireState === FireState.Burnt) {
-    color = cell.isFireSurvivor ? getTerrainColor(cell.droughtLevel) : BURNT_COLOR;
+    color = cell.isFireSurvivor ? getTerrainColor(cell.vegetation) : BURNT_COLOR;
   } else if (cell.isRiver) {
     color = config.riverColor;
   } else if (cell.isFireLineUnderConstruction) {
     color = FIRE_LINE_UNDER_CONSTRUCTION_COLOR;
   } else {
-    color = getTerrainColor(cell.droughtLevel);
+    color = getTerrainColor(cell.vegetation);
   }
   // Note that we're using sRGB colorspace here (default while working with web). THREE.js needs to operate in linear
   // color space, so we need to convert it first. See:

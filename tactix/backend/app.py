@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 import os
-from create_env import generate_heightmap
+from create_env import generate_data_and_heightmap
 from generate_timeseries import get_75day_timeseries
 from datetime import datetime
 import torch
@@ -176,7 +176,7 @@ def create_environment():
         }), 400
     try:
         param = str(lon + ',' + lat)
-        # heightmap = generate_heightmap(param)
+        heightmap = generate_data_and_heightmap(param,date)
     except Exception as e:
         return jsonify({
             'error': 'Heightmap generation failed',

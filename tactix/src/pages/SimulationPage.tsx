@@ -58,7 +58,7 @@ export const SimulationPage = observer(function WrappedComponent() {
       <div className={`${css.mainContent} ${ui.showChart && css.shrink}`}>
         {/* <SimulationInfo /> */}
         <View3d />
-        <TerrainPanel />
+        {/* <TerrainPanel /> */}
       </div>
       {/* <div className={`${css.rightContent} ${ui.showChart && css.grow}`}>
         <RightPanel />
