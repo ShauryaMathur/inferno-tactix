@@ -1,5 +1,5 @@
 import { ZoneOptions } from "./models/zone";
-import { DroughtLevel, Vegetation, TerrainType } from "./types";
+import { DroughtLevel, Vegetation, TerrainType, VegetationType } from "./types";
 
 interface TownOptions {
   name: string;
@@ -41,8 +41,8 @@ export interface ISimulationConfig {
   // Max elevation of 100% white points in heightmap (image used for elevation data).
   heightmapMaxElevation: number; // ft
   // Number of zones that the model is using. Zones are used to keep properties of some area of the model.
-  zonesCount?: 2 | 3;
-  zones: [ZoneOptions, ZoneOptions, ZoneOptions?];
+  zonesCount?: 17 | 18;
+  zones: ZoneOptions[];
   towns: TownOptions[];
   // Visually fills edges of the terrain by setting elevation to 0.
   fillTerrainEdges: boolean;
@@ -115,24 +115,99 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   // This value works well with existing heightmap images.
   heightmapMaxElevation: 10000,
   // undefined zones count will make them configurable in Terrain Setup dialog.
-  zonesCount: undefined,
+  zonesCount: 18,
   zones: [
     {
-      terrainType: TerrainType.Mountains,
-      vegetation: Vegetation.Forest,
-      droughtLevel: DroughtLevel.MildDrought
-    },
-    {
-      terrainType: TerrainType.Plains,
-      vegetation: Vegetation.Forest,
-      droughtLevel: DroughtLevel.MildDrought
-    },
-    {
-      terrainType: TerrainType.Mountains,
-      vegetation: Vegetation.Forest,
-      droughtLevel: DroughtLevel.MildDrought
-    }
-  ],
+    terrainType: TerrainType.Mountains,
+    vegetation: VegetationType.EvergreenNeedleleaf,
+    droughtLevel: DroughtLevel.MildDrought // 0. Dummy Zone
+  },
+  {
+    terrainType: TerrainType.Mountains,
+    vegetation: VegetationType.EvergreenNeedleleaf,
+    droughtLevel: DroughtLevel.MildDrought // 1. Evergreen Needleleaf Forest
+  },
+  {
+    terrainType: TerrainType.Tropical,
+    vegetation: VegetationType.EvergreenBroadleaf,
+    droughtLevel: DroughtLevel.NoDrought // 2. Evergreen Broadleaf Forest
+  },
+  {
+    terrainType: TerrainType.Plains,
+    vegetation: VegetationType.DeciduousNeedleleaf,
+    droughtLevel: DroughtLevel.MildDrought // 3. Deciduous Needleleaf Forest
+  },
+  {
+    terrainType: TerrainType.Plains,
+    vegetation: VegetationType.DeciduousBroadleaf,
+    droughtLevel: DroughtLevel.MildDrought // 4. Deciduous Broadleaf Forest
+  },
+  {
+    terrainType: TerrainType.Hills,
+    vegetation: VegetationType.MixedForest,
+    droughtLevel: DroughtLevel.MediumDrought // 5. Mixed Forest
+  },
+  {
+    terrainType: TerrainType.Desert,
+    vegetation: VegetationType.ClosedShrublands,
+    droughtLevel: DroughtLevel.MediumDrought // 6. Closed Shrublands
+  },
+  {
+    terrainType: TerrainType.Desert,
+    vegetation: VegetationType.OpenShrublands,
+    droughtLevel: DroughtLevel.SevereDrought // 7. Open Shrublands
+  },
+  {
+    terrainType: TerrainType.Plains,
+    vegetation: VegetationType.WoodySavannas,
+    droughtLevel: DroughtLevel.MildDrought // 8. Woody Savannas
+  },
+  {
+    terrainType: TerrainType.Plains,
+    vegetation: VegetationType.Savannas,
+    droughtLevel: DroughtLevel.MediumDrought // 9. Savannas
+  },
+  {
+    terrainType: TerrainType.Plains,
+    vegetation: VegetationType.Grasslands,
+    droughtLevel: DroughtLevel.MildDrought // 10. Grasslands
+  },
+  {
+    terrainType: TerrainType.Wetlands,
+    vegetation: VegetationType.PermanentWetlands,
+    droughtLevel: DroughtLevel.NoDrought // 11. Permanent Wetlands
+  },
+  {
+    terrainType: TerrainType.Agricultural,
+    vegetation: VegetationType.Croplands,
+    droughtLevel: DroughtLevel.MildDrought // 12. Croplands
+  },
+  {
+    terrainType: TerrainType.Urban,
+    vegetation: VegetationType.UrbanBuilt,
+    droughtLevel: DroughtLevel.SevereDrought // 13. Urban and Built-Up
+  },
+  {
+    terrainType: TerrainType.Mixed,
+    vegetation: VegetationType.CroplandMosaic,
+    droughtLevel: DroughtLevel.MediumDrought // 14. Cropland/Natural Vegetation Mosaic
+  },
+  {
+    terrainType: TerrainType.Ice,
+    vegetation: VegetationType.SnowIce,
+    droughtLevel: DroughtLevel.NoDrought // 15. Snow and Ice
+  },
+  {
+    terrainType: TerrainType.Desert,
+    vegetation: VegetationType.Barren,
+    droughtLevel: DroughtLevel.SevereDrought // 16. Barren or Sparsely Vegetated
+  },
+  {
+    terrainType: TerrainType.Water,
+    vegetation: VegetationType.Water,
+    droughtLevel: DroughtLevel.NoDrought // 17. Water
+  }
+],
   towns: [],
   fillTerrainEdges: true,
   riverData: "data/river-texmap.png",

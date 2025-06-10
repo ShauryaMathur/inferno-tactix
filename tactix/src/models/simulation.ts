@@ -1,12 +1,13 @@
 import { action, computed, observable, makeObservable } from "mobx";
-import { IWindProps, Town } from "../types";
+import { IWindProps, TerrainType, Town } from "../types";
 import {  BurnIndex, Cell, CellOptions, FireState } from "./cell";
 import { getDefaultConfig, ISimulationConfig, getUrlConfig } from "../config";
 import { Vector2 } from "three";
-import { getElevationData, getRiverData, getUnburntIslandsData, getZoneIndex } from "./utils/data-loaders";
+import { getElevationData, getLandCoverZoneIndex, getRiverData, getUnburntIslandsData, getZoneIndex } from "./utils/data-loaders";
 import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
 import { getGridIndexForLocation, forEachPointBetween, dist } from "./utils/grid-utils";
+import { log } from "console";
 
 interface ICoords {
   x: number;
@@ -332,8 +333,19 @@ public connectSocket() {
 
   @action.bound public setInputParamsFromConfig() {
     const config = this.config;
-
+    console.log(config);
+    
+    console.log(config.zones);
+    
     this.zones = config.zones.map(options => new Zone(options));
+  //   this.zones = Array.from({ length: 18 }, (_, i) => new Zone({
+  //   terrainType: i,
+  //   name: `Class ${i}`,
+  //   vegetationDensity: 1,
+  //   terrainRoughness: 1,
+  //   fuelLoad: 1,
+  // }));
+
     
     if (config.zonesCount) {
       this.zones.length = config.zonesCount;
@@ -366,13 +378,13 @@ public connectSocket() {
     console.log(zones);
     this.totalCellCountByZone = {};
     this.dataReadyPromise = Promise.all([
-      getZoneIndex(config, this.zoneIndex), getElevationData(config, zones), getRiverData(config), getUnburntIslandsData(config, zones)
+      getLandCoverZoneIndex(config), getElevationData(config, zones), getRiverData(config)
     ]).then(values => {
       const zoneIndex = values[0];
-      // console.log(zoneIndex);
+      console.log(zoneIndex);
       const elevation = values[1];
       const river = null; // Removing the river for now
-      const unburntIsland = values[3];
+      // const unburntIsland = values[3];
 
       this.cells.length = 0;
 
@@ -380,7 +392,10 @@ public connectSocket() {
         for (let x = 0; x < this.gridWidth; x++) {
           const index = getGridIndexForLocation(x, y, this.gridWidth);
           const zi = zoneIndex ? zoneIndex[index] : 0;
-          const isRiver = river && river[index] > 0;
+          // console.log(zi);
+          // console.log(zones[zi]);
+          
+          // const isRiver = river && river[index] > 0;
           // When fillTerrainEdge is set to true, edges are set to elevation 0.
           const isEdge = config.fillTerrainEdges &&
             (x === 0 || x === this.gridWidth - 1 || y === 0 || y === this.gridHeight);
@@ -393,8 +408,6 @@ public connectSocket() {
             x, y,
             zone: zones[zi],
             zoneIdx: zi,
-            isRiver,
-            isUnburntIsland: unburntIsland && unburntIsland[index] > 0 || isNonBurnable,
             baseElevation: isEdge ? 0 : elevation?.[index]
           };
           if (!this.totalCellCountByZone[zi]) {
@@ -407,7 +420,7 @@ public connectSocket() {
       }
       this.updateCellsElevationFlag();
       this.updateCellsStateFlag();
-      this.updateTownMarkers();
+      // this.updateTownMarkers();
       this.dataReady = true;
     });
     

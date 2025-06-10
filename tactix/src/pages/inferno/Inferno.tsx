@@ -231,7 +231,7 @@ export default function Inferno() {
 
       {apiResponse && (
         <PredictionPanel
-          prediction={0.8}
+          prediction={apiResponse.prediction}
           date={date}
           isCreating={isCreatingEnvironment}
           onCreate={createEnvironmentAndNavigate}
