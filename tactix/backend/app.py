@@ -176,7 +176,7 @@ def create_environment():
         }), 400
     try:
         param = str(lon + ',' + lat)
-        # heightmap = generate_data_and_heightmap(param)
+        heightmap = generate_data_and_heightmap(param,date)
     except Exception as e:
         return jsonify({
             'error': 'Heightmap generation failed',

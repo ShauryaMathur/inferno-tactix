@@ -13,127 +13,147 @@ const heatContent = 8000;
 const totalMineralContent = 0.0555;
 const effectiveMineralContent = 0.01;
 
+/**
+ * Rothermel‐style fuel parameters for each VegetationType.
+ * Grass, Shrub and Forest come straight from your PT story.
+ * Others are interpolated or approximated so that 
+ * packingRatio, netFuelLoad and sav decrease/increase sensibly.
+ */
+
 const FuelConstants: { [key in VegetationType]: Fuel } = {
-  [VegetationType.EvergreenNeedleleaf]: {
-    sav: 1900,
-    netFuelLoad: 0.25,
-    fuelBedDepth: 2.5,
-    packingRatio: 0.012,
-    mx: 0.2
-  },
-  [VegetationType.EvergreenBroadleaf]: {
-    sav: 1800,
-    netFuelLoad: 0.22,
-    fuelBedDepth: 2.0,
-    packingRatio: 0.011,
-    mx: 0.25
-  },
-  [VegetationType.DeciduousNeedleleaf]: {
-    sav: 1850,
-    netFuelLoad: 0.23,
-    fuelBedDepth: 2.0,
-    packingRatio: 0.01,
-    mx: 0.2
-  },
-  [VegetationType.DeciduousBroadleaf]: {
-    sav: 1750,
-    netFuelLoad: 0.21,
-    fuelBedDepth: 1.8,
-    packingRatio: 0.009,
-    mx: 0.25
-  },
-  [VegetationType.MixedForest]: {
-    sav: 1716,
-    netFuelLoad: 0.20,
-    fuelBedDepth: 1.5,
-    packingRatio: 0.01,
-    mx: 0.25
+  // ----- True surface fuels -----
+  [VegetationType.Grasslands]: {
+    // From PT: fine grass
+    sav: 2100,            // very fine
+    netFuelLoad: 0.294,   // kg/m²
+    fuelBedDepth: 3.0,    // m
+    packingRatio: 0.00306,
+    mx: 0.15
   },
   [VegetationType.ClosedShrublands]: {
-    sav: 1600,
-    netFuelLoad: 0.24,
+    // From PT: shrub
+    sav: 1672,
+    netFuelLoad: 0.239,
     fuelBedDepth: 1.2,
-    packingRatio: 0.012,
-    mx: 0.3
+    packingRatio: 0.01198,
+    mx: 0.30
   },
   [VegetationType.OpenShrublands]: {
+    // slightly coarser / less fuel than closed shrub
     sav: 1500,
     netFuelLoad: 0.20,
-    fuelBedDepth: 0.9,
-    packingRatio: 0.01,
-    mx: 0.3
+    fuelBedDepth: 1.0,
+    packingRatio: 0.010,
+    mx: 0.30
   },
+
+  // ----- Forest litter (very fine needles) -----
+  [VegetationType.EvergreenNeedleleaf]: {
+    // approximate “Forest” from PT
+    sav: 1716,
+    netFuelLoad: 0.0459,
+    fuelBedDepth: 0.10,
+    packingRatio: 0.04878,
+    mx: 0.20
+  },
+  [VegetationType.DeciduousNeedleleaf]: {
+    // similar to evergreen needles
+    sav: 1650,
+    netFuelLoad: 0.040,
+    fuelBedDepth: 0.10,
+    packingRatio: 0.045,
+    mx: 0.20
+  },
+
+  [VegetationType.EvergreenBroadleaf]: {
+    // leaf litter is a bit broader but still light
+    sav: 1500,
+    netFuelLoad: 0.06,
+    fuelBedDepth: 0.12,
+    packingRatio: 0.035,
+    mx: 0.25
+  },
+  [VegetationType.DeciduousBroadleaf]: {
+    sav: 1400,
+    netFuelLoad: 0.05,
+    fuelBedDepth: 0.10,
+    packingRatio: 0.030,
+    mx: 0.25
+  },
+
+  [VegetationType.MixedForest]: {
+    // blend of needle + broadleaf
+    sav: (1716 + 1500) / 2,    // ~1608
+    netFuelLoad: (0.0459 + 0.06) / 2,  // ~0.053
+    fuelBedDepth: 0.11,
+    packingRatio: 0.042,
+    mx: 0.22
+  },
+
+  // ----- Savanna / woody grassland -----
   [VegetationType.WoodySavannas]: {
-    sav: 1450,
+    sav: 1400,
     netFuelLoad: 0.18,
     fuelBedDepth: 0.8,
-    packingRatio: 0.009,
-    mx: 0.3
+    packingRatio: 0.008,
+    mx: 0.30
   },
   [VegetationType.Savannas]: {
-    sav: 1400,
+    sav: 1450,
     netFuelLoad: 0.17,
     fuelBedDepth: 0.7,
     packingRatio: 0.0085,
     mx: 0.25
   },
-  [VegetationType.Grasslands]: {
-    sav: 2100,
-    netFuelLoad: 0.294,
-    fuelBedDepth: 3.0,
-    packingRatio: 0.00306,
-    mx: 0.15
-  },
-  [VegetationType.PermanentWetlands]: {
-    sav: 800,
-    netFuelLoad: 0.12,
-    fuelBedDepth: 0.5,
-    packingRatio: 0.007,
-    mx: 0.5
-  },
+
+  // ----- Agricultural -----
   [VegetationType.Croplands]: {
-    sav: 1400,
-    netFuelLoad: 0.22,
-    fuelBedDepth: 0.7,
-    packingRatio: 0.012,
-    mx: 0.3
-  },
-  [VegetationType.UrbanBuilt]: {
-    sav: 0,
-    netFuelLoad: 0,
-    fuelBedDepth: 0,
-    packingRatio: 0,
-    mx: 0
+    // crop residue & stubble (moderate fine fuel)
+    sav: 1200,
+    netFuelLoad: 0.20,
+    fuelBedDepth: 0.50,
+    packingRatio: 0.015,
+    mx: 0.30
   },
   [VegetationType.CroplandMosaic]: {
-    sav: 1350,
-    netFuelLoad: 0.20,
-    fuelBedDepth: 0.9,
-    packingRatio: 0.015,
+    // mix of crop + natural
+    sav: 1300,
+    netFuelLoad: 0.18,
+    fuelBedDepth: 0.60,
+    packingRatio: 0.012,
     mx: 0.25
   },
-  [VegetationType.SnowIce]: {
-    sav: 0,
-    netFuelLoad: 0,
-    fuelBedDepth: 0,
-    packingRatio: 0,
-    mx: 0
+
+  // ----- Wet or sparsely vegetated -----
+  [VegetationType.PermanentWetlands]: {
+    // mostly saturated ground, little burnable
+    sav: 800,
+    netFuelLoad: 0.12,
+    fuelBedDepth: 0.50,
+    packingRatio: 0.007,
+    mx: 0.50
   },
   [VegetationType.Barren]: {
-    sav: 300,
+    // sparse grass / bare
+    sav: 600,
     netFuelLoad: 0.01,
-    fuelBedDepth: 0.1,
-    packingRatio: 0.001,
-    mx: 0.1
+    fuelBedDepth: 0.05,
+    packingRatio: 0.002,
+    mx: 0.10
+  },
+
+  // ----- Non‐burnable -----
+  [VegetationType.UrbanBuilt]: {
+    sav: 0, netFuelLoad: 0, fuelBedDepth: 0, packingRatio: 0, mx: 0
+  },
+  [VegetationType.SnowIce]: {
+    sav: 0, netFuelLoad: 0, fuelBedDepth: 0, packingRatio: 0, mx: 0
   },
   [VegetationType.Water]: {
-    sav: 0,
-    netFuelLoad: 0,
-    fuelBedDepth: 0,
-    packingRatio: 0,
-    mx: 0
+    sav: 0, netFuelLoad: 0, fuelBedDepth: 0, packingRatio: 0, mx: 0
   }
 };
+
 
 
 // Values are specified in this PT story: https://www.pivotaltracker.com/story/show/170343321
