@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "ee-shauryamathur2001",
+  "private_key_id": "7b7c6b1280b5c866cd8a43ec7450d55ffa0b1543",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCzreo3OjjwIePE\nv165vIdWn4OeM53qwtJi28AezEEedrY4GvdzgZMlMp6Gxh10dHkYfqyP0spqZEx+\nC1CVbmFhYcq1fljfwsuYKwPuYfnbSzDPtMp5UTgKRDix1junKGs3nqnQDBb0hlPN\nAWz+g5yuudJ9DaZgiKKGW6w6BY1ZVwxFsR86Ahk2EaN03QXG84b49+3uQScqzJHm\nSEB4aHAz+1a5LVySSeg7B87vhtGoUJWmQqTMCFOaTmBvCdpx84pKnoqjhABiOg8Z\nEKculJluCSEwIOXG1diy9KrDLsEbORJvP5XuV7xwz7Kxa16C6r+RhnzO/ZdFzlmf\nevt4zC7BAgMBAAECggEAA/bGb9vPIsO/Tc63rRr9f187MkkgPEF6Y7zxCEeS+N7p\n6+NIae9wtXA1nXKPIXZqWix9QRpc5dZQS7LoibYVhuZMkw7LsNAQLstlevkFX/L7\ni4beX/53Nolvw230WJ6PKFB4nZg5Whar5Z4Y70/XATx56iaxcM1tjHpG7+wXGg1E\nnPXNmlnkMXu702gnl2qHyXAIWE/Am7hYn2RtlcjCzh1+5IaJNFCVuGoxgUHFXYJg\nDlT+T8seCaGktRTopTleXeb0zVZHIePIkYvKbNsbOUdoMTeEhaG/6XkvJLz6n2E+\nCfpZdlWHhsVaQJuVUZ1J81WhMpaDXI+l/1ThtCcgIwKBgQDW/n88ZTCly1sDAWsV\nhoG8+j9AwiWPlVc8wHZOxtvn6G8ZgjYG7qeszZX7QSuGNkcqi+2FIbeefY+U/X08\nVk0UeOEM6HnHXicFOKLrdEKMTwZWFpx/R/K5t9twsYxvD3UnuOwKkOzAYBFdRJFd\nSuhnVl/QCHHRSgjwwxXlrRxxBwKBgQDV8xsfY2HlFRaJ8HuWrRQ8Up77bl7FcobF\netvzuL9GIDuWLxHxAbg9jWPLVqmuboMTr9Jl6FQZ/iQK9+rr0GWj1isk2nQ6djRr\n/5YyXKZggefThINa0A0EgBVerNXeqDFTOjoHXQGZa0W4yu3oVhcjRKOda9qLc6s5\nS1Cv+tCX9wKBgQDJ1gbxVjZDkBQTUEON48bs+Spky1+j2poZqL3o2vwcTbPviLTb\n8TVtH1yMkvQffdl18gO8lpjhrBMd1pS6DnMyowD0s1OQfa24UyFwVqcbPh0+uN+X\nBp6zCA51T9n9cc+UySCgEsqRGB91JigqI2bnjMlKboMb7ptSHHP0OX6YBQKBgGVJ\nTAPWFthO3Xa8JKY2lifgrWc23yL2jxsaiNqfEd5vEAaPjhzcxY5OS3pOMtJjeyZs\nzFx2WqpbiFCxAcRVymh/0bkGupOatkKSo1aASjvSBCA80brCWAdTY8qIZE+erItM\nO4CU5VbuU/miCHM/noCR1CuIjdQLFHpxT2egg/QNAoGBAINRD5lo+h+JTtbTqpP2\nuEKirm1OqPM1V9DDyJe7nmaS0gK6f+t4XDUOe/V1jgUixbEXHZ+B9hJb91TCq71X\nlFy6H/g4FrtKitFM4FRTtrllKW4Zaw75xgROHg7wCuKvlzFgIHpz/9KAOVyov/Tw\n2hIR+hXHHUbsBazqFWZBKMSl\n-----END PRIVATE KEY-----\n",
+  "client_email": "inferno-tactics@ee-shauryamathur2001.iam.gserviceaccount.com",
+  "client_id": "106439470038944309456",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/inferno-tactics%40ee-shauryamathur2001.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
