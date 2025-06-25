@@ -38,10 +38,13 @@ NUM_EPISODES = 5  # Number of episodes to run
 # Simulation settings
 USE_DETERMINISTIC = False  # Set to False to allow exploration (stochastic policy)
 FORCE_HELITACK_PROB = 0.05  # Force helitack with 5% probability
-SIMULATION_SPEED = 0.1  # Delay between steps (seconds)
+SIMULATION_SPEED = 0.0  # Delay between steps (seconds)
 NORMALIZE_OBSERVATIONS = True  # Match training normalization
 
 CIRCLE_RADIUS = 30
+
+START_RADIUS = 30
+NUM_CIRCLES = 3
 
 # Custom JSON encoder to handle NumPy types
 class NumpyEncoder(json.JSONEncoder):
@@ -744,32 +747,6 @@ class FireEnvSync(gym.Env):
         self.cached_obs = None
         clear_gpu_memory()
 
-# Function to modify agent action with a chance to force helitack
-def get_modified_action(model, obs, env, deterministic=True):
-    """Get action from model with potential modification to ensure helitack use"""
-    # Get the raw action from the model (with exploration if not deterministic)
-    action, _ = model.predict(obs, deterministic=deterministic)
-    
-    # Maybe force a helitack action
-    if np.random.random() < FORCE_HELITACK_PROB:
-        # Check if there are burning cells near the helicopter
-        heli_x, heli_y = env.state['helicopter_coord']
-        cells = np.array(env.state['cells'])
-        fire_states = cells // 3
-        
-        # Look for burning cells in vicinity
-        y_min, y_max = max(0, heli_y-5), min(160, heli_y+6)
-        x_min, x_max = max(0, heli_x-5), min(240, heli_x+6)
-        
-        nearby_burning = np.any(fire_states[y_min:y_max, x_min:x_max] == FireState.Burning)
-        
-        if nearby_burning:
-            # Force helitack action (4)
-            print("🔥 Forcing helitack action near burning cells")
-            return 4
-    
-    return action
-
 # Generate a report-ready JSON from the metrics
 def generate_report_data(metrics_file, output_file="fire_report_data.json"):
     """Convert metrics into a report-ready format"""
@@ -816,6 +793,18 @@ def generate_circle_path(origin, radius):
         points.append((-69,-69))
         points.append((-69,-69))
     return points[:-2]
+
+def generate_concentric_circles(origin, start_radius, num_circles, radius_step=20):
+    all_points = []
+    for r in range(start_radius, start_radius + num_circles * radius_step, radius_step):
+        for angle in range(0, 360, 10):
+            rad = np.deg2rad(angle)
+            x = int(origin[0] + r * np.cos(rad))
+            y = int(origin[1] + r * np.sin(rad))
+            all_points.append((x, y))
+            all_points.append((-69,-69))
+            all_points.append((-69,-69))
+    return all_points[:-2]
 
 # Main function to run simulation
 def main():
@@ -890,7 +879,15 @@ def main():
             print(f"\n🔥 Starting Episode {episode+1}/{NUM_EPISODES}")
             
             fire_origin = [120, 80]
-            path = generate_circle_path(fire_origin, CIRCLE_RADIUS)
+            
+            # Agent in Circle
+            # path = generate_circle_path(fire_origin, CIRCLE_RADIUS)
+            
+            # Agent in Concentric Circles
+            # path = generate_concentric_circles(fire_origin, start_radius=START_RADIUS , num_circles=NUM_CIRCLES)
+            
+            # No agent
+            path = []
             path = deque(path)
             og_x = 0
             og_y = 0
@@ -909,7 +906,6 @@ def main():
                 obs = np.array([x, y], dtype=np.float32)
 
                 # Get action from model - using modified function that may force helitack
-                # action = get_modified_action(model, obs, env, deterministic=USE_DETERMINISTIC)
                 if (x== -69 and y == -69) or isPathFinished:
                     action = 0
                 else:
