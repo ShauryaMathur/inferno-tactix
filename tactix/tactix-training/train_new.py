@@ -838,6 +838,7 @@ class FireEnvSync(gym.Env):
         self.tick(time_step)
 
     def populateCellsData(self):
+        self.cells = []
         zoneIndex = helper.get_land_cover_zone_index(config,"landcover_1200x813.png")
         elevation = helper.get_elevation_data(config,"heightmap_1200x813_2.png")
         nonBurnableZones = [12,14,16,17,18]
@@ -887,7 +888,7 @@ class FireEnvSync(gym.Env):
         try:
             print(f"🧼 Resetting environment with seed={seed}")
             if seed is not None:
-                super().reset(seed=seed)
+                self.seed(seed)
             
             # Reset LSTM hidden states
             if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
@@ -1060,7 +1061,7 @@ class FireEnvSync(gym.Env):
     
     def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         reward = 0
-        
+        print(f"prev_burnt: {prev_burnt}, curr_burnt: {curr_burnt}, curr_burning: {curr_burning}, extinguished_by_helitack: {extinguished_by_helitack}")
         # Track fire progress
         if not hasattr(self.state, 'prev_burning'):
             self.prev_burning = curr_burning
@@ -1117,7 +1118,7 @@ class FireEnvSync(gym.Env):
         # Update for next timestep
         self.prev_burning = curr_burning
         
-        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | New burnt: {newly_burnt} | Reduction: {burning_reduction}")
+        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | New burnt: {newly_burnt} | Reduction: {burning_reduction} | Helitack: {extinguished_by_helitack}")
         return reward
     
     def close(self):
@@ -1145,7 +1146,7 @@ class DebugRolloutCallback(BaseCallback):
 def make_env(rank = 0):
     def _init():
         env = FireEnvSync()
-        env.seed(rank)
+        env.seed(rank + 42)
         env = Monitor(env, logdir)
         return env
     return _init
