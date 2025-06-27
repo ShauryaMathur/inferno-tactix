@@ -8,6 +8,8 @@ import signal
 import sys
 import traceback
 import os
+import csv
+from datetime import datetime
 import gc
 import torch
 import torch.cuda.amp as amp  # For mixed precision
@@ -40,7 +42,7 @@ logdir = "runs/ppo_firefighter/"
 os.makedirs(logdir, exist_ok=True)
 
 # Environment settings
-MAX_TIMESTEPS = 100
+MAX_TIMESTEPS = 2000
 HELICOPTER_SPEED = 3
 USE_TRAINED_AGENT = False
 
@@ -48,376 +50,6 @@ USE_TRAINED_AGENT = False
 save_path = os.environ.get("MODEL_DIR", ".")
 SAVED_AGENT_NAME = "ppo_firefighter_new"
 MODEL_FILE = os.path.join(save_path, SAVED_AGENT_NAME + ".zip")
-
-def find_sb3_path():
-    """Find the path to stable_baselines3 installation."""
-    try:
-        spec = importlib.util.find_spec('stable_baselines3')
-        if spec is not None:
-            return Path(spec.origin).parent
-        else:
-            raise ImportError("stable_baselines3 not found")
-    except ImportError:
-        # Alternative method using __file__ property
-        import stable_baselines3
-        return Path(stable_baselines3.__file__).parent
-
-def apply_aggressive_buffer_fix():
-    """
-    Apply direct source code modifications to the Stable Baselines 3 buffer class.
-    This is a more aggressive fix that modifies the actual get() method.
-    """
-    print("🔧 Applying aggressive buffer fix...")
-    
-    try:
-        # Import the necessary modules
-        from stable_baselines3.common.buffers import RolloutBuffer, DictRolloutBuffer
-        
-        # Path to the buffer file
-        sb3_path = find_sb3_path()
-        buffer_file = sb3_path / "common" / "buffers.py"
-        
-        print(f"📂 Found buffer file at: {buffer_file}")
-        
-        # Check if we can write to the file
-        if not os.access(buffer_file, os.W_OK):
-            print("⚠️ Cannot write to buffer file. Using runtime patching instead.")
-            use_runtime_patching()
-            return
-        
-        # Read the buffer file content
-        with open(buffer_file, 'r') as f:
-            content = f.read()
-            
-        # Check if the buffer file has already been patched
-        if "# BUFFER_PATCHED" in content:
-            print("✅ Buffer file already patched.")
-            return
-            
-        # Find the get method in the RolloutBuffer class
-        get_method_start = content.find("def get(self, batch_size")
-        if get_method_start == -1:
-            print("⚠️ Could not find get method in the buffer file. Using runtime patching instead.")
-            use_runtime_patching()
-            return
-            
-        # Find the assertion line
-        assert_line = content.find("assert self.full", get_method_start)
-        if assert_line == -1:
-            print("⚠️ Could not find assertion in the get method. Using runtime patching instead.")
-            use_runtime_patching()
-            return
-            
-        # Modify the content to comment out the assertion
-        modified_content = content[:assert_line] + "# BUFFER_PATCHED\n        # assert self.full" + content[assert_line + len("assert self.full"):]
-        
-        # Add a fix to automatically set the buffer to full
-        assert_end = modified_content.find("\n", assert_line)
-        modified_content = modified_content[:assert_end] + "\n        if not self.full:\n            self.full = True  # Auto-fix: force buffer to be full\n" + modified_content[assert_end:]
-        
-        # Write back the modified file
-        with open(buffer_file, 'w') as f:
-            f.write(modified_content)
-            
-        print("✅ Successfully patched buffer file.")
-        
-        # Reload the module to apply changes
-        import importlib
-        importlib.reload(importlib.import_module('stable_baselines3.common.buffers'))
-        
-    except Exception as e:
-        print(f"❌ Error patching buffer file: {e}")
-        print("⚠️ Falling back to runtime patching.")
-        use_runtime_patching()
-
-def use_runtime_patching():
-    """
-    Apply runtime patches to the buffer classes if file modification fails.
-    """
-    print("🛠️ Applying runtime patches to buffer classes...")
-    
-    try:
-        # Import buffer classes
-        from stable_baselines3.common.buffers import RolloutBuffer, DictRolloutBuffer
-        
-        # Patch RolloutBuffer.get
-        original_get = RolloutBuffer.get
-        
-        def patched_get(self, batch_size):
-            if not self.full:
-                print("⚠️ Buffer not full, forcing it to be full")
-                self.full = True
-            
-            return original_get(self, batch_size)
-        
-        # Apply the patch
-        RolloutBuffer.get = patched_get
-        
-        # Also patch DictRolloutBuffer if it inherits get from RolloutBuffer
-        if DictRolloutBuffer.get is RolloutBuffer.get:
-            DictRolloutBuffer.get = patched_get
-        else:
-            # Patch DictRolloutBuffer.get separately
-            original_dict_get = DictRolloutBuffer.get
-            
-            def patched_dict_get(self, batch_size):
-                if not self.full:
-                    print("⚠️ Dict buffer not full, forcing it to be full")
-                    self.full = True
-                
-                return original_dict_get(self, batch_size)
-            
-            DictRolloutBuffer.get = patched_dict_get
-        
-        print("✅ Successfully applied runtime patches to buffer classes.")
-        
-    except Exception as e:
-        print(f"❌ Error applying runtime patches: {e}")
-        print("⚠️ Attempting lowest-level patch...")
-        use_lowest_level_patch()
-
-def use_lowest_level_patch():
-    """
-    Apply the lowest-level patch possible by using monkeypatching.
-    """
-    print("🔧 Applying lowest-level monkeypatch...")
-    
-    try:
-        import inspect
-        from stable_baselines3.common.buffers import RolloutBuffer, DictRolloutBuffer
-        
-        # Force both classes to have full=True
-        for cls in [RolloutBuffer, DictRolloutBuffer]:
-            # Get the original __init__ method
-            original_init = cls.__init__
-            
-            # Create a new __init__ method that sets full=True
-            def new_init(self, *args, **kwargs):
-                result = original_init(self, *args, **kwargs)
-                self.full = True
-                return result
-            
-            # Replace the __init__ method
-            cls.__init__ = new_init
-        
-        print("✅ Applied lowest-level monkeypatch.")
-        
-    except Exception as e:
-        print(f"❌ Error applying lowest-level patch: {e}")
-        print("⚠️ All patching attempts failed. Consider manually editing the stable_baselines3 code.")
-
-
-# Function to patch the PPO algorithm to use our fixed buffer
-def patch_ppo_to_use_fixed_buffer():
-    """
-    Patch the PPO algorithm to use our fixed buffer implementation.
-    """
-    print("🔧 Patching PPO to use fixed buffer...")
-    
-    try:
-        from stable_baselines3.ppo.ppo import PPO
-        from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
-        
-        # Get the original _setup_learn method
-        original_setup_learn = OnPolicyAlgorithm._setup_learn
-        
-        # Create a new _setup_learn method that replaces the buffer
-        def new_setup_learn(self, *args, **kwargs):
-            result = original_setup_learn(self, *args, **kwargs)
-            
-            # Force buffer to be full
-            if hasattr(self, 'rollout_buffer'):
-                self.rollout_buffer.full = True
-                print("✅ Forced rollout_buffer to be full in _setup_learn")
-            
-            return result
-        
-        # Replace the _setup_learn method
-        OnPolicyAlgorithm._setup_learn = new_setup_learn
-        
-        # Get the original train method
-        original_train = PPO.train
-        
-        # Create a new train method that ensures the buffer is marked as full
-        def new_train(self):
-            # Mark buffer as full before training
-            if hasattr(self, 'rollout_buffer'):
-                self.rollout_buffer.full = True
-                print("✅ Forced rollout_buffer to be full in train")
-            
-            return original_train(self)
-        
-        # Replace the train method
-        PPO.train = new_train
-        
-        print("✅ Successfully patched PPO to use fixed buffer.")
-        
-    except Exception as e:
-        print(f"❌ Error patching PPO: {e}")
-
-# Apply all possible fixes
-def apply_all_fixes():
-    """
-    Apply all possible fixes to ensure the buffer issue is resolved.
-    """
-    # Try file patching first
-    apply_aggressive_buffer_fix()
-    
-    # Also patch the PPO algorithm as a backup
-    patch_ppo_to_use_fixed_buffer()
-    
-    print("🎉 All fixes applied. This should resolve the buffer issue.")
-    print("⚠️ If you still experience issues, try re-installing Stable Baselines 3 or manually editing the code.")
-
-
-def fix_ppo_buffer_issue(model, verbose=True):
-    """
-    Fix the PPO rollout buffer issue by ensuring the buffer is filled correctly.
-    This addresses:
-    1. The AssertionError (assert self.full)
-    2. The KeyError: 0 with reset() 
-    3. The missing arguments for compute_returns_and_advantage()
-    """
-    # Ensure we're working with a PPO model
-    from stable_baselines3 import PPO
-    if not isinstance(model, PPO):
-        if verbose: print("⚠️ Model is not a PPO instance. Buffer fix only applies to PPO.")
-        return model
-    
-    # Get the current rollout buffer
-    buffer = model.rollout_buffer
-    
-    # Override the learning method to fix buffer initialization and filling
-    original_learn = model.learn
-    
-    def fixed_learn(*args, **kwargs):
-        """
-        Fixed learning method that properly fills the rollout buffer.
-        """
-        if verbose: print("🔄 Using fixed PPO training method that addresses buffer issues")
-        
-        # Reset the buffer
-        model.rollout_buffer.reset()
-        
-        # The simplest and most reliable approach: 
-        # Just manually set the buffer as full and let collect_rollouts handle it properly
-        model.rollout_buffer.full = False
-        
-        # Create a dummy callback that will handle on_rollout_start/end
-        from stable_baselines3.common.callbacks import BaseCallback
-        
-        class DummyCallback(BaseCallback):
-            def _on_step(self):
-                return True
-        
-        dummy_callback = DummyCallback()
-        
-        # Make sure we have the right observation
-        try:
-            # For newer gym versions
-            obs = model.env.reset()
-        except (IndexError, TypeError):
-            # For older gym versions
-            obs = model.env.reset()
-        
-        # Override the original learn method to use our fixed collection process
-        try:
-            # Initialize buffer
-            model._last_obs = obs
-            
-            # Call the original learn method, which will properly fill the buffer
-            return original_learn(*args, **kwargs)
-        except AssertionError as e:
-            if "assert self.full" in str(e):
-                if verbose: 
-                    print("⚠️ Got buffer assertion error, applying direct fix...")
-                
-                # Force the buffer to be marked as full to allow training to proceed
-                model.rollout_buffer.full = True
-                
-                # Try again with buffer marked as full
-                return original_learn(*args, **kwargs)
-            else:
-                # Re-raise any other assertion errors
-                raise
-    
-    # Replace the learn method with our fixed version
-    model.learn = fixed_learn.__get__(model)
-    
-    # Also patch the collect_rollouts method to be more robust
-    original_collect_rollouts = model.collect_rollouts
-    
-    def fixed_collect_rollouts(env, callback, rollout_buffer, n_rollout_steps):
-        """
-        Fixed collect_rollouts that ensures the buffer is properly filled.
-        """
-        # Create a dummy callback if None is provided
-        if callback is None:
-            from stable_baselines3.common.callbacks import BaseCallback
-            
-            class DummyCallback(BaseCallback):
-                def _on_step(self):
-                    return True
-            
-            callback = DummyCallback()
-        
-        try:
-            # Call the original method
-            return original_collect_rollouts(env, callback, rollout_buffer, n_rollout_steps)
-        except Exception as e:
-            if verbose:
-                print(f"⚠️ Warning: Error in collect_rollouts: {str(e)}")
-            
-            # If original fails, mark buffer as full to allow training to continue
-            rollout_buffer.full = True
-            return True
-    
-    # Replace collect_rollouts with our fixed version
-    model.collect_rollouts = fixed_collect_rollouts.__get__(model)
-    
-    # Also explicitly patch compute_returns_and_advantage to avoid missing argument errors
-    original_compute = buffer.compute_returns_and_advantage
-    
-    def fixed_compute_returns_and_advantage(last_values=None, dones=None):
-        """
-        Wrapper around compute_returns_and_advantage that adds missing arguments.
-        """
-        if last_values is None:
-            # Create dummy last values
-            if hasattr(model, '_last_obs'):
-                with torch.no_grad():
-                    # Convert to tensor if needed
-                    obs_tensor = obs_as_tensor(model._last_obs, model.device)
-                    _, values, _ = model.policy.forward(obs_tensor)
-                    last_values = values
-            else:
-                # Fallback to zeros if we can't get real values
-                last_values = torch.zeros(model.env.num_envs, 1, device=model.device)
-        
-        if dones is None:
-            # Create dummy dones (assume not done)
-            dones = np.zeros(model.env.num_envs, dtype=bool)
-        
-        # Call the original compute method with our arguments
-        return original_compute(last_values, dones)
-    
-    # Replace compute_returns_and_advantage with our fixed version
-    buffer.compute_returns_and_advantage = fixed_compute_returns_and_advantage.__get__(buffer)
-    
-    if verbose: print("✅ PPO buffer fixes applied successfully")
-    return model
-
-# Helper function to convert observations to PyTorch tensors
-def obs_as_tensor(obs, device):
-    """
-    Convert observations to PyTorch tensors, handling both dict and array observations.
-    """
-    if isinstance(obs, dict):
-        return {
-            key: torch.as_tensor(obs[key], device=device)
-            for key in obs.keys()
-        }
-    return torch.as_tensor(obs, device=device)
 
 def fix_env_reset(model):
     """Apply a minimal fix to handle the environment reset issue."""
@@ -590,113 +222,6 @@ class MemoryCleanupCallback(BaseCallback):
         
         return True
 
-# Metrics tracking class
-# class MetricsTracker:
-#     def __init__(self):
-#         self.helitack_actions = []  # Format: [(step, x, y)]
-#         self.fire_spread = []       # Format: [(step, [(x1, y1), (x2, y2), ...])
-#         self.burnt_area_over_time = []  # Format: [(step, total_burnt)]
-#         self.burning_cells_over_time = []  # Format: [(step, total_burning)]
-#         self.episode_statistics = {}
-    
-#     def record_helitack(self, step, x, y):
-#         self.helitack_actions.append((step, x, y))
-    
-#     def record_fire_spread(self, step, new_burning_cells):
-#         self.fire_spread.append((step, new_burning_cells))
-    
-#     def record_burnt_area(self, step, total_burnt):
-#         self.burnt_area_over_time.append((step, total_burnt))
-    
-#     def record_burning_cells(self, step, total_burning):
-#         self.burning_cells_over_time.append((step, total_burning))
-    
-#     def save_metrics(self, filename="fire_metrics.json"):
-#         """
-#         Write out metrics to disk, converting any numpy ints to Python ints
-#         and any tuples to lists so that the JSON module can serialize them.
-#         """
-#         import json
-
-#         # Helper to normalize a single value
-#         def _to_native(x):
-#             if isinstance(x, np.integer):
-#                 return int(x)
-#             return x
-
-#         # Convert helitack_actions: [(step, x, y), ...] → [[step, x, y], ...]
-#         helitacks = [
-#             [int(step), int(x), int(y)]
-#             for step, x, y in self.helitack_actions
-#         ]
-
-#         # Convert fire_spread: [(step, [(x1,y1),...]), ...] →
-#         # [[step, [[x1,y1],...]], ...]
-#         fire_spread = []
-#         for step, coords in self.fire_spread:
-#             native_coords = [[int(a), int(b)] for a, b in coords]
-#             fire_spread.append([int(step), native_coords])
-
-#         # Convert burnt_area_over_time: [(step, total), ...]
-#         burnt = [[int(step), int(total)] for step, total in self.burnt_area_over_time]
-
-#         # Convert burning_cells_over_time similarly
-#         burning = [[int(step), int(total)] for step, total in self.burning_cells_over_time]
-
-#         # Convert episode_statistics: { key: value } with possible numpy ints
-#         episode_stats = {
-#             k: int(v) if isinstance(v, np.integer) else v
-#             for k, v in self.episode_statistics.items()
-#         }
-
-#         data = {
-#             "helitack_actions": helitacks,
-#             "fire_spread":        fire_spread,
-#             "burnt_area_over_time":     burnt,
-#             "burning_cells_over_time":  burning,
-#             "episode_statistics":       episode_stats
-#         }
-
-#         with open(filename, 'w') as f:
-#             json.dump(data, f, indent=2)
-
-#     def calculate_episode_statistics(self):
-#         # Calculate summary statistics
-#         total_helitacks = len(self.helitack_actions)
-#         final_burnt_area = self.burnt_area_over_time[-1][1] if self.burnt_area_over_time else 0
-#         max_burning = max([b[1] for b in self.burning_cells_over_time]) if self.burning_cells_over_time else 0
-        
-#         # Calculate helitack effectiveness
-#         effective_helitacks = 0
-#         # Implementation depends on how you define effectiveness
-        
-#         self.episode_statistics = {
-#             "total_helitacks": total_helitacks,
-#             "final_burnt_area": final_burnt_area,
-#             "max_burning_cells": max_burning,
-#             "effective_helitacks": effective_helitacks,
-#             "containment_time": self.calculate_containment_time()
-#         }
-        
-#     def calculate_containment_time(self):
-#         # Define when fire is "contained" (e.g., when burning cells start decreasing)
-#         if not self.burning_cells_over_time:
-#             return None
-            
-#         max_burning = 0
-#         max_step = 0
-        
-#         for step, burning in self.burning_cells_over_time:
-#             if burning > max_burning:
-#                 max_burning = burning
-#                 max_step = step
-                
-#         return max_step
-
-# Fire state constants
-
-# message_queue = queue.Queue(maxsize=100)  # Limit queue size
-# stop_event = threading.Event()
 model = None  # Global model reference for signal handler
 
 # Signal handler for graceful termination
@@ -732,7 +257,7 @@ class LSTMResetCallback(BaseCallback):
         return True
 # Synchronous environment implementation with optimizations
 class FireEnvSync(gym.Env):
-    def __init__(self):
+    def __init__(self,env_id=0):
         super().__init__()
         # global client_websocket, message_queue
         
@@ -741,6 +266,7 @@ class FireEnvSync(gym.Env):
         # self.msg_queue = message_queue
         
         # Initialize spaces
+        self.env_id = env_id
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
@@ -770,9 +296,11 @@ class FireEnvSync(gym.Env):
         self.prev_tick_time = None
         self.spark : Vector2 = None
         self.engine : FireEngine = None
+        self._seed = None  # Store for future use
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
+        self._seed = seed
         return [seed]
     def make_copy(self):
         return FireEnvSync()
@@ -886,9 +414,9 @@ class FireEnvSync(gym.Env):
     
     def reset(self, *, seed=None, options=None):
         try:
-            print(f"🧼 Resetting environment with seed={seed}")
             if seed is not None:
                 self.seed(seed)
+            print(f"🧼 Resetting environment with seed={self._seed}")
             
             # Reset LSTM hidden states
             if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
@@ -1008,20 +536,12 @@ class FireEnvSync(gym.Env):
             print(f"cellsBurning: {self.state.get('cellsBurning')}",'count',self.step_count)
             if self.state.get('cellsBurning', 1) == 0 or self.step_count >= MAX_TIMESTEPS:
                 done = True
-                # Calculate episode statistics
-                # self.metrics.calculate_episode_statistics()
-                # Save metrics
-                # self.metrics.save_metrics(f"metrics_episode_{self.episode_count}.json")
             
             # Track metrics
             cells = np.array(self.state['cells'])
             fire_states = cells // 3
             # burnt_cells = np.sum(fire_states == FireState.Burnt)
             # burning_cells = np.sum(fire_states == FireState.Burning)
-            
-            # Record metrics
-            # self.metrics.record_burnt_area(self.step_count, burnt_cells)
-            # self.metrics.record_burning_cells(self.step_count, burning_cells)
             
             # Track fire spread (only every 5 steps to save computation)
             if self.step_count % 5 == 0 and hasattr(self, 'previous_fire_states'):
@@ -1061,64 +581,108 @@ class FireEnvSync(gym.Env):
     
     def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         reward = 0
-        print(f"prev_burnt: {prev_burnt}, curr_burnt: {curr_burnt}, curr_burning: {curr_burning}, extinguished_by_helitack: {extinguished_by_helitack}")
-        # Track fire progress
-        if not hasattr(self.state, 'prev_burning'):
+        if not hasattr(self, 'prev_burning'):
             self.prev_burning = curr_burning
+
         newly_burnt = curr_burnt - prev_burnt
         burning_reduction = self.prev_burning - curr_burning
-        
-        # Core objectives with clear signals
-        reward += extinguished_by_helitack * 10       # Reward for direct fire suppression
-        reward -= newly_burnt * 5                     # Penalty for new cells burning
-        reward -= curr_burning * 0.1                  # Ongoing penalty proportional to fire size
-        reward -= 0.1                                 # Small time penalty
-        
-        # Get positional information
+
+        # Reward breakdown components
+        proximity_reward = 0.0
+        hit_reward = 0.0
+        firebreak_reward = 0.0
+        wasted_penalty = 0.0
+        unburnable_penalty = 0.0
+
+        # Core reward logic
+        reward += extinguished_by_helitack * 10
+        reward -= newly_burnt * 5
+        reward -= curr_burning * 0.1
+        reward -= 0.1  # time penalty
+
         heli_x, heli_y = self.state['helicopter_coord']
         last_action = self.state.get('last_action', None)
         cells = np.array(self.state['cells'])
         fire_states = cells // 3
         burning_mask = fire_states == FireState.Burning
-        
-        # Proximity guidance
+
+        # Proximity reward
         if np.any(burning_mask):
             burning_coords = np.argwhere(burning_mask)
-            distances = np.sqrt(
-                (burning_coords[:, 0] - heli_y) ** 2 + 
-                (burning_coords[:, 1] - heli_x) ** 2
-            )
+            distances = np.sqrt((burning_coords[:, 0] - heli_y) ** 2 + (burning_coords[:, 1] - heli_x) ** 2)
             min_distance = np.min(distances)
             proximity_reward = 2 * np.exp(-min_distance / 20)
             reward += proximity_reward
-        
-        # Helitack evaluation
+
+        # Helitack reward evaluation
         if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
-            fire_state = fire_states[heli_y, heli_x]
-            burn_index = cells[heli_y, heli_x] % 3
-            
-            if fire_state == FireState.Burning:
-                # Reward for direct hits based on intensity
-                intensity_bonus = (burn_index + 1) * 2
-                reward += 20 * intensity_bonus
-            elif fire_state == FireState.Burnt:
-                # Penalty for wasted helitack
-                reward -= 5
-            elif fire_state == FireState.Unburnt:
-                # Strategic firebreak rewards
-                nearby_burning = np.sum(burning_mask[
-                    max(0, heli_y-5):min(160, heli_y+6),
-                    max(0, heli_x-5):min(240, heli_x+6)
-                ])
-                if nearby_burning > 0:
-                    reward += 5 * min(nearby_burning, 5)
-                else:
-                    reward -= 10
-        
-        # Update for next timestep
+            cell_value = cells[heli_y, heli_x]
+
+            if cell_value == -1:
+                unburnable_penalty = -15
+                reward += unburnable_penalty
+            else:
+                fire_state = fire_states[heli_y, heli_x]
+                burn_index = cell_value % 3
+
+                if fire_state == FireState.Burning:
+                    intensity_bonus = (burn_index + 1) * 2
+                    hit_reward = 20 * intensity_bonus
+                    reward += hit_reward
+                elif fire_state == FireState.Burnt:
+                    wasted_penalty = -5
+                    reward += wasted_penalty
+                elif fire_state == FireState.Unburnt:
+                    nearby_burning = np.sum(burning_mask[
+                        max(0, heli_y - 5):min(160, heli_y + 6),
+                        max(0, heli_x - 5):min(240, heli_x + 6)
+                    ])
+                    if nearby_burning > 0:
+                        firebreak_reward = 5 * min(nearby_burning, 5)
+                    else:
+                        firebreak_reward = -10
+                    reward += firebreak_reward
+
         self.prev_burning = curr_burning
-        
-        print(f"Reward: {reward:.2f} | Burning: {curr_burning} | New burnt: {newly_burnt} | Reduction: {burning_reduction} | Helitack: {extinguished_by_helitack}")
+
+        # 🧾 Logging
+        if not hasattr(self, "step_count"):
+            self.step_count = 0
+        if not hasattr(self, "log_path"):
+            env_id = getattr(self, "env_id", 0)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            os.makedirs("reward_logs", exist_ok=True)
+            self.log_path = f"reward_logs/reward_log_{env_id}_{ts}.csv"
+            with open(self.log_path, mode='w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "step", "helicopter_coord", "action", "prev_burnt", "curr_burnt", "newly_burnt", "curr_burning",
+                    "burning_reduction", "extinguished_by_helitack", "proximity_reward", "hit_reward",
+                    "firebreak_reward", "wasted_penalty", "unburnable_penalty", "final_reward"
+                ])
+
+        with open(self.log_path, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                self.step_count,
+                (heli_x, heli_y),
+                last_action,
+                prev_burnt,
+                curr_burnt,
+                newly_burnt,
+                curr_burning,
+                burning_reduction,
+                extinguished_by_helitack,
+                round(proximity_reward, 3),
+                round(hit_reward, 3),
+                round(firebreak_reward, 3),
+                round(wasted_penalty, 3),
+                round(unburnable_penalty, 3),
+                round(reward, 3)
+            ])
+
+        self.step_count += 1
+
         return reward
     
     def close(self):
@@ -1143,12 +707,13 @@ class DebugRolloutCallback(BaseCallback):
         print(f"Buffer position: {self.model.rollout_buffer.pos}")
         return True
     
-def make_env(rank = 0):
+def make_env(rank=0, base_seed=1000):
     def _init():
-        env = FireEnvSync()
-        env.seed(rank + 42)
-        env = Monitor(env, logdir)
-        return env
+        env = FireEnvSync(env_id=rank)
+        seed = base_seed + rank
+        env.seed(seed)  # Seed right here
+        print(f"[ENV {rank}] Seeded with {seed}")
+        return Monitor(env, logdir)
     return _init
 # Main function
 def main():
@@ -1325,7 +890,7 @@ def main():
             model.learn(
                 total_timesteps=1000000,
                 reset_num_timesteps=False,  # This ensures continued training
-                tb_log_name="run8",   
+                tb_log_name="run1",   
                 callback=callbacks  
             )
             print("✅ Training completed successfully!")

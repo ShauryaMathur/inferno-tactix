@@ -126,6 +126,11 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
     def forward(self, observations):
         # Process cells - expecting shape (batch, 4, 160, 240)
         cells = observations['cells'].float()
+        cells = th.clamp(cells, min=-1, max=8)
+        cells = (cells + 1) / 9.0  # maps [-1, 8] → [0.0, 1.0]
+
+        if cells.dim() == 3:  # ensure batch and channel dims
+            cells = cells.unsqueeze(1)
         
         # Ensure correct shape
         if len(cells.shape) == 3:  # If missing batch dimension
