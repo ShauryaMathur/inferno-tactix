@@ -884,10 +884,10 @@ def main():
             # path = generate_circle_path(fire_origin, CIRCLE_RADIUS)
             
             # Agent in Concentric Circles
-            # path = generate_concentric_circles(fire_origin, start_radius=START_RADIUS , num_circles=NUM_CIRCLES)
+            path = generate_concentric_circles(fire_origin, start_radius=START_RADIUS , num_circles=NUM_CIRCLES)
             
             # No agent
-            path = []
+            # path = []
             path = deque(path)
             og_x = 0
             og_y = 0

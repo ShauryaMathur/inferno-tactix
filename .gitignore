@@ -28,3 +28,5 @@ tactix/backend/ee-shauryamathur2001-7b7c6b1280b5.json
 *.tif
 /tactix/src/public/data
 /tactix/tactix-training/fire_analytics
+/tactix/tactix-training/environment/__pycache__
+/tactix/tactix-training/fire_engine/__pycache__

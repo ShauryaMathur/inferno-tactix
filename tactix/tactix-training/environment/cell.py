@@ -1,0 +1,129 @@
+from typing import Optional
+import math
+from environment.enums import VegetationType, DroughtLevel, BurnIndex, FireState  
+from environment.zone import Zone
+
+
+FIRE_LINE_DEPTH = 2000
+MAX_BURN_TIME = 500
+
+moisture_lookup_by_land_cover: dict[VegetationType, list[float]] = {
+    VegetationType.EvergreenNeedleleaf: [0.25, 0.27, 0.22, 0.26],
+    VegetationType.EvergreenBroadleaf: [0.28, 0.30, 0.25, 0.29],
+    VegetationType.DeciduousNeedleleaf: [0.20, 0.24, 0.18, 0.21],
+    VegetationType.DeciduousBroadleaf: [0.22, 0.26, 0.20, 0.23],
+    VegetationType.MixedForest: [0.19, 0.23, 0.17, 0.21],
+    VegetationType.ClosedShrublands: [0.14, 0.18, 0.12, 0.15],
+    VegetationType.OpenShrublands: [0.10, 0.14, 0.08, 0.11],
+    VegetationType.WoodySavannas: [0.12, 0.16, 0.10, 0.13],
+    VegetationType.Savannas: [0.09, 0.13, 0.08, 0.10],
+    VegetationType.Grasslands: [0.08, 0.12, 0.07, 0.09],
+    VegetationType.PermanentWetlands: [0.30, 0.33, 0.28, 0.31],
+    VegetationType.Croplands: [0.13, 0.16, 0.12, 0.15],
+    VegetationType.UrbanBuilt: [0.05, 0.08, 0.04, 0.06],
+    VegetationType.CroplandMosaic: [0.12, 0.15, 0.10, 0.13],
+    VegetationType.SnowIce: [0.00, 0.01, 0.00, 0.00],
+    VegetationType.Barren: [0.01, 0.02, 0.01, 0.01],
+    VegetationType.Water: [0.00, 0.00, 0.00, 0.00],
+}
+
+class Cell:
+    def __init__(self, *, x: int, y: int, zone: Zone, zoneIdx: Optional[int] = None,
+                 baseElevation: float = 0.0, ignitionTime: float = math.inf,
+                 fireState: FireState = FireState.Unburnt,
+                 isUnburntIsland: bool = False, isRiver: bool = False,
+                 isFireLine: bool = False, isFireLineUnderConstruction: bool = False):
+
+        self.x = x
+        self.y = y
+        self.zone : Zone = zone
+        self.zoneIdx = zoneIdx if zoneIdx is not None else 0
+        self.baseElevation = baseElevation
+        self.ignitionTime = ignitionTime
+        self.spreadRate = 0.0
+        self.burnTime = MAX_BURN_TIME
+        self.fireState = fireState
+        self.isUnburntIsland = isUnburntIsland
+        self.isRiver = isRiver
+        self.isFireLine = isFireLine
+        self.isFireLineUnderConstruction = isFireLineUnderConstruction
+        self.helitackDropCount = 0
+        self.isFireSurvivor = False
+
+    @property
+    def vegetation(self) -> VegetationType:
+        return self.zone.vegetation
+
+    @property
+    def elevation(self) -> float:
+        if self.isFireLine:
+            return self.baseElevation - FIRE_LINE_DEPTH
+        return self.baseElevation
+
+    @property
+    def isNonburnable(self) -> bool:
+        return self.isRiver or self.isUnburntIsland
+
+    @property
+    def droughtLevel(self) -> DroughtLevel:
+        if self.helitackDropCount > 0:
+            new_level = self.zone.droughtLevel.value - self.helitackDropCount
+            clamped_level = max(new_level, DroughtLevel.NoDrought.value)
+            return DroughtLevel(clamped_level)  
+        return self.zone.droughtLevel
+
+    @property
+    def moistureContent(self) -> float:
+        if self.isNonburnable:
+            return math.inf
+        return moisture_lookup_by_land_cover[self.vegetation][self.droughtLevel.value]
+
+    @property
+    def isBurningOrWillBurn(self) -> bool:
+        return (self.fireState == FireState.Burning or
+                (self.fireState == FireState.Unburnt and self.ignitionTime < math.inf))
+
+    @property
+    def canSurviveFire(self) -> bool:
+        return (self.burnIndex == BurnIndex.Low and
+                self.vegetation == VegetationType.PermanentWetlands)
+
+    @property
+    def burnIndex(self) -> BurnIndex:
+        veg = self.vegetation
+        sr = self.spreadRate
+
+        if veg == VegetationType.Grasslands:
+            return BurnIndex.Low if sr < 45 else BurnIndex.Medium
+
+        if veg in (VegetationType.ClosedShrublands, VegetationType.OpenShrublands):
+            if sr < 10:
+                return BurnIndex.Low
+            if sr < 50:
+                return BurnIndex.Medium
+            return BurnIndex.High
+
+        if veg in (VegetationType.EvergreenNeedleleaf,
+                   VegetationType.DeciduousNeedleleaf,
+                   VegetationType.MixedForest,
+                   VegetationType.EvergreenBroadleaf,
+                   VegetationType.DeciduousBroadleaf):
+            return BurnIndex.Low if sr < 25 else BurnIndex.Medium
+
+        # Default fallback:
+        return BurnIndex.Low
+
+    def isBurnableForBI(self, burnIndex: BurnIndex) -> bool:
+        # Fire lines will burn only if burnIndex is High
+        return (not self.isNonburnable and
+                (not self.isFireLine or burnIndex == BurnIndex.High))
+
+    def reset(self):
+        self.ignitionTime = math.inf
+        self.spreadRate = 0.0
+        self.burnTime = MAX_BURN_TIME
+        self.fireState = FireState.Unburnt
+        self.isFireLineUnderConstruction = False
+        self.isFireLine = False
+        self.helitackDropCount = 0
+        self.isFireSurvivor = False

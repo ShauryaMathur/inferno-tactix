@@ -121,6 +121,8 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         # Initialize hidden states
         self.hidden = None
     
+    def reset_hidden(self):
+        self.hidden = None
     def forward(self, observations):
         # Process cells - expecting shape (batch, 4, 160, 240)
         cells = observations['cells'].float()
