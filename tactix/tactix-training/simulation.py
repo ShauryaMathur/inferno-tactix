@@ -17,14 +17,15 @@ import os
 import gc
 import torch
 from collections import deque
+from FeatureExtractor import FireEnvLSTMPolicy
 
 print('🔥 Starting SIMULATION backend')
 
 # Ensure the model path exists
 # model_path = os.environ.get("MODEL_DIR", "/models")
-model_path = os.environ.get("MODEL_DIR", os.path.join(os.path.dirname(__file__), "models"))
+model_path = os.environ.get("MODEL_DIR", ".")
 
-MODEL_FILE = os.path.join(model_path, "ppo_firefighter.zip")
+MODEL_FILE = os.path.join(model_path, "ppo_firefighter_new.zip")
 
 # Create output directory for analytics
 ANALYTICS_DIR = os.environ.get("ANALYTICS_DIR", "fire_analytics")
@@ -32,7 +33,7 @@ os.makedirs(ANALYTICS_DIR, exist_ok=True)
 
 # Environment settings
 MAX_TIMESTEPS = 2000
-HELICOPTER_SPEED = 2
+HELICOPTER_SPEED = 3
 NUM_EPISODES = 5  # Number of episodes to run
 
 # Simulation settings
@@ -204,7 +205,7 @@ except ImportError:
         def __init__(self, *args, **kwargs):
             super().__init__(
                 *args,
-                features_extractor_class=LSTMFeatureExtractor,
+                features_extractor_class=FireEnvLSTMPolicy,
                 features_extractor_kwargs=dict(features_dim=128),
                 **kwargs
             )
@@ -419,7 +420,7 @@ class FireEnvSync(gym.Env):
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
-            'cells': spaces.Box(low=0, high=8, shape=(4, 160, 240), dtype=np.int32),
+            'cells': spaces.Box(low=-1, high=8, shape=(4, 160, 240), dtype=np.int32),
             'on_fire': spaces.Discrete(2)
         })
         self.lat = lat
@@ -540,10 +541,16 @@ class FireEnvSync(gym.Env):
         return coord
     
     def preprocess_observation(self, obs):
-        """Preprocess observation to match expected format"""
-        obs['helicopter_coord'] = obs['helicopter_coord'].astype(np.int32)
-        obs['cells'] = obs['cells'].astype(np.int32)
-        obs['on_fire'] = np.array(obs['on_fire'], dtype=np.int32)
+        """Preprocess observation to match expected format and VecNormalize behavior"""
+
+        # Normalize 'helicopter_coord'
+        obs['helicopter_coord'] = obs['helicopter_coord'].astype(np.float32)
+        obs['helicopter_coord'] = (obs['helicopter_coord'] - np.array([120.0, 80.0], dtype=np.float32)) / np.array([10.0, 10.0], dtype=np.float32)
+
+        # Just cast everything else to float32 to satisfy MPS
+        obs['cells'] = obs['cells'].astype(np.float32)      # even if you're not normalizing it
+        obs['on_fire'] = np.array(obs['on_fire'], dtype=np.float32)
+
         return obs
     
     def reset(self, *, seed=None, options=None):
@@ -879,7 +886,8 @@ def main():
             # Run episode
             while not done:
                 # Get action from model - using modified function that may force helitack
-                action = get_modified_action(model, obs, env, deterministic=USE_DETERMINISTIC)
+                # action = get_modified_action(model, obs, env, deterministic=USE_DETERMINISTIC)
+                action, _ = model.predict(obs)
                 
                 # Take action in environment
                 obs, reward, done, truncated, info = env.step(action)

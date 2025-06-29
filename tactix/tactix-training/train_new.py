@@ -32,8 +32,10 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, SubprocVecEnv
+# from stable_baselines3.common.utils import linear_schedule
 
-from FeatureExtractor import FireEnvLSTMPolicy
+
+from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
 
 print('HI! FROM NEW TRAIN BACKEND')
 
@@ -44,12 +46,22 @@ os.makedirs(logdir, exist_ok=True)
 # Environment settings
 MAX_TIMESTEPS = 2000
 HELICOPTER_SPEED = 3
+
 USE_TRAINED_AGENT = False
 
 # Ensure the save path exists
 save_path = os.environ.get("MODEL_DIR", ".")
 SAVED_AGENT_NAME = "ppo_firefighter_new"
 MODEL_FILE = os.path.join(save_path, SAVED_AGENT_NAME + ".zip")
+
+def linear_schedule(initial_value):
+    """
+    Returns a function that computes a linearly decreasing schedule.
+    Useful for learning rate or clip range.
+    """
+    def schedule(progress):
+        return progress * 0.0 + initial_value * (1 - progress)
+    return schedule
 
 def fix_env_reset(model):
     """Apply a minimal fix to handle the environment reset issue."""
@@ -147,18 +159,23 @@ def clear_gpu_memory():
 
 # Learning rate scheduler callback
 class LearningRateScheduleCallback(BaseCallback):
-    def __init__(self, lr_schedule, verbose=0):
+    def __init__(self, lr_schedule, total_timesteps, verbose=0):
         super().__init__(verbose)
         self.lr_schedule = lr_schedule
+        self.total_timesteps = total_timesteps
         
     def _on_step(self):
-        progress = self.num_timesteps / 200000  # Normalize by total timesteps
+        progress = self.num_timesteps / self.total_timesteps
         new_lr = self.lr_schedule(progress)
-        self.model.learning_rate = new_lr
+        
+        # Apply the new learning rate to the optimizer
+        for param_group in self.model.policy.optimizer.param_groups:
+            param_group['lr'] = new_lr
+        
         if self.verbose > 0 and self.n_calls % 1000 == 0:
-            print(f"Timestep {self.num_timesteps}/{200000}: Learning rate = {new_lr}")
+            print(f"Timestep {self.num_timesteps}/{self.total_timesteps}: Learning rate = {new_lr}")
+        
         return True
-
 # Define the schedule function
 def lr_schedule(progress):
     return 0.0003 * (1.0 - progress)
@@ -249,21 +266,18 @@ signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 class LSTMResetCallback(BaseCallback):
     def _on_step(self) -> bool:
         dones = self.locals["dones"]
-        for i, done in enumerate(dones):
-            if done:
-                extractor = self.model.policy.features_extractor
-                if hasattr(extractor, "reset_hidden"):
-                    extractor.reset_hidden()
+        extractor = self.model.policy.features_extractor
+        
+        done_indices = [i for i, done in enumerate(dones) if done]
+        if done_indices and hasattr(extractor, "reset_hidden"):
+            extractor.reset_hidden(env_indices=done_indices)
+        
         return True
+    
 # Synchronous environment implementation with optimizations
 class FireEnvSync(gym.Env):
     def __init__(self,env_id=0):
         super().__init__()
-        # global client_websocket, message_queue
-        
-        # Store references to global communication channels
-        # self.websocket = None  # Will be set when needed
-        # self.msg_queue = message_queue
         
         # Initialize spaces
         self.env_id = env_id
@@ -339,12 +353,7 @@ class FireEnvSync(gym.Env):
                 print("Final timestep:", time_step)
                 print("Simulation time:", self.time)
 
-        # self.update_cells_state_flag()
-        # self.change_wind_if_necessary()
-
     def step_simulation(self, current_time_ms: float):
-        # if not self.simulation_running or not self.gym_allowed_continue:
-        #     return
 
         real_time_diff_minutes = None
         if self.prev_tick_time is None:
@@ -419,8 +428,8 @@ class FireEnvSync(gym.Env):
             print(f"🧼 Resetting environment with seed={self._seed}")
             
             # Reset LSTM hidden states
-            if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
-                self.model.policy.features_extractor.hidden = None
+            # if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
+            #     self.model.policy.features_extractor.hidden = None
                 
             # Reset metrics tracker
             # self.metrics = MetricsTracker()
@@ -646,40 +655,40 @@ class FireEnvSync(gym.Env):
         self.prev_burning = curr_burning
 
         # 🧾 Logging
-        if not hasattr(self, "step_count"):
-            self.step_count = 0
-        if not hasattr(self, "log_path"):
-            env_id = getattr(self, "env_id", 0)
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            os.makedirs("reward_logs", exist_ok=True)
-            self.log_path = f"reward_logs/reward_log_{env_id}_{ts}.csv"
-            with open(self.log_path, mode='w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                    "step", "helicopter_coord", "action", "prev_burnt", "curr_burnt", "newly_burnt", "curr_burning",
-                    "burning_reduction", "extinguished_by_helitack", "proximity_reward", "hit_reward",
-                    "firebreak_reward", "wasted_penalty", "unburnable_penalty", "final_reward"
-                ])
+        # if not hasattr(self, "step_count"):
+        #     self.step_count = 0
+        # if not hasattr(self, "log_path"):
+        #     env_id = getattr(self, "env_id", 0)
+        #     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        #     os.makedirs("reward_logs", exist_ok=True)
+        #     self.log_path = f"reward_logs/reward_log_{env_id}_{ts}.csv"
+        #     with open(self.log_path, mode='w', newline='') as f:
+        #         writer = csv.writer(f)
+        #         writer.writerow([
+        #             "step", "helicopter_coord", "action", "prev_burnt", "curr_burnt", "newly_burnt", "curr_burning",
+        #             "burning_reduction", "extinguished_by_helitack", "proximity_reward", "hit_reward",
+        #             "firebreak_reward", "wasted_penalty", "unburnable_penalty", "final_reward"
+        #         ])
 
-        with open(self.log_path, mode='a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                self.step_count,
-                (heli_x, heli_y),
-                last_action,
-                prev_burnt,
-                curr_burnt,
-                newly_burnt,
-                curr_burning,
-                burning_reduction,
-                extinguished_by_helitack,
-                round(proximity_reward, 3),
-                round(hit_reward, 3),
-                round(firebreak_reward, 3),
-                round(wasted_penalty, 3),
-                round(unburnable_penalty, 3),
-                round(reward, 3)
-            ])
+        # with open(self.log_path, mode='a', newline='') as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([
+        #         self.step_count,
+        #         (heli_x, heli_y),
+        #         last_action,
+        #         prev_burnt,
+        #         curr_burnt,
+        #         newly_burnt,
+        #         curr_burning,
+        #         burning_reduction,
+        #         extinguished_by_helitack,
+        #         round(proximity_reward, 3),
+        #         round(hit_reward, 3),
+        #         round(firebreak_reward, 3),
+        #         round(wasted_penalty, 3),
+        #         round(unburnable_penalty, 3),
+        #         round(reward, 3)
+        #     ])
 
         self.step_count += 1
 
@@ -715,41 +724,20 @@ def make_env(rank=0, base_seed=1000):
         print(f"[ENV {rank}] Seeded with {seed}")
         return Monitor(env, logdir)
     return _init
+
 # Main function
 def main():
-
     global model
-    # env = None
-    
-    try:
-        # Create environment
-        # env = FireEnvSync()
+    vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
 
-        # env.reset()
-        
-        # Check environment
-        # try:
-        #     check_env(env)
-        #     print("✅ Environment check completed successfully!")
-        # except Exception as e: 
-        #     print(f"❌ Environment check failed: {e}")
-        #     print("⚠️ Attempting to continue anyway")
-        
-        # Set episode counter
-        # env.episode_count = 0
-        
-        # Monitor for logging
-        # env = Monitor(env, filename=logdir)
-        # vec_env = None
-        # Vectorize environment but optimize normalization
-        # vec_env = SubprocVecEnv([make_env for _ in range(8)])
-
-        vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
-
+    # Restore VecNormalize if available
+    if os.path.exists("vecnormalize.pkl") and os.path.getsize("vecnormalize.pkl") > 0:
+        print("🔄 Restoring VecNormalize state...")
+        vec_env = VecNormalize.load("vecnormalize.pkl", vec_env)
+    else:
         vec_env = VecNormalize(
             vec_env,
             norm_obs=True,
-            # Only normalize helicopter_coord (small array), avoid normalizing huge cells array
             norm_obs_keys=["helicopter_coord"],  
             norm_reward=True,
             clip_obs=10.0,
@@ -757,177 +745,99 @@ def main():
             gamma=0.99,
             epsilon=1e-8,
         )
-        
-        # Configure device
-        # Force MPS (Metal Performance Shaders) for Mac
-        device, is_gpu = get_optimal_device()
 
-        # print(f"Using device: {device} for Apple Silicon")
-        
-        # Try to load existing model for resuming training
-        print("🔍 Checking for existing model...")
-        try:
-            # Check if model file exists before attempting to load
-            if USE_TRAINED_AGENT and os.path.isfile(MODEL_FILE):
-                print("🔄 Found existing model, loading for continued training...")
-                model = PPO.load(MODEL_FILE)
-                model.set_env(vec_env)
-                print("✅ Model loaded successfully!")
-            else:
-                # No existing model, create a new one
-                print("🆕 No existing model found, initializing new model...")
-                model = PPO(
-                    FireEnvLSTMPolicy,
-                    vec_env,
-                    n_steps=96,        # ⬅️ Increase rollout size
-                    batch_size=384,       # ⬅️ Adjust to fit into n_steps * n_envs
-                    n_epochs=4,
-                    learning_rate=0.0003,
-                    clip_range=0.2,
-                    gamma=0.99,
-                    gae_lambda=0.95,
-                    ent_coef=0.05,
-                    vf_coef=0.5,
-                    max_grad_norm=0.5,
-                    target_kl=0.01,
-                    verbose=1,
-                    device=device,
-                    tensorboard_log=logdir
-                )
-                # model = fix_ppo_buffer_issue(model)
+    device, is_gpu = get_optimal_device()
 
-                print("✅ New model initialized successfully!")
-        except Exception as e:
-            print(f"❌ Error loading model: {e}")
-            print("🆕 Initializing new model instead...")
-            model = PPO(
-                FireEnvLSTMPolicy,
-                vec_env,
-                n_steps=96,        # ⬅️ Increase rollout size
-                batch_size=384,       # ⬅️ Adjust to fit into n_steps * n_envs
-                n_epochs=4,
-                learning_rate=0.0003,
-                clip_range=0.2,
-                gamma=0.99,
-                gae_lambda=0.95,
-                ent_coef=0.05,
-                vf_coef=0.5,
-                max_grad_norm=0.5,
-                target_kl=0.01,
-                verbose=1,
-                device=device,
-                tensorboard_log=logdir
+    print("🔍 Checking for existing model...")
+    if USE_TRAINED_AGENT and os.path.isfile(MODEL_FILE):
+        print("🔄 Found existing model, loading for continued training...")
+        model = PPO.load(MODEL_FILE, device=device, tensorboard_log=logdir)
+        model.set_env(vec_env)
+        print("✅ Model loaded successfully!")
+    else:
+        print("🆕 No existing model found, initializing new model...")
+        model = PPO(
+            FireEnvLSTMPolicy,
+            vec_env,
+            n_steps=96,
+            batch_size=384,
+            n_epochs=5,
+            learning_rate= linear_schedule(1e-4),
+            clip_range= linear_schedule(0.2),
+            gamma=0.99,
+            gae_lambda=0.95,
+            ent_coef=0.05,
+            vf_coef=0.5,
+            max_grad_norm=0.5,
+            target_kl=0.01,
+            verbose=1,
+            device=device,
+            tensorboard_log=logdir,
+            policy_kwargs = dict(
+                features_extractor_class=FireEnvLSTMCNN,
+                features_extractor_kwargs=dict(features_dim=512)
             )
-            print("✅ New model initialized successfully!")
+        )
+        print("✅ New model initialized successfully!")
         
-        model = fix_env_reset(model)
 
-        # Give the environment access to the model (for LSTM state reset)
-        # env.model = model
-        # vec_env.model = model
+    model = fix_env_reset(model)
 
-        # for env in vec_env.envs:
-        #     env.model = model
+    if device == 'mps':
+        if not torch.backends.mps.is_available():
+            print("Warning: MPS requested but not available, falling back to CPU")
+            device = 'cpu'
+        else:
+            print("Configuring MPS-specific optimizations for Apple Silicon")
+            os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+            model.batch_size = 24
+            model.n_steps = 96
+            print(f"MPS-optimized batch configuration: batch_size={model.batch_size}, n_steps={model.n_steps}")
 
-        # Configure MPS-specific settings first
-        if device == 'mps':
-            # Ensure MPS is available
-            if not torch.backends.mps.is_available():
-                print("Warning: MPS requested but not available, falling back to CPU")
-                device = 'cpu'
-            else:
-                # Set specific MPS optimizations
-                print("Configuring MPS-specific optimizations for Apple Silicon")
-                
-                # Force synchronous MPS execution for better stability
-                os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-                
-                # Adjust batch size and steps for M-series chip performance
-                model.batch_size = 24  # Slightly smaller for better MPS performance
-                model.n_steps = 96     # Reduced for more frequent updates
-                
-                print(f"MPS-optimized batch configuration: batch_size={model.batch_size}, n_steps={model.n_steps}")
-        
-        # Create callbacks
-        reward_callback = RewardLoggingCallback()
-        lr_callback = LearningRateScheduleCallback(lr_schedule)
-        memory_callback = MemoryCleanupCallback(cleanup_freq=5000, verbose=1)
+    reward_callback = RewardLoggingCallback()
+    # lr_callback = LearningRateScheduleCallback(lr_schedule)
+    memory_callback = MemoryCleanupCallback(cleanup_freq=5000, verbose=1)
+    # lr_callback = LearningRateScheduleCallback(lr_schedule, total_timesteps=1_000_000, verbose=1)
 
-        # Checkpoint callback to save model periodically
-        # checkpoint_callback = CheckpointCallback(
-        #     save_freq=2000,  
-        #     save_path="./models/",
-        #     name_prefix="ppo_firefighter",
-        #     verbose=1
-        # )
+    callbacks = CallbackList([
+        reward_callback, 
+        LSTMResetCallback(),
+        memory_callback
+    ])
 
-        # Combine callbacks
-        callbacks = CallbackList([
-            reward_callback, 
-            lr_callback, 
-            memory_callback,
-            LSTMResetCallback()
-        ])
-        os.makedirs(logdir, exist_ok=True)
+    os.makedirs(logdir, exist_ok=True)
+    clear_gpu_memory()
 
-        # Initial memory cleanup
-        clear_gpu_memory()
-        
-        # Set torch optimization flags
-        if device != 'cpu':
-            # Set TF32 precision if available (NVIDIA Ampere or newer GPUs)
-            if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8:
-                torch.backends.cuda.matmul.allow_tf32 = True
-                torch.backends.cudnn.allow_tf32 = True
-                print("Enabled TF32 precision for faster training")
-            
-            # Enable cuDNN benchmarking for potentially faster training
-            torch.backends.cudnn.benchmark = True
-        
-        # Train model with basic settings to avoid recursion issues
-        print("🚀 Starting training...")
-        try:
-            model.learn(
-                total_timesteps=1000000,
-                reset_num_timesteps=False,  # This ensures continued training
-                tb_log_name="run1",   
-                callback=callbacks  
-            )
-            print("✅ Training completed successfully!")
-        except Exception as e:
-            print(f"❌ Training error: {e}")
-            traceback.print_exc()
+    if device != 'cpu':
+        if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8:
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            print("Enabled TF32 precision for faster training")
+        torch.backends.cudnn.benchmark = True
+
+    print("🚀 Starting training...")
+    try:
+        model.learn(
+            total_timesteps=1000000,
+            reset_num_timesteps=False,
+            tb_log_name="run2",
+            callback=callbacks
+        )
         print("✅ Training completed successfully!")
-    except KeyboardInterrupt:
-        print("\n⚠️ Training interrupted by user")
     except Exception as e:
-        print(f"❌ Error during training: {e}")
+        print(f"❌ Training error: {e}")
         traceback.print_exc()
+
     finally:
-        # This code will always run, even if an exception occurs
-        
-        # Save model if it exists
         if model is not None:
             try:
                 print("💾 Saving model...")
-                
                 model.save(os.path.join(save_path, SAVED_AGENT_NAME))
-
-                print(">>> MODEL_DIR:", os.environ.get("MODEL_DIR"))
-                print(">>> cwd     :", os.getcwd())
-
-                print("✅ Model saved.")
+                vec_env.save("vecnormalize.pkl")
+                print("✅ Model and normalization state saved.")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")
-        
-        # Close environment if it exists
-        # if env is not None:
-        #     try:
-        #         env.close()
-        #         print("🧹 Environment closed.")
-        #     except Exception as e:
-        #         print(f"❌ Error closing environment: {e}")
-        
+
         print("👋 Cleanup complete. Exiting.")
 
 if __name__ == "__main__":

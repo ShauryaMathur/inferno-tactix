@@ -12,9 +12,15 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
     
     def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
+
+        self.n_envs = 8
         
         # Extract shapes from observation space
         cells_shape = observation_space['cells'].shape  # (4, 160, 240) with frame stacking
+
+        self.hidden_size = 256   # must match LSTM hidden_size
+        self.n_layers = 2        # must match LSTM num_layers
+        self.device = th.device("cuda" if th.cuda.is_available() else "mps" if th.backends.mps.is_available() else "cpu")
         
         # Determine the number of channels (frames)
         if len(cells_shape) == 3:
@@ -88,8 +94,8 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         # LSTM layer for temporal understanding
         self.lstm = nn.LSTM(
             input_size=flattened_dim,
-            hidden_size=256,
-            num_layers=2,
+            hidden_size=self.hidden_size,
+            num_layers=self.n_layers,
             batch_first=True,
             dropout=0.2
         )
@@ -120,9 +126,28 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         
         # Initialize hidden states
         self.hidden = None
+
     
-    def reset_hidden(self):
-        self.hidden = None
+    def reset_hidden(self, env_indices=None):
+        """
+        Reset hidden states of LSTM for specified env indices.
+        If env_indices is None, reset all.
+        """
+        if self.hidden is None:
+            return
+        
+        h, c = self.hidden  # each of shape (num_layers, batch_size, hidden_size)
+
+        if env_indices is None:
+            h.zero_()
+            c.zero_()
+        else:
+            for idx in env_indices:
+                h[:, idx, :].zero_()
+                c[:, idx, :].zero_()
+
+        self.hidden = (h, c)
+
     def forward(self, observations):
         # Process cells - expecting shape (batch, 4, 160, 240)
         cells = observations['cells'].float()
@@ -171,15 +196,15 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         batch_size = flattened_features.size(0)
         lstm_input = flattened_features.unsqueeze(1)  # Add sequence dimension
         
-        # Initialize hidden states if needed
+        # Initialize hidden states if None or batch size changed
         if self.hidden is None or self.hidden[0].size(1) != batch_size:
-            h0 = th.zeros(2, batch_size, 256).to(lstm_input.device)
-            c0 = th.zeros(2, batch_size, 256).to(lstm_input.device)
+            h0 = th.zeros(self.n_layers, batch_size, self.hidden_size, device=lstm_input.device)
+            c0 = th.zeros(self.n_layers, batch_size, self.hidden_size, device=lstm_input.device)
             self.hidden = (h0, c0)
-        
+
         lstm_out, self.hidden = self.lstm(lstm_input, self.hidden)
         
-        # Detach hidden states
+        # Detach hidden states to avoid backprop through time beyond current step
         self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
         
         lstm_features = lstm_out.squeeze(1)
@@ -208,7 +233,4 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
 
 class FireEnvLSTMPolicy(ActorCriticPolicy):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, 
-                        features_extractor_class=FireEnvLSTMCNN,
-                        features_extractor_kwargs=dict(features_dim=512),
-                        **kwargs)
+        super().__init__(*args, **kwargs)
