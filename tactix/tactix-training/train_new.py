@@ -63,30 +63,6 @@ def linear_schedule(initial_value):
         return progress * 0.0 + initial_value * (1 - progress)
     return schedule
 
-def fix_env_reset(model):
-    """Apply a minimal fix to handle the environment reset issue."""
-    if hasattr(model, 'env'):
-        # Store the original reset method
-        original_reset = model.env.reset
-
-        # Create a patched reset method
-        def patched_reset(*args, **kwargs):
-            """A reset method that works with both old and new gym versions"""
-            try:
-                result = original_reset(*args, **kwargs)
-                # Just return the result as-is, without trying to access [0]
-                return result
-            except Exception as e:
-                print(f"Warning in patched reset: {e}")
-                # If all else fails, return a dummy observation
-                import numpy as np
-                return np.zeros((model.env.num_envs, *model.env.observation_space.shape))
-        
-        # Replace the reset method
-        model.env.reset = patched_reset
-        print("✓ Applied minimal environment reset fix")
-    
-    return model
 def get_optimal_device():
     """
     Automatically selects the best available device for PyTorch:
@@ -240,7 +216,7 @@ class MemoryCleanupCallback(BaseCallback):
         return True
 
 model = None  # Global model reference for signal handler
-
+vec_env = None
 # Signal handler for graceful termination
 def signal_handler(sig, frame):
     print("\n⚠️ Received termination signal. Cleaning up...")
@@ -255,6 +231,14 @@ def signal_handler(sig, frame):
             print("✅ Model saved as ppo_firefighter")
         except Exception as e:
             print(f"❌ Error saving model: {e}")
+        
+        # Save VecNormalize statistics
+        try:
+            if isinstance(vec_env, VecNormalize):
+                vec_env.save("vecnormalize.pkl")
+                print("✅ VecNormalize statistics saved.")
+        except Exception as e:
+            print(f"❌ Error saving VecNormalize: {e}")
     
     # stop_event.set()
     sys.exit(0)
@@ -728,6 +712,9 @@ def make_env(rank=0, base_seed=1000):
 # Main function
 def main():
     global model
+    global vec_env
+
+    # Create vectorized environment
     vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
 
     # Restore VecNormalize if available
@@ -761,9 +748,9 @@ def main():
             vec_env,
             n_steps=96,
             batch_size=384,
-            n_epochs=5,
-            learning_rate= linear_schedule(1e-4),
-            clip_range= linear_schedule(0.2),
+            n_epochs=4,
+            learning_rate= 3e-4,
+            clip_range= 0.2,
             gamma=0.99,
             gae_lambda=0.95,
             ent_coef=0.05,
@@ -780,9 +767,6 @@ def main():
         )
         print("✅ New model initialized successfully!")
         
-
-    model = fix_env_reset(model)
-
     if device == 'mps':
         if not torch.backends.mps.is_available():
             print("Warning: MPS requested but not available, falling back to CPU")
@@ -820,7 +804,7 @@ def main():
         model.learn(
             total_timesteps=1000000,
             reset_num_timesteps=False,
-            tb_log_name="run2",
+            tb_log_name="run1",
             callback=callbacks
         )
         print("✅ Training completed successfully!")
