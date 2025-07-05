@@ -7,6 +7,9 @@ class Zone:
         self.terrainType : TerrainType = terrainType
         self.droughtLevel : DroughtLevel = droughtLevel
 
+    def __str__(self):
+        return ""
+    
     def clone(self):
         # Deepcopy if any nested mutable objects, else just recreate
         return Zone(

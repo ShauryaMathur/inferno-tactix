@@ -56,8 +56,8 @@ end_of_low_intensity_fire_probability = {
 #     return neighbours
 
 class FireEngine:
-    def __init__(self, cells: List[Cell], wind : Wind, spark: Vector2, config):
-        self.cells : List[Cell] = cells
+    def __init__(self, wind : Wind, config):
+        # self.cells : List[Cell] = cells
         self.wind : Wind = wind
         self.grid_width = config.gridWidth
         self.grid_height = config.gridHeight
@@ -70,42 +70,23 @@ class FireEngine:
         self.day = 0
         self.burned_cells_in_zone = {}
 
-        spark_cell : Cell = self.cell_at(spark.x, spark.y)
-        spark_cell.ignitionTime = 0
-            # if spark_cell.is_unburnt_island:
-            #     self.remove_unburnt_island(spark_cell)
-
-    def cell_at(self, x, y):
+    def cell_at(self, cells : List[Cell],x, y):
         grid_x = int(x // self.cell_size)
         grid_y = int(y // self.cell_size)
-        return self.cells[get_grid_index_for_location(grid_x, grid_y, self.grid_width)]
+        return cells[get_grid_index_for_location(grid_x, grid_y, self.grid_width)]
 
-    # def remove_unburnt_island(self, starting_cell):
-    #     queue = [starting_cell]
-    #     starting_cell.is_unburnt_island = False
-    #     while queue:
-    #         c = queue.pop(0)
-    #         for diff in direct_neighbours:
-    #             x1 = c.x + diff.x
-    #             y1 = c.y + diff.y
-    #             if 0 <= x1 < self.grid_width and 0 <= y1 < self.grid_height:
-    #                 n_idx = get_grid_index_for_location(x1, y1, self.grid_width)
-    #                 if self.cells[n_idx].is_unburnt_island:
-    #                     self.cells[n_idx].is_unburnt_island = False
-    #                     queue.append(self.cells[n_idx])
-
-    def update_fire(self, time):
+    def update_fire(self, cells : List[Cell],time):
         new_day = int(time // model_day)
         if new_day != self.day:
             self.day = new_day
-            if rng.random() <= end_of_low_intensity_fire_probability.get(new_day, 0.0):
+            if random.random() <= end_of_low_intensity_fire_probability.get(new_day, 0.0):
                 self.end_of_low_intensity_fire = True
 
         new_ignition_data = {}
         new_fire_state_data = {}
         self.fire_did_stop = True
 
-        for i, cell in enumerate(self.cells):
+        for i, cell in enumerate(cells):
             if cell.isBurningOrWillBurn:
                 self.fire_did_stop = False
 
@@ -122,10 +103,10 @@ class FireEngine:
                 fire_should_spread = not self.end_of_low_intensity_fire or cell.burnIndex != BurnIndex.Low
                 if fire_should_spread:
                     neighbors = get_grid_cell_neighbors(
-                        self.cells, i, self.grid_width, self.grid_height, self.neighbors_dist, cell.burnIndex
+                        cells, i, self.grid_width, self.grid_height, self.neighbors_dist, cell.burnIndex
                     )
                     for n in neighbors:
-                        neigh_cell : Cell = self.cells[n]
+                        neigh_cell : Cell = cells[n]
                         dist_ft = dist(cell.x,cell.y, neigh_cell.x,neigh_cell.y) * self.cell_size
                         spread_rate = get_fire_spread_rate(cell, neigh_cell, self.wind, self.cell_size)
                         ignition_delta = dist_ft / spread_rate if spread_rate != 0 else float("inf")
@@ -139,6 +120,6 @@ class FireEngine:
                                 neigh_cell.spreadRate = spread_rate
 
         for i, state in new_fire_state_data.items():
-            self.cells[i].fireState = state
+            cells[i].fireState = state
         for i, time_val in new_ignition_data.items():
-            self.cells[i].ignitionTime = time_val
+            cells[i].ignitionTime = time_val

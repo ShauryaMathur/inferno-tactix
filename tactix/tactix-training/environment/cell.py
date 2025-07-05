@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional,Dict, List
 import math
 from environment.enums import VegetationType, DroughtLevel, BurnIndex, FireState  
 from environment.zone import Zone
@@ -7,7 +7,7 @@ from environment.zone import Zone
 FIRE_LINE_DEPTH = 2000
 MAX_BURN_TIME = 500
 
-moisture_lookup_by_land_cover: dict[VegetationType, list[float]] = {
+moisture_lookup_by_land_cover: Dict[VegetationType, List[float]] = {
     VegetationType.EvergreenNeedleleaf: [0.25, 0.27, 0.22, 0.26],
     VegetationType.EvergreenBroadleaf: [0.28, 0.30, 0.25, 0.29],
     VegetationType.DeciduousNeedleleaf: [0.20, 0.24, 0.18, 0.21],
@@ -49,6 +49,27 @@ class Cell:
         self.isFireLineUnderConstruction = isFireLineUnderConstruction
         self.helitackDropCount = 0
         self.isFireSurvivor = False
+
+    def __str__(self):
+        """
+        Returns a human-readable string representation of the FireCell object.
+        This method is automatically called when you use print() on an object.
+        """
+        return (
+            f"FireCell at ({self.x}, {self.y}):\n"
+            f"  - Zone: {self.zone} (Index: {self.zoneIdx})\n"
+            f"  - Base Elevation: {self.baseElevation}\n"
+            f"  - Ignition Time: {self.ignitionTime}\n"
+            f"  - Spread Rate: {self.spreadRate}\n"
+            f"  - Burn Time: {self.burnTime}\n"
+            f"  - Fire State: {self.fireState}\n"
+            f"  - Is Unburnt Island: {self.isUnburntIsland}\n"
+            f"  - Is River: {self.isRiver}\n"
+            f"  - Is Fire Line: {self.isFireLine}\n"
+            f"  - Is Fire Line Under Construction: {self.isFireLineUnderConstruction}\n"
+            f"  - Helitack Drop Count: {self.helitackDropCount}\n"
+            f"  - Is Fire Survivor: {self.isFireSurvivor}"
+        )
 
     @property
     def vegetation(self) -> VegetationType:

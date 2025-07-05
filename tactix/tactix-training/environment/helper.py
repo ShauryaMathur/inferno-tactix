@@ -208,7 +208,7 @@ def generate_fire_status_map_from_cells(cells: List[Cell], width: int, height: i
 
     return fire_status_list
 
-def perform_helitack(cells : list[Cell],array_x: int, array_y: int) -> int:
+def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
     print(f"Helitack coordinates: ({array_x}, {array_y})")
 
     start_grid_x = array_x
@@ -253,7 +253,7 @@ def perform_helitack(cells : list[Cell],array_x: int, array_y: int) -> int:
 
     return quenched_cells
 
-def is_helicopter_on_fire(fire_status_list: list[list[int]], array_x: int, array_y: int) -> bool:
+def is_helicopter_on_fire(fire_status_list: List[List[int]], array_x: int, array_y: int) -> bool:
     # Add bounds checking
     if (
         not fire_status_list or
@@ -266,3 +266,33 @@ def is_helicopter_on_fire(fire_status_list: list[list[int]], array_x: int, array
     fire_status = fire_status_list[array_y][array_x]
     fire_state = fire_status // 3  # Equivalent to Math.floor in JS
     return fire_state == FireState.Burning
+
+def populateCellsData(env_id,zones):
+        cells = []
+        landcover_image_name = f"landcover_{env_id+1}.png"
+        elevation_image_name = f"heightmap_{env_id+1}.png"
+        zoneIndex = get_land_cover_zone_index(config,landcover_image_name)
+        elevation = get_elevation_data(config,elevation_image_name)
+        nonBurnableZones = [12,14,16,17,18]
+        for y in range(config.gridHeight):
+            for x in range(config.gridWidth):
+                index = get_grid_index_for_location(x, y, config.gridWidth)
+                zi = zoneIndex[index] if zoneIndex is not None else 0
+                is_edge = (
+                    config.fillTerrainEdges and
+                    (x == 0 or x == config.gridWidth - 1 or y == 0 or y == config.gridHeight - 1)
+                )
+
+                cell_options = {
+                    "x": x,
+                    "y": y,
+                    "zone": zones[zi],
+                    "zoneIdx": zi,
+                    "baseElevation": 0 if is_edge else (elevation[index] if elevation else None),
+                    "isRiver": True if zi in nonBurnableZones else False
+                }
+
+                # self.totalCellCountByZone[zi] = self.totalCellCountByZone.get(zi, 0) + 1
+                cells.append(Cell(**cell_options))
+        # print('Cells',self.cells)
+        return cells

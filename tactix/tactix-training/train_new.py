@@ -24,6 +24,7 @@ from environment.zone import Zone
 from environment.enums import BurnIndex, FireState
 import torch
 import platform
+import copy
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
@@ -53,6 +54,15 @@ USE_TRAINED_AGENT = False
 save_path = os.environ.get("MODEL_DIR", ".")
 SAVED_AGENT_NAME = "ppo_firefighter_new"
 MODEL_FILE = os.path.join(save_path, SAVED_AGENT_NAME + ".zip")
+
+ENVID_VS_CELLS = {}
+
+def getCellsDataByEnvId(env_id,zones):
+    # env_id = 5
+    if env_id not in ENVID_VS_CELLS:
+        ENVID_VS_CELLS[env_id] = helper.populateCellsData(env_id,zones)
+        print("Cell data populated for env_id:", env_id)
+    return copy.deepcopy(ENVID_VS_CELLS[env_id])
 
 def linear_schedule(initial_value):
     """
@@ -233,12 +243,12 @@ def signal_handler(sig, frame):
             print(f"❌ Error saving model: {e}")
         
         # Save VecNormalize statistics
-        try:
-            if isinstance(vec_env, VecNormalize):
-                vec_env.save("vecnormalize.pkl")
-                print("✅ VecNormalize statistics saved.")
-        except Exception as e:
-            print(f"❌ Error saving VecNormalize: {e}")
+        # try:
+        #     if isinstance(vec_env, VecNormalize):
+        #         vec_env.save("vecnormalize.pkl")
+        #         print("✅ VecNormalize statistics saved.")
+        # except Exception as e:
+        #     print(f"❌ Error saving VecNormalize: {e}")
     
     # stop_event.set()
     sys.exit(0)
@@ -260,7 +270,7 @@ class LSTMResetCallback(BaseCallback):
     
 # Synchronous environment implementation with optimizations
 class FireEnvSync(gym.Env):
-    def __init__(self,env_id=0):
+    def __init__(self, env_id=0):
         super().__init__()
         
         # Initialize spaces
@@ -268,40 +278,52 @@ class FireEnvSync(gym.Env):
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
             'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
-            'cells': spaces.Box(low=-1, high=8, shape=(4, 160, 240), dtype=np.int8),  # 4 stacked frames
+            'cells': spaces.Box(low=-1, high=8, shape=(4, 160, 240), dtype=np.int8),
             'on_fire': spaces.Discrete(2)
         })
         
-        # Initialize state
-        self.step_count = 0
-        self.episode_count = 0
-        self.state = self._default_state()
-        
-        # Frame stacking - optimized with numpy array
-        self.frame_history = np.zeros((4, 160, 240), dtype=np.int8)
-        
-        # Metrics tracking
-        # self.metrics = MetricsTracker()
-        
-        # Cached observation for reuse
-        self.cached_obs = None
-
-        self.gridWidth =  config.gridWidth
+        # Environment configuration
+        self.cell_size = config.cellSize
+        self.gridWidth = config.gridWidth
         self.gridHeight = config.gridHeight
         self.zones: list[Zone] = [Zone(**zone_dict) for zone_dict in config.ZONES]
-        self.cells: list[Cell] = []
-        self.time = 0
-        self.prev_tick_time = None
-        self.spark : Vector2 = None
-        self.engine : FireEngine = None
-        self._seed = None  # Store for future use
+        
+        # Initialize state variables
+        self._reset_state_variables()
+        
+        # Frame stacking
+        self.frame_history = np.zeros((4, 160, 240), dtype=np.int8)
+        
+        # Cached observation
+        self.cached_obs = None
+        self._seed = None
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         self._seed = seed
         return [seed]
-    def make_copy(self):
-        return FireEnvSync()
+    
+    def _reset_state_variables(self):
+        """Reset all state variables to initial values"""
+        self.step_count = 0
+        self.time = 0
+        self.prev_tick_time = None
+        self.simulation_running = True
+        self.cells = []
+        self.engine = None
+        
+        # Reset state dict
+        self.state = {
+            'helicopter_coord': np.array([70, 30], dtype=np.int32),
+            'cells': np.zeros((160, 240), dtype=np.int32),
+            'on_fire': 0,
+            'prevBurntCells': 0,
+            'cellsBurnt': 0,
+            'cellsBurning': 0,
+            'quenchedCells': 0,
+            'prev_burning': 0,
+            'last_action': None
+        }
     
     def _default_state(self):
         return {
@@ -314,82 +336,73 @@ class FireEnvSync(gym.Env):
             'quenchedCells': 0
         }
     
-    def _default_response(self):
-        """Return a default response when websocket is unavailable"""
-        return {
-            'helicopter_coord': [70, 115],
-            'cells': np.zeros((160, 240), dtype=np.int32).tolist(),
-            'on_fire': 0,
-            'cellsBurnt': 0,
-            'cellsBurning': 0,
-            'quenchedCells': 0
-        }
-    
     def tick(self, time_step: float):
-        
-        if self.engine:
+        """Update fire simulation by one time step"""
+        if self.engine and self.simulation_running:
             self.time += time_step
-            self.engine.cells = self.cells
-            self.engine.update_fire(self.time)
-
+            self.engine.update_fire(self.cells, self.time)
+            
             if self.engine.fire_did_stop:
                 self.simulation_running = False
-                print("Final timestep:", time_step)
-                print("Simulation time:", self.time)
+                print(f"[Env {self.env_id}] Fire simulation stopped at time {self.time}")
 
+    def _get_current_fire_stats(self):
+            """Get current fire statistics from cells"""
+            cells_burning = len([cell for cell in self.cells if cell.fireState == FireState.Burning])
+            cells_burnt = len([cell for cell in self.cells if cell.fireState == FireState.Burnt])
+            return cells_burning, cells_burnt
+    
+    def _update_simulation_state(self):
+            """Update state dictionary from current simulation state"""
+            # Generate binned cells from current simulation state
+            binnedCells = helper.generate_fire_status_map_from_cells(
+                self.cells, self.gridWidth, self.gridHeight
+            )
+            
+            # Get current fire statistics
+            cells_burning, cells_burnt = self._get_current_fire_stats()
+            
+            # Update state
+            self.state.update({
+                'cells': binnedCells,
+                'cellsBurning': cells_burning,
+                'cellsBurnt': cells_burnt,
+                'prevBurntCells': self.state.get('cellsBurnt', 0),  # Store previous value
+                'prev_burning': self.state.get('cellsBurning', 0)   # Store previous value
+            })
     def step_simulation(self, current_time_ms: float):
-
-        real_time_diff_minutes = None
+        """Step the simulation forward by appropriate time"""
+        if not self.simulation_running:
+            return
+            
+        # Calculate time step
         if self.prev_tick_time is None:
             self.prev_tick_time = current_time_ms
+            time_step = 1.0  # Default first step
         else:
             real_time_diff_minutes = (current_time_ms - self.prev_tick_time) / 60000
             self.prev_tick_time = current_time_ms
-
-        time_step = 1  # default fallback
-        if real_time_diff_minutes:
-            ratio = 86400 / getattr(config,'modelDayInSeconds',8)
+            
+            ratio = 86400 / getattr(config, 'modelDayInSeconds', 8)
             optimal_time_step = ratio * 0.000277
             time_step = min(
-                getattr(config,'maxTimeStep',180),
+                getattr(config, 'maxTimeStep', 180),
                 optimal_time_step * 4,
                 ratio * real_time_diff_minutes
             )
-
+        
         self.tick(time_step)
 
-    def populateCellsData(self):
-        self.cells = []
-        zoneIndex = helper.get_land_cover_zone_index(config,"landcover_1200x813.png")
-        elevation = helper.get_elevation_data(config,"heightmap_1200x813_2.png")
-        nonBurnableZones = [12,14,16,17,18]
-        for y in range(self.gridHeight):
-            for x in range(self.gridWidth):
-                index = helper.get_grid_index_for_location(x, y, self.gridWidth)
-                zi = zoneIndex[index] if zoneIndex is not None else 0
-                is_edge = (
-                    config.fillTerrainEdges and
-                    (x == 0 or x == self.gridWidth - 1 or y == 0 or y == self.gridHeight - 1)
-                )
-
-                cell_options = {
-                    "x": x,
-                    "y": y,
-                    "zone": self.zones[zi],
-                    "zoneIdx": zi,
-                    "baseElevation": 0 if is_edge else (elevation[index] if elevation else None),
-                    "isRiver": True if zi in nonBurnableZones else False
-                }
-
-                # self.totalCellCountByZone[zi] = self.totalCellCountByZone.get(zi, 0) + 1
-                self.cells.append(Cell(**cell_options) )
-        # print('Cells',self.cells)
-
+    def _get_fallback_observation(self):
+            """Get fallback observation in case of errors"""
+            return {
+                'helicopter_coord': np.array([70, 30], dtype=np.int32),
+                'cells': np.zeros((4, 160, 240), dtype=np.int8),
+                'on_fire': 0
+            }
     def update_frame_history(self, new_frame):
-        """Update frame history efficiently using numpy operations"""
-        # Roll the frames (shift all frames one position back)
+        """Update frame history efficiently"""
         self.frame_history = np.roll(self.frame_history, -1, axis=0)
-        # Add the new frame to the last position
         self.frame_history[3] = new_frame
     
     def preprocess_observation(self, obs):
@@ -409,176 +422,177 @@ class FireEnvSync(gym.Env):
         try:
             if seed is not None:
                 self.seed(seed)
-            print(f"🧼 Resetting environment with seed={self._seed}")
             
-            # Reset LSTM hidden states
-            # if hasattr(self, 'model') and hasattr(self.model.policy, 'features_extractor'):
-            #     self.model.policy.features_extractor.hidden = None
-                
-            # Reset metrics tracker
-            # self.metrics = MetricsTracker()
+            print(f"🧼 Resetting environment {self.env_id} with seed={self._seed}")
             
-            self.step_count = 0
-            self.episode_count += 1
+            # Reset all state variables
+            self._reset_state_variables()
+            self.episode_count = getattr(self, 'episode_count', 0) + 1
             
-            self.populateCellsData()
-
-            # Create reset message
-            # reset_message = json.dumps({"action": "reset", "episode": self.episode_count})
-
-            self.spark = Vector2(60000 - 1, 40000 - 1)
-            self.engine = FireEngine(self.cells,Wind(0.0,0.0),self.spark,config)
-            # self.cells = self.engine.cells
-            binnedCells = helper.generate_fire_status_map_from_cells(self.cells, self.gridWidth, self.gridHeight)
-
-            self.state = self._default_state()
-            self.state = {
-                **self.state,
-                'cells': binnedCells
-            }
-            # print(self.state)
-            # Initialize frame history more efficiently
-            initial_cells = np.clip(np.array(self.state['cells'], dtype=np.int32), 0, 8)
-            self.frame_history.fill(0)  # Clear all frames
+            # Initialize cells - ensure complete isolation
+            self.cells = getCellsDataByEnvId(self.env_id, self.zones)
+            
+            # Initialize fire spark
+            spark = Vector2(60000 - 1, 40000 - 1)
+            grid_x = int(spark.x // self.cell_size)
+            grid_y = int(spark.y // self.cell_size)
+            spark_cell : Cell = self.cells[helper.get_grid_index_for_location(grid_x, grid_y, self.gridWidth)]
+            spark_cell.ignitionTime = 0
+            # spark_cell.fireState = FireState.Burning
+            
+            # Initialize fire engine
+            self.engine = FireEngine(Wind(0.0, 0.0), config)
+            
+            # Update state from simulation
+            self._update_simulation_state()
+            
+            # Initialize frame history
+            initial_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
+            self.frame_history.fill(0)
             for i in range(4):
                 self.frame_history[i] = initial_cells.copy()
             
-            # Create observation with stacked frames
-            final_observation = {
+            # Create observation
+            observation = {
                 'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
                 'cells': self.frame_history.copy(),
                 'on_fire': int(self.state['on_fire'])
             }
             
-            # Preprocess observation
-            final_observation = self.preprocess_observation(final_observation)
+            self.cached_obs = observation
             
-            # Cache observation
-            self.cached_obs = final_observation
+            print(f"[Env {self.env_id}] Reset complete - Initial burning cells: {self.state['cellsBurning']}")
             
-            return final_observation, {}
+            return observation, {}
+            
         except Exception as e:
-            print(f"Error in reset: {e}")
-            return self._default_state(), {}
+            print(f"Error in reset for env {self.env_id}: {e}")
+            traceback.print_exc()
+            return self._get_fallback_observation(), {}
     
-    def apply_action(self,action):
+    def apply_action(self, action):
+        """Apply action and return new helicopter position and quenched cells"""
         self.step_count += 1
         self.state['last_action'] = action
-
-        print(f"\n[Step {self.step_count}] Action taken: {action}")
         
         # Calculate new helicopter position
         heli_x, heli_y = self.state['helicopter_coord']
         
-        if action == 0: heli_y += HELICOPTER_SPEED
-        elif action == 1: heli_y -= HELICOPTER_SPEED  
-        elif action == 2: heli_x -= HELICOPTER_SPEED 
-        elif action == 3: heli_x += HELICOPTER_SPEED  
-        elif action == 4: 
-            print(f"Helitack performed at ({heli_x}, {heli_y})")
-            # Record helitack action for metrics
-            # self.metrics.record_helitack(self.step_count, heli_x, heli_y)
+        if action == 0:   # Down
+            heli_y += HELICOPTER_SPEED
+        elif action == 1: # Up
+            heli_y -= HELICOPTER_SPEED
+        elif action == 2: # Left
+            heli_x -= HELICOPTER_SPEED
+        elif action == 3: # Right
+            heli_x += HELICOPTER_SPEED
+        elif action == 4: # Helitack
+            print(f"[Env {self.env_id}] Helitack at ({heli_x}, {heli_y})")
         
-        # Clip coordinates
+        # Clip coordinates to valid range
         heli_x = int(np.clip(heli_x, 0, 239))
         heli_y = int(np.clip(heli_y, 0, 159))
+        
+        # Perform helitack if action is 4
         quenched_cells = 0
         if action == 4:
             quenched_cells = helper.perform_helitack(self.cells, heli_x, heli_y)
+            if quenched_cells > 0:
+                print(f"[Env {self.env_id}] Helitack quenched {quenched_cells} cells")
         
         return heli_x, heli_y, quenched_cells
+    
     def step(self, action):
-        
         try:
-            self.cells = self.engine.cells
+            # Store previous state for reward calculation
+            prev_burnt = self.state.get('cellsBurnt', 0)
+            prev_burning = self.state.get('cellsBurning', 0)
+            
+            # Apply action and get helicopter position
             heli_x, heli_y, quenched_cells = self.apply_action(action)
-
-            # Simulate one tick with current wall-clock time
-            current_time_ms = time.time() * 1000  # time in ms
+            
+            # Run simulation step
+            current_time_ms = time.time() * 1000
             self.step_simulation(current_time_ms)
-            self.cells = self.engine.cells
-            binnedCells = helper.generate_fire_status_map_from_cells(self.cells, self.gridWidth, self.gridHeight)
-            cells_burning = len([cell for cell in self.cells if cell.fireState == FireState.Burning])
-            cells_burnt = len([cell for cell in self.cells if cell.fireState == FireState.Burnt])
-            on_fire = helper.is_helicopter_on_fire(binnedCells, heli_x, heli_y)
-
-            # Create step message
-            self.cells = self.engine.cells
-            # Update state
-            self.state = {
-                **self.state,
-                'prevBurntCells': self.state['cellsBurnt'],
-                'cells': binnedCells,
-                'cellsBurning': cells_burning,
-                'cellsBurnt': cells_burnt,
-                'quenchedCells': quenched_cells,
-                'on_fire': on_fire,
-                'helicopter_coord': [heli_x, heli_y]
-            }
+            
+            # Update state from simulation
+            self._update_simulation_state()
+            
+            # Update helicopter position and fire status
+            self.state['helicopter_coord'] = np.array([heli_x, heli_y], dtype=np.int32)
+            self.state['quenchedCells'] = quenched_cells
+            
+            # Check if helicopter is on fire
+            on_fire = helper.is_helicopter_on_fire(self.state['cells'], heli_x, heli_y)
+            self.state['on_fire'] = on_fire
             
             # Calculate reward
-            reward = self.calculate_reward(
-                self.state.get('prevBurntCells', 0),
-                self.state.get('cellsBurnt', 0),
-                self.state.get('cellsBurning', 0),
-                self.state.get('quenchedCells', 0)
+            reward = self.calculate_reward_scaled(
+                prev_burnt,
+                self.state['cellsBurnt'],
+                self.state['cellsBurning'],
+                quenched_cells
             )
             
             # Check if episode is done
-            done = False
-            print(f"cellsBurning: {self.state.get('cellsBurning')}",'count',self.step_count)
-            if self.state.get('cellsBurning', 1) == 0 or self.step_count >= MAX_TIMESTEPS:
-                done = True
-            
-            # Track metrics
-            cells = np.array(self.state['cells'])
-            fire_states = cells // 3
-            # burnt_cells = np.sum(fire_states == FireState.Burnt)
-            # burning_cells = np.sum(fire_states == FireState.Burning)
-            
-            # Track fire spread (only every 5 steps to save computation)
-            if self.step_count % 5 == 0 and hasattr(self, 'previous_fire_states'):
-                new_burning = np.logical_and(
-                    fire_states == FireState.Burning,
-                    self.previous_fire_states != FireState.Burning
-                )
-                new_burning_coords = list(zip(*np.where(new_burning)))
-                # self.metrics.record_fire_spread(self.step_count, new_burning_coords)
-            
-            # Store current fire state for next comparison
-            self.previous_fire_states = fire_states.copy()
+            done = (self.state['cellsBurning'] == 0) or (self.step_count >= MAX_TIMESTEPS)
             
             # Update frame history
             current_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
             self.update_frame_history(current_cells)
             
-            # Create observation with stacked frames
+            # Create observation
             observation = {
                 'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
                 'cells': self.frame_history.copy(),
-                'on_fire': int(self.state.get('on_fire', 0))
+                'on_fire': int(self.state['on_fire'])
             }
             
-            # Preprocess observation
-            observation = self.preprocess_observation(observation)
-            
-            # Cache observation
             self.cached_obs = observation
             
+            if self.step_count % 10 == 0:  # Log every 10 steps
+                print(f"[Env {self.env_id}] Step {self.step_count}: Burning={self.state['cellsBurning']}, "
+                      f"Burnt={self.state['cellsBurnt']}, Reward={reward:.3f}")
+            
             return observation, reward, done, False, {}
-        
+            
         except Exception as e:
-            print(f"Error in step: {e}")
+            print(f"Error in step for env {self.env_id}: {e}")
             traceback.print_exc()
-            return self.cached_obs, 0, True, False, {}
+            return self.cached_obs or self._get_fallback_observation(), 0, True, False, {}
+
+    
+    def calculate_reward_simple(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_agent):
+        reward = 0
+
+        # 1. Penalize increase in burnt area
+        newly_burnt = curr_burnt - prev_burnt
+        reward -= 0.1 * newly_burnt   # Strong penalty for damage
+
+        # 2. Reward reduction in active burning cells
+        if not hasattr(self.state, 'prev_burning'):
+            self.state['prev_burning'] = curr_burning
+
+        burning_reduction = self.state['prev_burning'] - curr_burning
+        reward += 0.1 * burning_reduction  # Encourages fire containment
+
+        # 3. Reward cells extinguished by agent
+        reward += 1.0 * extinguished_by_agent  # Direct intervention bonus
+
+        # 4. Optional: Small step penalty (to encourage faster control)
+        reward -= 0.1
+
+        # Save current for next step
+        self.state['prev_burning'] = curr_burning
+        return np.clip(reward, -10, 10)
     
     def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         reward = 0
-        if not hasattr(self, 'prev_burning'):
-            self.prev_burning = curr_burning
+        if not hasattr(self.state, 'prev_burning'):
+            self.state['prev_burning'] = curr_burning
 
         newly_burnt = curr_burnt - prev_burnt
-        burning_reduction = self.prev_burning - curr_burning
+        burning_reduction = self.state['prev_burning'] - curr_burning
 
         # Reward breakdown components
         proximity_reward = 0.0
@@ -586,44 +600,51 @@ class FireEnvSync(gym.Env):
         firebreak_reward = 0.0
         wasted_penalty = 0.0
         unburnable_penalty = 0.0
+        reduction_reward = 0.0
 
-        # Core reward logic
-        reward += extinguished_by_helitack * 10
-        reward -= newly_burnt * 5
-        reward -= curr_burning * 0.1
-        reward -= 0.1  # time penalty
+        # ✅ Core reward logic (scaled down)
+        reward += extinguished_by_helitack * 5     # Reduced from 10 → to soften sparse spikes
+        reward -= newly_burnt * 1.0                # Reduced penalty for better shaping
+        reward -= curr_burning * 0.05              # Reduced running penalty
+        reward -= 0.01                             # Softer time penalty
 
+        # ✅ Reward for reducing burning cells
+        if burning_reduction > 0:
+            reduction_reward = burning_reduction * 0.2
+            reward += reduction_reward
+
+        # Extract state info
         heli_x, heli_y = self.state['helicopter_coord']
         last_action = self.state.get('last_action', None)
         cells = np.array(self.state['cells'])
         fire_states = cells // 3
         burning_mask = fire_states == FireState.Burning
 
-        # Proximity reward
+        # ✅ Proximity reward
         if np.any(burning_mask):
             burning_coords = np.argwhere(burning_mask)
             distances = np.sqrt((burning_coords[:, 0] - heli_y) ** 2 + (burning_coords[:, 1] - heli_x) ** 2)
             min_distance = np.min(distances)
-            proximity_reward = 2 * np.exp(-min_distance / 20)
+            proximity_reward = 20 / (1 + min_distance)   # Sharper early reward
             reward += proximity_reward
 
-        # Helitack reward evaluation
+        # ✅ Helitack logic
         if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
             cell_value = cells[heli_y, heli_x]
 
             if cell_value == -1:
-                unburnable_penalty = -15
+                unburnable_penalty = -5                 # Less harsh
                 reward += unburnable_penalty
             else:
                 fire_state = fire_states[heli_y, heli_x]
                 burn_index = cell_value % 3
 
                 if fire_state == FireState.Burning:
-                    intensity_bonus = (burn_index + 1) * 2
-                    hit_reward = 20 * intensity_bonus
+                    intensity_bonus = (burn_index + 1)
+                    hit_reward = 10 * intensity_bonus   # Softer hit reward
                     reward += hit_reward
                 elif fire_state == FireState.Burnt:
-                    wasted_penalty = -5
+                    wasted_penalty = -2                 # Softer penalty
                     reward += wasted_penalty
                 elif fire_state == FireState.Unburnt:
                     nearby_burning = np.sum(burning_mask[
@@ -631,74 +652,104 @@ class FireEnvSync(gym.Env):
                         max(0, heli_x - 5):min(240, heli_x + 6)
                     ])
                     if nearby_burning > 0:
-                        firebreak_reward = 5 * min(nearby_burning, 5)
+                        firebreak_reward = 2 * min(nearby_burning, 5)
                     else:
-                        firebreak_reward = -10
+                        firebreak_reward = -2
                     reward += firebreak_reward
 
-        self.prev_burning = curr_burning
+        self.state['prev_burning'] = curr_burning
 
-        # 🧾 Logging
-        # if not hasattr(self, "step_count"):
-        #     self.step_count = 0
-        # if not hasattr(self, "log_path"):
-        #     env_id = getattr(self, "env_id", 0)
-        #     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        #     os.makedirs("reward_logs", exist_ok=True)
-        #     self.log_path = f"reward_logs/reward_log_{env_id}_{ts}.csv"
-        #     with open(self.log_path, mode='w', newline='') as f:
-        #         writer = csv.writer(f)
-        #         writer.writerow([
-        #             "step", "helicopter_coord", "action", "prev_burnt", "curr_burnt", "newly_burnt", "curr_burning",
-        #             "burning_reduction", "extinguished_by_helitack", "proximity_reward", "hit_reward",
-        #             "firebreak_reward", "wasted_penalty", "unburnable_penalty", "final_reward"
-        #         ])
+        # ✅ FINAL SCALING
+        scaled_reward = reward / 50.0
+        # self.step_count += 1
+        return scaled_reward
+    
+    def calculate_reward_scaled(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
+        reward = 0
+        if not hasattr(self.state, 'prev_burning'):
+            self.state['prev_burning'] = curr_burning
 
-        # with open(self.log_path, mode='a', newline='') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow([
-        #         self.step_count,
-        #         (heli_x, heli_y),
-        #         last_action,
-        #         prev_burnt,
-        #         curr_burnt,
-        #         newly_burnt,
-        #         curr_burning,
-        #         burning_reduction,
-        #         extinguished_by_helitack,
-        #         round(proximity_reward, 3),
-        #         round(hit_reward, 3),
-        #         round(firebreak_reward, 3),
-        #         round(wasted_penalty, 3),
-        #         round(unburnable_penalty, 3),
-        #         round(reward, 3)
-        #     ])
+        newly_burnt = curr_burnt - prev_burnt
+        burning_reduction = self.state['prev_burning'] - curr_burning
 
-        self.step_count += 1
+        # Reward breakdown components
+        proximity_reward = 0.0
+        hit_reward = 0.0
+        firebreak_reward = 0.0
+        wasted_penalty = 0.0
+        unburnable_penalty = 0.0
+        reduction_reward = 0.0
 
-        return reward
+        # 🔧 Scaled reward terms
+        reward += extinguished_by_helitack * 1.0        # +1 per extinguish
+        reward -= newly_burnt * 5.0                     # -0.1 per cell burnt after /50
+        reward -= curr_burning * 0.25                   # mild ongoing fire penalty
+        reward -= 5.0                                   # step penalty
+
+        if burning_reduction > 0:
+            reduction_reward = burning_reduction * 5.0  # +0.1 per cell reduction after /50
+            reward += reduction_reward
+
+        # 🔧 Proximity reward
+        heli_x, heli_y = self.state['helicopter_coord']
+        last_action = self.state.get('last_action', None)
+        cells = np.array(self.state['cells'])
+        fire_states = cells // 3
+        burning_mask = fire_states == FireState.Burning
+
+        if np.any(burning_mask):
+            burning_coords = np.argwhere(burning_mask)
+            distances = np.sqrt((burning_coords[:, 0] - heli_y) ** 2 + (burning_coords[:, 1] - heli_x) ** 2)
+            min_distance = np.min(distances)
+            proximity_reward = 5.0 / (1 + min_distance)
+            reward += proximity_reward
+
+        # 🔧 Helitack logic
+        if last_action == 4 and 0 <= heli_y < cells.shape[0] and 0 <= heli_x < cells.shape[1]:
+            cell_value = cells[heli_y, heli_x]
+
+            if cell_value == -1:
+                unburnable_penalty = -250
+                reward += unburnable_penalty
+            else:
+                fire_state = fire_states[heli_y, heli_x]
+                burn_index = cell_value % 3
+
+                if fire_state == FireState.Burning:
+                    intensity_bonus = (burn_index + 1)
+                    hit_reward = 50 * intensity_bonus
+                    reward += hit_reward
+                elif fire_state == FireState.Burnt:
+                    wasted_penalty = -100
+                    reward += wasted_penalty
+                elif fire_state == FireState.Unburnt:
+                    nearby_burning = np.sum(burning_mask[
+                        max(0, heli_y - 5):min(160, heli_y + 6),
+                        max(0, heli_x - 5):min(240, heli_x + 6)
+                    ])
+                    if nearby_burning > 0:
+                        firebreak_reward = 100 * min(nearby_burning, 5)
+                    else:
+                        firebreak_reward = -100
+                    reward += firebreak_reward
+
+        self.state['prev_burning'] = curr_burning
+
+        scaled_reward = reward / 50.0
+        return scaled_reward
+
     
     def close(self):
-        print("Closing environment...")
-        
-        # Clean up resources
-        # self.metrics = None
+        """Clean up environment resources"""
+        print(f"Closing environment {self.env_id}...")
+        self.simulation_running = False
+        self.cells = []
+        self.engine = None
         self.state = None
         self.frame_history = None
         self.cached_obs = None
         clear_gpu_memory()
 
-class DebugRolloutCallback(BaseCallback):
-    def _on_step(self) -> bool:
-        return True  # Required abstract method
-
-    def _on_rollout_start(self) -> None:
-        print("🚀 Starting rollout...")
-
-    def _on_rollout_end(self) -> bool:
-        print(f"✅ Rollout complete. Buffer full: {self.model.rollout_buffer.full}")
-        print(f"Buffer position: {self.model.rollout_buffer.pos}")
-        return True
     
 def make_env(rank=0, base_seed=1000):
     def _init():
@@ -753,8 +804,8 @@ def main():
             clip_range= 0.2,
             gamma=0.99,
             gae_lambda=0.95,
-            ent_coef=0.05,
-            vf_coef=0.5,
+            ent_coef=0.1,
+            vf_coef=1.0,
             max_grad_norm=0.5,
             target_kl=0.01,
             verbose=1,
@@ -804,7 +855,7 @@ def main():
         model.learn(
             total_timesteps=1000000,
             reset_num_timesteps=False,
-            tb_log_name="run1",
+            tb_log_name="run3",
             callback=callbacks
         )
         print("✅ Training completed successfully!")

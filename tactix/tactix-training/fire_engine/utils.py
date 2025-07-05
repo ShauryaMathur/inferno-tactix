@@ -1,3 +1,4 @@
+from typing import List
 from environment.helper import get_grid_index_for_location
 from environment.cell import Cell
 
@@ -14,7 +15,7 @@ def dist(x0, y0, x1, y1):
 def within_dist(x0, y0, x1, y1, max_dist):
     return (x0 - x1) ** 2 + (y0 - y1) ** 2 <= max_dist ** 2
 
-def get_grid_cell_neighbors(cells : list[Cell], i, width, height, neighbors_dist, burn_index):
+def get_grid_cell_neighbors(cells : List[Cell], i, width, height, neighbors_dist, burn_index):
     neighbours = []
     queue = []
     processed = {}
@@ -46,7 +47,7 @@ def get_grid_cell_neighbors(cells : list[Cell], i, width, height, neighbors_dist
 
     return neighbours
 
-def nonburnable_cell_between(cells : list[Cell], width, x0, y0, x1, y1, burn_index):
+def nonburnable_cell_between(cells : List[Cell], width, x0, y0, x1, y1, burn_index):
     result = False
 
     def callback(x, y, _):
