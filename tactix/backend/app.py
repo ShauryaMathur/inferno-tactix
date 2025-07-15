@@ -10,6 +10,8 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+import traceback
+
 # from io import StringIO
 try:
     from io import StringIO
@@ -137,7 +139,14 @@ def predict_wildfire():
     except Exception:
         return jsonify({'error': 'lat, lon and date (YYYY-MM-DD) are required'}), 400
 
-    out_df = get_75day_timeseries(lat, lon, dt_obj)
+    try:
+        print("Fetching data...")
+        out_df = get_75day_timeseries(lat, lon, dt_obj)
+        print("Data fetched.", len(out_df))
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': f'Error fetching data: {e}'}), 400
+    
     if out_df is None or out_df.empty or len(out_df) < SEQ_LEN:
         return jsonify({'error': 'Not enough historical data for given inputs'}), 400
 

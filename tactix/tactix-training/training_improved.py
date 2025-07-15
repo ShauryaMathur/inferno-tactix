@@ -40,13 +40,14 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, SubprocV
 
 
 from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
+from stable_baselines3.common.utils import get_schedule_fn
 
 print('HI! FROM NEW TRAIN BACKEND')
 
 # Directory for logs
 logdir = "runs/ppo_firefighter/"
 os.makedirs(logdir, exist_ok=True)
-logFileName = 'run1'
+logFileName = 'run2'
 # Environment settings
 MAX_TIMESTEPS = 1000
 HELICOPTER_SPEED = 3
@@ -55,7 +56,7 @@ USE_TRAINED_AGENT = True
 
 # Ensure the save path exists
 save_path = os.environ.get("MODEL_DIR", ".")
-SAVED_AGENT_NAME = "ppo_firefighter_new"
+SAVED_AGENT_NAME = "ppo_firefighter_improved"
 MODEL_FILE = os.path.join(save_path, SAVED_AGENT_NAME + ".zip")
 
 ENVID_VS_CELLS = {}
@@ -280,8 +281,8 @@ class FireEnvSync(gym.Env):
         self.env_id = env_id
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
-            'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
-            'cells': spaces.Box(low=0.0, high=1, shape=(4, 160, 240), dtype=np.float32),
+            # 'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
+            'cells': spaces.Box(low=0.0, high=1, shape=(5, 160, 240), dtype=np.float32),
             'on_fire': spaces.Discrete(2)
         })
         
@@ -306,6 +307,10 @@ class FireEnvSync(gym.Env):
         self._seed = seed
         return [seed]
     
+    def get_helicopter_position_map(self,x, y, height=160, width=240):
+        map = np.zeros((height, width), dtype=np.float32)
+        map[y, x] = 1.0
+        return map
     def _reset_state_variables(self):
         """Reset all state variables to initial values"""
         self.step_count = 0
@@ -366,7 +371,7 @@ class FireEnvSync(gym.Env):
             binnedCells = np.clip(binnedCells, -1, 8)
             binnedCells = (binnedCells + 1) / 9.0
             
-            print(binnedCells.shape)
+            # print(binnedCells.shape)
             # Get current fire statistics
             cells_burning, cells_burnt = self._get_current_fire_stats()
             
@@ -459,16 +464,29 @@ class FireEnvSync(gym.Env):
             
             # Initialize frame history
             initial_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
+            initial_cells = (initial_cells + 1) / 9.0  # normalize to [0, 1]
+
             self.frame_history.fill(0)
             for i in range(4):
                 self.frame_history[i] = initial_cells.copy()
             
-            # Create observation
+            heli_x, heli_y = self.state['helicopter_coord']
+            heli_map = np.zeros_like(initial_cells, dtype=np.float32)
+            heli_map[heli_y, heli_x] = 1.0  # Note: (y, x) indexing
+
+            spatial_obs = np.concatenate([self.frame_history.copy(), heli_map[None, :, :]], axis=0)
+
             observation = {
-                'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
-                'cells': self.frame_history.copy(),
-                'on_fire': int(self.state['on_fire'])
+                'cells': spatial_obs,
+                'on_fire': np.array([int(self.state['on_fire'])], dtype=np.float32)
             }
+            assert observation["cells"].shape == (5, 160, 240), f"Bad shape: {observation['cells'].shape}"
+            # Create observation
+            # observation = {
+            #     'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
+            #     'cells': self.frame_history.copy(),
+            #     'on_fire': int(self.state['on_fire'])
+            # }
             
             self.cached_obs = observation
             
@@ -521,7 +539,9 @@ class FireEnvSync(gym.Env):
             
             # Apply action and get helicopter position
             heli_x, heli_y, quenched_cells = self.apply_action(action)
-            
+
+            heli_map = self.get_helicopter_position_map(heli_x, heli_y)  # shape (160, 240)
+
             # Run simulation step
             current_time_ms = time.time() * 1000
             self.step_simulation(current_time_ms)
@@ -532,7 +552,7 @@ class FireEnvSync(gym.Env):
             # Update helicopter position and fire status
             self.state['helicopter_coord'] = np.array([heli_x, heli_y], dtype=np.int32)
             self.state['quenchedCells'] = quenched_cells
-            print("self.state['cells'].shape",self.state['cells'].shape)
+            # print("self.state['cells'].shape",self.state['cells'].shape)
             # Check if helicopter is on fire
             on_fire = helper.is_helicopter_on_fire(self.state['cells'], heli_x, heli_y)
             self.state['on_fire'] = on_fire
@@ -553,14 +573,23 @@ class FireEnvSync(gym.Env):
             # Update frame history
             current_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
             self.update_frame_history(current_cells)
-            
+
+            spatial_obs = np.concatenate([self.frame_history.copy(), heli_map[None, :, :]], axis=0)
+
             # Create observation
+            # observation = {
+            #     'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
+            #     'cells': self.frame_history.copy(),
+            #     'on_fire': int(self.state['on_fire'])
+            # }
+
             observation = {
-                'helicopter_coord': np.array(self.state['helicopter_coord'], dtype=np.int32),
-                'cells': self.frame_history.copy(),
-                'on_fire': int(self.state['on_fire'])
+                'cells': spatial_obs,
+                'on_fire': np.array([int(self.state['on_fire'])], dtype=np.float32)
             }
-            
+            # print("Obs cells shape:", observation['cells'].shape)
+            assert observation["cells"].shape == (5, 160, 240), f"Bad shape: {observation['cells'].shape}"
+
             self.cached_obs = observation
             
             print(f"[Env {self.env_id}] Step {self.step_count}: Burning={self.state['cellsBurning']}, "
@@ -870,14 +899,13 @@ def main():
     vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
 
     # Restore VecNormalize if available
-    if os.path.exists("vecnormalize.pkl") and os.path.getsize("vecnormalize.pkl") > 0:
+    if os.path.exists("vecnormalize_improved.pkl") and os.path.getsize("vecnormalize_improved.pkl") > 0:
         print("🔄 Restoring VecNormalize state...")
-        vec_env = VecNormalize.load("vecnormalize.pkl", vec_env)
+        vec_env = VecNormalize.load("vecnormalize_improved.pkl", vec_env)
     else:
         vec_env = VecNormalize(
             vec_env,
-            norm_obs=True,
-            norm_obs_keys=["helicopter_coord"],  
+            norm_obs=False, 
             norm_reward=True,
             clip_obs=10.0,
             clip_reward=10.0,
@@ -892,14 +920,16 @@ def main():
         print("🔄 Found existing model, loading for continued training...")
         model = PPO.load(MODEL_FILE, device=device, tensorboard_log=logdir)
         model.set_env(vec_env)
-        model.lr_schedule = lambda _: 5e-5
+        model.lr_schedule = get_schedule_fn(3e-4)
+        model.clip_range = get_schedule_fn(0.2)
+        # model.lr_schedule = lambda _: 5e-5
         model.policy.optimizer.param_groups[0]['lr'] = 5e-5
         # Use a function (lambda) for clip_range
-        model.clip_range = lambda _: 0.3
+        # model.clip_range = lambda _: 0.3
 
         # These two must also be callables if you want dynamic behavior
-        model.vf_coef =  0.7
-        model.gamma = 0.93
+        model.vf_coef =  0.5
+        model.gamma = 0.995
 
         print("✅ Model loaded successfully!")
     else:
@@ -910,14 +940,14 @@ def main():
             n_steps=128,
             batch_size=64,
             n_epochs=3,
-            learning_rate= 1e-4,
+            learning_rate= 3e-4,
             clip_range= 0.1,
             gamma=0.95,
-            gae_lambda=0.95,
-            ent_coef=0.1,
-            vf_coef=0.5,
-            max_grad_norm=0.5,
-            target_kl=0.02,
+            gae_lambda=0.9,
+            ent_coef=0.2,
+            vf_coef=0.4,
+            max_grad_norm=1.0,
+            target_kl=0.03,
             verbose=1,
             device=device,
             tensorboard_log=logdir,
@@ -963,7 +993,7 @@ def main():
     print("🚀 Starting training...")
     try:
         model.learn(
-            total_timesteps=1000,
+            total_timesteps=100000,
             reset_num_timesteps=False,
             tb_log_name=logFileName,
             callback=callbacks
@@ -978,7 +1008,7 @@ def main():
             try:
                 print("💾 Saving model...")
                 model.save(os.path.join(save_path, SAVED_AGENT_NAME))
-                vec_env.save("vecnormalize.pkl")
+                vec_env.save("vecnormalize_improved.pkl")
                 print("✅ Model and normalization state saved.")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")

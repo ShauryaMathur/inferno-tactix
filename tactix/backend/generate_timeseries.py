@@ -32,6 +32,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
+import traceback
 
 import numpy as np
 import pandas as pd
@@ -275,96 +276,103 @@ def _fetch_forecast_series(
 
 def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame:
 
-    date = datetime(date.year, date.month, date.day) 
+    try:
+        date = datetime(date.year, date.month, date.day) 
 
-    window_start = max(date - timedelta(days=60), EARLIEST_DATE)
-    window_end = date + timedelta(days=14)
+        window_start = max(date - timedelta(days=60), EARLIEST_DATE)
+        window_end = date + timedelta(days=14)
 
-    now = datetime.utcnow()
-    forecast_needed = window_end > now
+        now = datetime.utcnow()
+        forecast_needed = window_end > now
 
-    hist_end = min(window_end, now)
-    hist_years = range(window_start.year, hist_end.year + 1)
+        hist_end = min(window_end, now)
+        hist_years = range(window_start.year, hist_end.year + 1)
 
-    sample_ds = _open_dataset(GRIDMET_URL.format(feat=FEATURES[0], year=window_start.year))
-    lat_i, lon_i = _nearest_grid_indices(sample_ds, lat, lon)
-    sample_ds.close()
+        sample_ds = _open_dataset(GRIDMET_URL.format(feat=FEATURES[0], year=window_start.year))
+        lat_i, lon_i = _nearest_grid_indices(sample_ds, lat, lon)
+        sample_ds.close()
 
-    series: List[pd.Series] = []
+        series: List[pd.Series] = []
 
-    for feat in FEATURES:
-        varname = FEATURE_VAR_MAP[feat]
+        for feat in FEATURES:
+            varname = FEATURE_VAR_MAP[feat]
 
-        hist_vals: List[np.ndarray] = []
-        hist_dates: List[np.ndarray] = []
+            hist_vals: List[np.ndarray] = []
+            hist_dates: List[np.ndarray] = []
 
-        for yr in hist_years:
-            url = GRIDMET_URL.format(feat=feat, year=yr)
-            ds = _open_dataset(url)
-            idxs, dates = _time_slice(ds, window_start, hist_end)
-            if idxs.size:
-                t0, t1 = idxs.min(), idxs.max()
-                raw = _ascii_slice(url, varname, t0, t1, lat_i, lon_i)
-                scale = getattr(ds.variables[varname], "scale_factor", 1.0)
-                offset = getattr(ds.variables[varname], "add_offset", 0.0)
-                fillv = getattr(ds.variables[varname], "_FillValue", None)
-                if fillv is not None:
-                    raw = np.where(raw == fillv, np.nan, raw)
-                hist_vals.append(raw * scale + offset)
-                hist_dates.append(dates)
-            ds.close()
+            for yr in hist_years:
+                url = GRIDMET_URL.format(feat=feat, year=yr)
+                ds = _open_dataset(url)
+                idxs, dates = _time_slice(ds, window_start, hist_end)
+                if idxs.size:
+                    t0, t1 = idxs.min(), idxs.max()
+                    raw = _ascii_slice(url, varname, t0, t1, lat_i, lon_i)
+                    scale = getattr(ds.variables[varname], "scale_factor", 1.0)
+                    offset = getattr(ds.variables[varname], "add_offset", 0.0)
+                    fillv = getattr(ds.variables[varname], "_FillValue", None)
+                    if fillv is not None:
+                        raw = np.where(raw == fillv, np.nan, raw)
+                    hist_vals.append(raw * scale + offset)
+                    hist_dates.append(dates)
+                ds.close()
 
-        h_ser = pd.Series(dtype=float, name=feat)
-        if hist_vals:
-            py_dates = _cftime_to_datetime(np.concatenate(hist_dates))
-            h_ser = pd.Series(
-                np.concatenate(hist_vals),
-                index=pd.DatetimeIndex(py_dates),
-                name=feat,
-            )
+            h_ser = pd.Series(dtype=float, name=feat)
+            if hist_vals:
+                py_dates = _cftime_to_datetime(np.concatenate(hist_dates))
+                h_ser = pd.Series(
+                    np.concatenate(hist_vals),
+                    index=pd.DatetimeIndex(py_dates),
+                    name=feat,
+                )
 
 
-        if forecast_needed:
-            if feat in FORECAST_DERIVED:
-                merged = h_ser
-            else:
-                f_start = date                     
-                f_end   = window_end
-                try:
-                    f_ser  = _fetch_forecast_series(feat, varname, lat, lon,
-                                                   f_start, f_end)
-                    merged = pd.concat([h_ser, f_ser]).sort_index()
-                except Exception as fx:
-                    logger.warning("Forecast fetch failed for %s: %s", feat, fx)
+            if forecast_needed:
+                if feat in FORECAST_DERIVED:
                     merged = h_ser
-        else:
-            merged = h_ser
+                else:
+                    f_start = date                     
+                    f_end   = window_end
+                    try:
+                        f_ser  = _fetch_forecast_series(feat, varname, lat, lon,
+                                                    f_start, f_end)
+                        merged = pd.concat([h_ser, f_ser]).sort_index()
+                    except Exception as fx:
+                        logger.warning("Forecast fetch failed for %s: %s", feat, fx)
+                        merged = h_ser
+            else:
+                merged = h_ser
 
-        series.append(merged)
+            series.append(merged)
 
-    full_index = pd.date_range(window_start, window_end, freq="D")
-    df = pd.concat(series, axis=1).reindex(full_index)
-    df["vpd"] = (df["vpd"].interpolate(method="time", limit_direction="both").ffill().bfill())
-    df = df.interpolate(method="time", limit_direction="both")
-    df = df.ffill().bfill()
+        full_index = pd.date_range(window_start, window_end, freq="D")
+        df = pd.concat(series, axis=1).reindex(full_index)
+        df["vpd"] = (df["vpd"].interpolate(method="time", limit_direction="both").ffill().bfill())
+        df = df.interpolate(method="time", limit_direction="both")
+        df = df.ffill().bfill()
 
-    need_rh = df["rmax"].isna() | df["rmin"].isna()
-    if need_rh.any():
-        tmin = df.loc[need_rh, "tmmn"]
-        tmax = df.loc[need_rh, "tmmx"]
-        vpd  = df.loc[need_rh, "vpd"]
+        need_rh = df["rmax"].isna() | df["rmin"].isna()
+        if need_rh.any():
+            tmin = df.loc[need_rh, "tmmn"]
+            tmax = df.loc[need_rh, "tmmx"]
+            vpd  = df.loc[need_rh, "vpd"]
 
-        valid = ~(tmin.isna() | tmax.isna() | vpd.isna())
-        if valid.any():
-            rh_max, rh_min = _rh_from_vpd(tmin[valid], tmax[valid], vpd[valid])
-            df.loc[need_rh[need_rh].index[valid], "rmax"] = rh_max
-            df.loc[need_rh[need_rh].index[valid], "rmin"] = rh_min
-    
-    
-    df["latitude"] = lat
-    df["longitude"] = lon
-    df["datetime"] = df.index
-    return df.reset_index(drop=True)
+            valid = ~(tmin.isna() | tmax.isna() | vpd.isna())
+            if valid.any():
+                rh_max, rh_min = _rh_from_vpd(tmin[valid], tmax[valid], vpd[valid])
+                df.loc[need_rh[need_rh].index[valid], "rmax"] = rh_max
+                df.loc[need_rh[need_rh].index[valid], "rmin"] = rh_min
+        
+        
+        df["latitude"] = lat
+        df["longitude"] = lon
+        df["datetime"] = df.index
+        return df.reset_index(drop=True)
+
+    except Exception as ex:
+        traceback.print_exc()
+        logger.warning("Failed to generate timeseries: %s", ex)
+        return pd.DataFrame()
+
 
 
 #CLI──────────────────────────────────────────

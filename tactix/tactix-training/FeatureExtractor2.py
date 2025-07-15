@@ -24,7 +24,6 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         
         # Determine the number of channels (frames)
         if len(cells_shape) == 3:
-            print("Stacked frames detected.", cells_shape)
             channels = cells_shape[0]  # 4 frames
             height = cells_shape[1]    # 160
             width = cells_shape[2]     # 240
@@ -116,7 +115,7 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         )
         
         # Combine all features
-        combined_dim = 256 + 16  # LSTM output + coord + fire
+        combined_dim = 256 + 64 + 16  # LSTM output + coord + fire
         
         # Final processing with residual connections
         self.fc = nn.Sequential(
@@ -152,8 +151,8 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
     def forward(self, observations):
         # Process cells - expecting shape (batch, 4, 160, 240)
         cells = observations['cells'].float()
-        # cells = th.clamp(cells, min=-1, max=8)
-        # cells = (cells + 1) / 9.0  # maps [-1, 8] → [0.0, 1.0]
+        cells = th.clamp(cells, min=-1, max=8)
+        cells = (cells + 1) / 9.0  # maps [-1, 8] → [0.0, 1.0]
 
         if cells.dim() == 3:  # ensure batch and channel dims
             cells = cells.unsqueeze(1)
@@ -211,15 +210,15 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
         lstm_features = lstm_out.squeeze(1)
         
         # Process helicopter coordinates
-        # coords = observations['helicopter_coord'].float()
-        # center_x, center_y = 120, 80
-        # rel_coords = th.stack([
-        #     coords[:, 0],
-        #     coords[:, 1],
-        #     coords[:, 0] - center_x,
-        #     coords[:, 1] - center_y
-        # ], dim=1)
-        # coord_features = self.coord_net(rel_coords)
+        coords = observations['helicopter_coord'].float()
+        center_x, center_y = 120, 80
+        rel_coords = th.stack([
+            coords[:, 0],
+            coords[:, 1],
+            coords[:, 0] - center_x,
+            coords[:, 1] - center_y
+        ], dim=1)
+        coord_features = self.coord_net(rel_coords)
         
         # Process on_fire flag
         fire_features = self.fire_net(observations['on_fire'].float())
@@ -227,7 +226,7 @@ class FireEnvLSTMCNN(BaseFeaturesExtractor):
             fire_features = fire_features.squeeze(1)
         
         # Combine all features
-        combined = th.cat([lstm_features, fire_features], dim=1)
+        combined = th.cat([lstm_features, coord_features, fire_features], dim=1)
         
         # Final processing
         return self.fc(combined)

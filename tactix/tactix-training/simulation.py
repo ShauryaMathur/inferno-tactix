@@ -17,15 +17,16 @@ import os
 import gc
 import torch
 from collections import deque
-from FeatureExtractor import FireEnvLSTMPolicy
+from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
+from stable_baselines3 import PPO
 
 print('🔥 Starting SIMULATION backend')
 
 # Ensure the model path exists
 # model_path = os.environ.get("MODEL_DIR", "/models")
-model_path = os.environ.get("MODEL_DIR", ".")
+model_path = os.environ.get("MODEL_DIR", "./trained_agents")
 
-MODEL_FILE = os.path.join(model_path, "ppo_firefighter_new.zip")
+MODEL_FILE = os.path.join(model_path, "ppo_firefighter.zip")
 
 # Create output directory for analytics
 ANALYTICS_DIR = os.environ.get("ANALYTICS_DIR", "fire_analytics")
@@ -108,107 +109,7 @@ def clear_gpu_memory():
 torch.set_num_threads(4)  # Limit CPU threads used by PyTorch
 if torch.cuda.is_available():
     torch.cuda.set_per_process_memory_fraction(0.9)  # Limit GPU memory usage
-
-# Import RL libraries
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
-
-# Import custom policy (required for model loading)
-try:
-    from FeatureExtractor import FireEnvLSTMPolicy
-except ImportError:
-    print("⚠️ Could not import FireEnvLSTMPolicy, attempting to register it dynamically")
-    from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-    import torch.nn as nn
-    import gym
     
-    # Recreate the custom policy - must match the training policy architecture
-    class LSTMFeatureExtractor(BaseFeaturesExtractor):
-        def __init__(self, observation_space, features_dim=128):
-            super().__init__(observation_space, features_dim)
-            
-            # CNN for processing fire grid
-            self.cnn = nn.Sequential(
-                nn.Conv2d(4, 16, kernel_size=5, stride=2),
-                nn.ReLU(),
-                nn.Conv2d(16, 32, kernel_size=3, stride=2),
-                nn.ReLU(),
-                nn.Conv2d(32, 64, kernel_size=3, stride=2),
-                nn.ReLU(),
-                nn.Flatten()
-            )
-            
-            # MLP for processing helicopter coordinates
-            self.heli_mlp = nn.Sequential(
-                nn.Linear(2, 16),
-                nn.ReLU()
-            )
-            
-            # Determine flattened CNN output size
-            with torch.no_grad():
-                # Assuming 4x160x240 input (4 stacked frames)
-                dummy_input = torch.zeros(1, 4, 160, 240)
-                cnn_output_size = self.cnn(dummy_input).shape[1]
-            
-            # LSTM for temporal processing
-            self.lstm = nn.LSTM(
-                input_size=cnn_output_size + 16 + 1,  # CNN output + heli_mlp output + on_fire
-                hidden_size=128,
-                batch_first=True
-            )
-            
-            # Hidden state for LSTM
-            self.hidden = None
-            
-            # Final projection layer
-            self.fc = nn.Linear(128, features_dim)
-            
-        def forward(self, observations):
-            # Process cells through CNN
-            cells = observations['cells'].float() / 8.0  # Normalize
-            cnn_output = self.cnn(cells)
-            
-            # Process helicopter coordinates
-            heli_coord = observations['helicopter_coord'].float() / torch.tensor([240.0, 160.0])  # Normalize
-            heli_features = self.heli_mlp(heli_coord)
-            
-            # Process on_fire flag
-            on_fire = observations['on_fire'].float().unsqueeze(1)
-            
-            # Concatenate all features
-            combined = torch.cat([cnn_output, heli_features, on_fire], dim=1)
-            
-            # Reshape for LSTM (batch_size, sequence_length=1, features)
-            combined = combined.unsqueeze(1)
-            
-            # Initialize hidden state if needed
-            if self.hidden is None or self.hidden[0].shape[1] != combined.shape[0]:
-                self.hidden = (
-                    torch.zeros(1, combined.shape[0], 128).to(combined.device),
-                    torch.zeros(1, combined.shape[0], 128).to(combined.device)
-                )
-            
-            # Process through LSTM
-            lstm_out, self.hidden = self.lstm(combined, self.hidden)
-            
-            # Final projection
-            features = self.fc(lstm_out.squeeze(1))
-            
-            return features
-    
-    # Register the custom policy
-    from stable_baselines3.common.policies import ActorCriticPolicy
-    
-    class FireEnvLSTMPolicy(ActorCriticPolicy):
-        def __init__(self, *args, **kwargs):
-            super().__init__(
-                *args,
-                features_extractor_class=FireEnvLSTMPolicy,
-                features_extractor_kwargs=dict(features_dim=128),
-                **kwargs
-            )
 
 # Fire state constants
 class FireState:
@@ -861,7 +762,7 @@ def main():
         # Load trained model
         print(f"🔍 Loading model from {MODEL_FILE}...")
         try:
-            model = PPO.load(MODEL_FILE, device=device)
+            model = PPO.load(MODEL_FILE, device=device,custom_objects={'policy_class':FireEnvLSTMPolicy})
             print("✅ Model loaded successfully!")
         except Exception as e:
             print(f"❌ Error loading model: {e}")

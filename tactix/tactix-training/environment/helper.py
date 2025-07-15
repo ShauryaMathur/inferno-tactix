@@ -253,10 +253,10 @@ def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
 
     return quenched_cells
 
-def is_helicopter_on_fire(fire_status_list: List[List[int]], array_x: int, array_y: int) -> bool:
+def is_helicopter_on_fire(fire_status_list: np.ndarray, array_x: int, array_y: int) -> bool:
     # Add bounds checking
     if (
-        not fire_status_list or
+        fire_status_list.size == 0 or
         array_y < 0 or array_y >= len(fire_status_list) or
         array_x < 0 or array_x >= len(fire_status_list[0])
     ):
@@ -264,8 +264,11 @@ def is_helicopter_on_fire(fire_status_list: List[List[int]], array_x: int, array
         return False
 
     fire_status = fire_status_list[array_y][array_x]
-    fire_state = fire_status // 3  # Equivalent to Math.floor in JS
-    return fire_state == FireState.Burning
+    normalized_burning = (FireState.Burning + 1) / 9.0
+    # fire_state = fire_status // 3  
+    # return fire_state == FireState.Burning
+    return np.isclose(fire_status, normalized_burning, atol=1e-5)
+
 
 def populateCellsData(env_id,zones):
         cells = []

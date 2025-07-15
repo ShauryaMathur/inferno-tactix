@@ -794,9 +794,9 @@ def generate_circle_path(origin, radius):
         points.append((-69,-69))
     return points[:-2]
 
-def generate_concentric_circles(origin, start_radius, num_circles, radius_step=20):
+def generate_concentric_circles(origin, start_radius, num_circles, radius_step=5):
     all_points = []
-    for r in range(start_radius, start_radius + num_circles * radius_step, radius_step):
+    for r in range(start_radius + num_circles * radius_step,start_radius, - radius_step):
         for angle in range(0, 360, 10):
             rad = np.deg2rad(angle)
             x = int(origin[0] + r * np.cos(rad))
@@ -884,10 +884,10 @@ def main():
             # path = generate_circle_path(fire_origin, CIRCLE_RADIUS)
             
             # Agent in Concentric Circles
-            path = generate_concentric_circles(fire_origin, start_radius=START_RADIUS , num_circles=NUM_CIRCLES)
+            # path = generate_concentric_circles(fire_origin, start_radius=START_RADIUS , num_circles=NUM_CIRCLES)
             
             # No agent
-            # path = []
+            path = []
             path = deque(path)
             og_x = 0
             og_y = 0
