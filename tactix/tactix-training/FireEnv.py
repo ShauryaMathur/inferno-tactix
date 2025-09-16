@@ -2,17 +2,13 @@ import time
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-import csv
-from datetime import datetime
-from collections import deque
 import config
 from environment.cell import Cell
 from fire_engine.fire_engine import FireEngine
 from environment.vector import Vector2
 from environment.wind import Wind
 from environment.zone import Zone
-from environment.enums import BurnIndex, FireState
-import torch
+from environment.enums import FireState
 import copy
 import environment.helper as helper
 import traceback
@@ -131,7 +127,6 @@ class FireEnvSync(gym.Env):
             })
             
     def step_simulation(self, current_time_ms: float):
-        """Step the simulation forward by appropriate time"""
         if not self.simulation_running:
             return
             
@@ -154,7 +149,6 @@ class FireEnvSync(gym.Env):
         self.tick(time_step)
 
     def _get_fallback_observation(self):
-            """Get fallback observation in case of errors"""
             return {
                 'helicopter_coord': np.array([70, 30], dtype=np.int32),
                 'cells': np.zeros((4, 160, 240), dtype=np.int8),
@@ -162,7 +156,6 @@ class FireEnvSync(gym.Env):
             }
             
     def update_frame_history(self, new_frame):
-        """Update frame history efficiently"""
         self.frame_history = np.roll(self.frame_history, -1, axis=0)
         self.frame_history[3] = new_frame
     
@@ -229,7 +222,6 @@ class FireEnvSync(gym.Env):
             return self._get_fallback_observation(), {}
     
     def apply_action(self, action):
-        """Apply action and return new helicopter position and quenched cells"""
         self.step_count += 1
         self.state['last_action'] = action
         
@@ -287,7 +279,7 @@ class FireEnvSync(gym.Env):
             self.state['on_fire'] = on_fire
             
             # Calculate reward
-            reward = self.calculate_reward_improved_scaled(
+            reward = self.calculate_reward(
                 prev_burnt,
                 self.state['cellsBurnt'],
                 self.state['cellsBurning'],
@@ -327,7 +319,7 @@ class FireEnvSync(gym.Env):
             traceback.print_exc()
             return self.cached_obs or self._get_fallback_observation(), 0, True, False, {}
 
-    def calculate_reward_improved_scaled(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
+    def calculate_reward(self, prev_burnt, curr_burnt, curr_burning, extinguished_by_helitack):
         reward = 0.0
 
         # Penalize new burnt cells (damage) strongly
@@ -365,7 +357,6 @@ class FireEnvSync(gym.Env):
         reward = np.clip(reward, -10, 10)
         return reward
 
-    
     def close(self):
         print(f"Closing environment {self.env_id}...")
         self.simulation_running = False
@@ -376,7 +367,6 @@ class FireEnvSync(gym.Env):
         self.cached_obs = None
         clear_gpu_memory()
         
-
 def getCellsDataByEnvId(env_id,zones):
     env_id = 0
     if env_id not in ENVID_VS_CELLS:

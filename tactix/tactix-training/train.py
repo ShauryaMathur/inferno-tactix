@@ -1,12 +1,10 @@
-import numpy as np
+
 import signal
 import sys
 import traceback
 import os
-import gc
 import torch
 import torch
-import platform
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
@@ -17,8 +15,9 @@ from stable_baselines3.common.utils import get_schedule_fn
 
 from FireEnv import FireEnvSync
 from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
+from callbacks import LearningRateScheduleCallback, MemoryCleanupCallback, RewardLoggingCallback
 
-from training_utils import clear_gpu_memory
+from training_utils import clear_gpu_memory,get_optimal_device
 
 print('EXECUTING TRAINING SCRIPT...')
 
@@ -33,148 +32,17 @@ USE_TRAINED_AGENT = False
 # Ensure the save path exists
 save_path = os.environ.get("MODEL_DIR", ".")
 SAVED_AGENT_NAME = "ppo_firefighter_improved"
+SAVED_VEC_NORMALIZATION_FILENAME = "vecnormalize_improved.pkl"
 MODEL_FILE = os.path.join(save_path, SAVED_AGENT_NAME + ".zip")
-
-def linear_schedule(initial_value):
-    def schedule(progress):
-        return progress * 0.0 + initial_value * (1 - progress)
-    return schedule
-
-def get_optimal_device():
-    # Check for CUDA availability (NVIDIA GPUs)
-    if torch.cuda.is_available():
-        device = 'cuda'
-        is_gpu = True
-        gpu_name = torch.cuda.get_device_name(0)
-        gpu_count = torch.cuda.device_count()
-        print(f"🚀 Using CUDA device: {gpu_name} ({gpu_count} device{'s' if gpu_count > 1 else ''} available)")
-        
-        # Set memory fraction if needed
-        if os.environ.get('GPU_MEMORY_FRACTION'):
-            fraction = float(os.environ.get('GPU_MEMORY_FRACTION', 0.9))
-            torch.cuda.set_per_process_memory_fraction(fraction)
-            print(f"💾 Limited GPU memory usage to {fraction*100:.0f}% of available memory")
-            
-    # Check for MPS availability (Apple Silicon)
-    elif platform.system() == 'Darwin' and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        device = 'mps'
-        is_gpu = True
-        # Try to get system info on macOS
-        try:
-            import subprocess
-            system_info = subprocess.check_output(['sysctl', '-n', 'machdep.cpu.brand_string']).decode().strip()
-            print(f"🚀 Using MPS device for Apple Silicon: {system_info}")
-        except:
-            print(f"🚀 Using MPS device for Apple Silicon")
-            
-        # Enable MPS fallbacks for better compatibility
-        os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-        
-    # Fallback to CPU
-    else:
-        device = 'cpu'
-        is_gpu = False
-        cpu_count = os.cpu_count() or 1
-        print(f"⚠️ No GPU detected, using CPU with {cpu_count} logical cores")
-        
-        # Limit CPU threads to avoid oversubscription
-        torch.set_num_threads(min(4, cpu_count))
-        print(f"💾 Limited PyTorch to {min(4, cpu_count)} CPU threads")
-    
-    # Return both the device name and whether it's a GPU
-    return device, is_gpu
 
 # Set PyTorch thread limits to avoid oversubscription
 # torch.set_num_threads(4)  # Limit CPU threads used by PyTorch
 # if torch.cuda.is_available():
 #     torch.cuda.set_per_process_memory_fraction(0.9)  # Limit GPU memory usage
 
-
-
-# Learning rate scheduler callback
-class LearningRateScheduleCallback(BaseCallback):
-    def __init__(self, lr_schedule, total_timesteps, verbose=0):
-        super().__init__(verbose)
-        self.lr_schedule = lr_schedule
-        self.total_timesteps = total_timesteps
-        
-    def _on_step(self):
-        progress = self.num_timesteps / self.total_timesteps
-        new_lr = self.lr_schedule(progress)
-        
-        # Apply the new learning rate to the optimizer
-        for param_group in self.model.policy.optimizer.param_groups:
-            param_group['lr'] = new_lr
-        
-        if self.verbose > 0 and self.n_calls % 1000 == 0:
-            print(f"Timestep {self.num_timesteps}/{self.total_timesteps}: Learning rate = {new_lr}")
-        
-        return True
-# Define the schedule function
-def lr_schedule(progress):
-    return 0.0003 * (1.0 - progress)
-
-# Reward logging callback
-class RewardLoggingCallback(BaseCallback):
-    """Custom callback for logging episode rewards to TensorBoard"""
-    def __init__(self, verbose=0):
-        super().__init__(verbose)
-        self.episode_rewards = []
-        self.cumulative_reward = 0
-        
-    def _on_step(self):
-        # Get reward from the last step
-        reward = self.locals['rewards'][0]
-        self.cumulative_reward += reward
-        
-        # If episode is done, log the total episode reward
-        done = self.locals['dones'][0]
-        if done:
-            # Log cumulative reward for the episode
-            self.logger.record('episode/reward', self.cumulative_reward)
-            # Log episode length
-            self.logger.record('episode/length', self.model.num_timesteps - sum(self.locals['dones']))
-            # Reset for next episode
-            self.episode_rewards.append(self.cumulative_reward)
-            self.cumulative_reward = 0
-            
-            # Log mean of last 100 episodes 
-            if len(self.episode_rewards) > 0:
-                self.logger.record('episode/mean_reward_100', np.mean(self.episode_rewards[-100:]))
-        
-        return True
-
-# Memory cleanup callback
-class MemoryCleanupCallback(BaseCallback):
-    def __init__(self, cleanup_freq=1000, verbose=0):
-        super().__init__(verbose)
-        self.cleanup_freq = cleanup_freq
-        self.episodes_seen = 0
-        
-    def _on_step(self):
-        # Regular cleanup based on steps
-        if self.n_calls % self.cleanup_freq == 0:
-            clear_gpu_memory()
-            if self.verbose > 0:
-                print(f"Memory cleanup at step {self.n_calls}")
-        
-        # Episode-based cleanup
-        dones = self.locals.get('dones', [False])
-        if np.any(dones):
-            # Increment counter for episode completions
-            num_dones = np.sum(dones)
-            self.episodes_seen += num_dones
-            
-            # Run garbage collection between episodes
-            gc.collect()
-            
-            if self.verbose > 0 and num_dones > 0:
-                print(f"Episode cleanup: {self.episodes_seen} episodes completed")
-        
-        return True
-
 model = None  # Global model reference for signal handler
 vec_env = None
+
 # Signal handler for graceful termination
 def signal_handler(sig, frame):
     print("\n⚠️ Received termination signal. Cleaning up...")
@@ -228,9 +96,9 @@ def main():
     vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
 
     # Restore VecNormalize if available
-    if os.path.exists("vecnormalize_improved.pkl") and os.path.getsize("vecnormalize_improved.pkl") > 0:
+    if os.path.exists(SAVED_VEC_NORMALIZATION_FILENAME) and os.path.getsize(SAVED_VEC_NORMALIZATION_FILENAME) > 0:
         print("🔄 Restoring VecNormalize state...")
-        vec_env = VecNormalize.load("vecnormalize_improved.pkl", vec_env)
+        vec_env = VecNormalize.load(SAVED_VEC_NORMALIZATION_FILENAME, vec_env)
     else:
         vec_env = VecNormalize(
             vec_env,
@@ -301,11 +169,11 @@ def main():
     reward_callback = RewardLoggingCallback()
     # lr_callback = LearningRateScheduleCallback(lr_schedule)
     memory_callback = MemoryCleanupCallback(cleanup_freq=5000, verbose=1)
-    # lr_callback = LearningRateScheduleCallback(lr_schedule, total_timesteps=1_000_000, verbose=1)
+    lstm_reset_callback = LSTMResetCallback()
 
     callbacks = CallbackList([
         reward_callback, 
-        LSTMResetCallback(),
+        lstm_reset_callback,
         memory_callback
     ])
 
@@ -337,7 +205,7 @@ def main():
             try:
                 print("💾 Saving model...")
                 model.save(os.path.join(save_path, SAVED_AGENT_NAME))
-                vec_env.save("vecnormalize_improved.pkl")
+                vec_env.save(SAVED_VEC_NORMALIZATION_FILENAME)
                 print("✅ Model and normalization state saved.")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")
