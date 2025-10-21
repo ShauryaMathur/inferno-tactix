@@ -4,6 +4,12 @@ import sys
 import traceback
 import os
 import torch
+import asyncio
+import threading
+import websockets
+import queue
+import time
+import json
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
@@ -17,6 +23,95 @@ from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
 from callbacks import LearningRateScheduleCallback, MemoryCleanupCallback, RewardLoggingCallback
 
 from training_utils import clear_gpu_memory,get_optimal_device
+
+# Global variables for WebSocket connection
+client_websocket = None
+message_queue = queue.Queue(maxsize=100)
+stop_event = threading.Event()
+model = None
+
+# WebSocket server thread function
+def websocket_server_thread():
+    """Run the WebSocket server in a separate thread"""
+    async def handler(websocket):
+        global client_websocket
+        
+        if client_websocket is not None:
+            await client_websocket.close()
+        
+        print("🔥 React frontend connected!")
+        client_websocket = websocket
+        
+        try:
+            # Handle ping messages
+            async def handle_ping():
+                try:
+                    await websocket.send(json.dumps({"type": "pong"}))
+                    print("📤 Sent pong response")
+                except Exception as e:
+                    print(f"Error sending pong: {e}")
+            
+            # Process incoming messages
+            async for message in websocket:
+                # Handle ping specially
+                try:
+                    data = json.loads(message)
+                    if data.get("type") == "ping":
+                        print("🏓 Received ping, sending pong")
+                        await handle_ping()
+                        continue
+                except Exception:
+                    pass
+                
+                # Put other messages in the queue for the environment
+                try:
+                    message_queue.put(message, block=False)
+                except queue.Full:
+                    # If queue is full, remove oldest message and add new one
+                    try:
+                        message_queue.get_nowait()
+                        message_queue.put(message)
+                    except:
+                        pass
+        except Exception as e:
+            print(f"Error in WebSocket handler: {e}")
+        finally:
+            print("React frontend disconnected.")
+            if client_websocket == websocket:
+                client_websocket = None
+    
+    async def run_server():
+        host = os.environ.get("WEBSOCKET_HOST", "0.0.0.0")
+        port = int(os.environ.get("WEBSOCKET_PORT", "8765"))
+
+        server = await websockets.serve(
+            handler, 
+            host, 
+            port, 
+            max_size=None, 
+            compression='deflate'
+        )
+        print(f"🟢 WebSocket server started on {host}:{port}")
+        
+        # Keep server running until stop event is set
+        while not stop_event.is_set():
+            await asyncio.sleep(0.1)
+        
+        server.close()
+        await server.wait_closed()
+        print("🔴 WebSocket server stopped")
+    
+    # Set up event loop in this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # Run the server
+    try:
+        loop.run_until_complete(run_server())
+    except Exception as e:
+        print(f"Error in WebSocket server: {e}")
+    finally:
+        loop.close()
 
 print('EXECUTING TRAINING SCRIPT...')
 
@@ -89,33 +184,41 @@ def make_env(rank=0, base_seed=1000):
 # Main function
 def main():
     global model
-    global vec_env
 
     # Create vectorized environment
-    vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
-
-    # Restore VecNormalize if available
-    if os.path.exists(SAVED_VEC_NORMALIZATION_FILENAME) and os.path.getsize(SAVED_VEC_NORMALIZATION_FILENAME) > 0:
-        print("🔄 Restoring VecNormalize state...")
-        vec_env = VecNormalize.load(SAVED_VEC_NORMALIZATION_FILENAME, vec_env)
-    else:
-        vec_env = VecNormalize(
-            vec_env,
-            norm_obs=False, 
-            norm_reward=True,
-            clip_obs=10.0,
-            clip_reward=10.0,
-            gamma=0.99,
-            epsilon=1e-8,
-        )
+    env = make_env(0)
 
     device, is_gpu = get_optimal_device()
+    
+    server_thread = None
+    
+    # Start WebSocket server
+    print("Starting WebSocket server...")
+    server_thread = threading.Thread(target=websocket_server_thread, daemon=True)
+    server_thread.start()
+    
+    # Wait for WebSocket server to start
+    print("Waiting for WebSocket server to start...")
+    time.sleep(2)
+    
+    # Wait for React to connect (with a longer timeout for simulation)
+    print("Waiting for React to connect...")
+    timeout = 500
+    start_time = time.time()
+    
+    while client_websocket is None:
+        time.sleep(0.5)
+        if time.time() - start_time > timeout:
+            print("Timeout waiting for React to connect")
+            return
+    
+    print(f"✅ React client connected: {id(client_websocket)}")
 
     print("🔍 Checking for existing model...")
     if USE_TRAINED_AGENT and os.path.isfile(MODEL_FILE):
         print("🔄 Found existing model, loading for continued training...")
         model = PPO.load(MODEL_FILE, device=device, tensorboard_log=logdir)
-        model.set_env(vec_env)
+        model.set_env(env)
         model.lr_schedule = get_schedule_fn(3e-4)
         model.clip_range = get_schedule_fn(0.2)
         # model.lr_schedule = lambda _: 5e-5
@@ -132,7 +235,7 @@ def main():
         print("🆕 No existing model found, initializing new model...")
         model = PPO(
             FireEnvLSTMPolicy,
-            vec_env,
+            env,
             n_steps=128,
             batch_size=64,
             n_epochs=3,
