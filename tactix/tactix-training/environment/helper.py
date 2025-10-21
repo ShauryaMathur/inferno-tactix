@@ -208,6 +208,21 @@ def generate_fire_status_map_from_cells(cells: List[Cell], width: int, height: i
 
     return fire_status_list
 
+def generate_ignition_times_from_cells(cells: List[Cell], width: int, height: int) -> List[List[int]]:
+    ignition_times_list: List[List[int]] = []
+
+    for row in range(height):
+        start = row * width
+        end = start + width
+
+        row_data = []
+        for cell in cells[start:end]:
+            row_data.append(cell.ignitionTime)
+
+        ignition_times_list.append(row_data)
+
+    return np.array(ignition_times_list)
+
 def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
     print(f"Helitack coordinates: ({array_x}, {array_y})")
 
