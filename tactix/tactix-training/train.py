@@ -12,7 +12,7 @@ from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv
 from stable_baselines3.common.utils import get_schedule_fn
 
-from FireEnv import FireEnvSync
+from FireEnvironment import FireEnvSync
 from FeatureExtractor import FireEnvLSTMPolicy,FireEnvLSTMCNN
 from callbacks import LearningRateScheduleCallback, MemoryCleanupCallback, RewardLoggingCallback
 
@@ -24,7 +24,7 @@ print('EXECUTING TRAINING SCRIPT...')
 logdir = "runs/ppo_firefighter/"
 os.makedirs(logdir, exist_ok=True)
 logFileName = 'run1'
-TRAINING_TIMESTEPS = 5000
+TRAINING_TIMESTEPS = 1000
 
 USE_TRAINED_AGENT = False
 
@@ -92,7 +92,7 @@ def main():
     global vec_env
 
     # Create vectorized environment
-    vec_env = SubprocVecEnv([make_env(i) for i in range(8)])
+    vec_env = SubprocVecEnv([make_env(i) for i in range(1)])
 
     # Restore VecNormalize if available
     if os.path.exists(SAVED_VEC_NORMALIZATION_FILENAME) and os.path.getsize(SAVED_VEC_NORMALIZATION_FILENAME) > 0:

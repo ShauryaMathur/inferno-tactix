@@ -6,6 +6,7 @@ import Shutterbug from "shutterbug";
 import * as THREE from "three";
 import { useStores } from "../../use-stores";
 import { FireLineMarkersContainer } from "./fire-line-marker";
+import { HelicopterMarker } from "./helicopter-marker";
 import { DEFAULT_UP, PLANE_WIDTH, planeHeight } from "./helpers";
 import { SparksContainer } from "./spark";
 import { Terrain } from "./terrain";
@@ -89,6 +90,7 @@ export const View3d = () => {
         <Terrain ref={terrainRef} />
         <SparksContainer dragPlane={terrainRef} />
         <FireLineMarkersContainer dragPlane={terrainRef} />
+        <HelicopterMarker dragPlane={terrainRef} />
         {/* <TownMarkersContainer/> */}
         <ShutterbugSupport />
       </Provider>

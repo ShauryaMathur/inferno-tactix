@@ -62,7 +62,10 @@ export class SimulationModel {
   // specific moments and usually for all the cells, so this approach can be way more efficient.
   @observable public cellsStateFlag = 0;
   @observable public cellsElevationFlag = 0;
-  @observable public episodeCount = 0
+  @observable public episodeCount = 0;
+  @observable public cellsBurning = 0;
+  @observable public cellsBurnt = 0;
+  @observable public helicopterPosition: Vector2 | null = null;
 
  // Create a new WebSocket object
 //  private socket = new WebSocket('ws://localhost:8765');
@@ -117,7 +120,10 @@ public connectSocket() {
     if (message.type === "pong") {
       console.log("✅ Received pong from server");
       // debugger;
-    }else if (action === "close") {
+    } else if (message.type === "step_update") {
+      console.log("📊 Received step update from Python");
+      this.handleStepUpdate(message);
+    } else if (action === "close") {
       console.log("Simulation Done, closing!");
       this.cleanup();
     }else if (action === "reset") {
@@ -252,6 +258,78 @@ public connectSocket() {
         this.socket.send(JSON.stringify(response));
         console.log("✅ Step response sent");
       }
+  }
+
+  // Handle step updates from Python training
+  @action
+  private handleStepUpdate(message: any) {
+    console.log("📊 Handling step update:", message.step);
+    
+    if (!this.dataReady) {
+      console.warn("Data not ready yet");
+      return;
+    }
+
+    // Update helicopter position if available
+    if (message.helicopter) {
+      // Convert grid coordinates to model coordinates
+      const gridX = message.helicopter.x;
+      const gridY = message.helicopter.y;
+      const modelX = gridX * this.config.cellSize;
+      const modelY = gridY * this.config.cellSize;
+      this.helicopterPosition = new Vector2(modelX, modelY);
+    }
+
+    // Update cells from Python data
+    // Note: We use the idx field for direct array access to avoid coordinate system confusion
+    // The cells array uses top-left origin where y=0 is top row
+    if (message.cells && Array.isArray(message.cells)) {
+      for (const cellData of message.cells) {
+        // Use idx if available (direct array index), otherwise calculate from x,y
+        const cellIdx = cellData.idx !== undefined ? cellData.idx : getGridIndexForLocation(cellData.x, cellData.y, this.gridWidth);
+        
+        if (cellIdx >= 0 && cellIdx < this.cells.length) {
+          const cell = this.cells[cellIdx];
+          
+          // Debug first few cells to verify mapping
+          if (cellIdx < 5) {
+            console.log(`Updating cell[${cellIdx}]: JS cell at (${cell.x}, ${cell.y}), updating with fireState=${cellData.fireState}`);
+          }
+          
+          // Update cell properties based on Python data
+          // Map Python fireState enum to JS FireState (0=Unburnt, 1=Burning, 2=Burnt)
+          if (cellData.fireState !== undefined) {
+            cell.fireState = cellData.fireState as FireState;
+          }
+          
+          // Update ignition time
+          if (cellData.ignitionTime !== undefined) {
+            cell.ignitionTime = cellData.ignitionTime === -1 ? Infinity : cellData.ignitionTime;
+          }
+          
+          // Update helitack drop count
+          if (cellData.helitackDropCount !== undefined) {
+            cell.helitackDropCount = cellData.helitackDropCount;
+          }
+          
+          // Update river status
+          if (cellData.isRiver !== undefined) {
+            cell.isRiver = cellData.isRiver;
+          }
+        } else {
+          console.warn(`Invalid cellIdx: ${cellIdx} for cell data:`, cellData);
+        }
+      }
+      
+      // Trigger re-render
+      this.updateCellsStateFlag();
+    }
+
+    // Update stats if available
+    if (message.stats) {
+      this.cellsBurning = message.stats.cellsBurning || 0;
+      this.cellsBurnt = message.stats.cellsBurnt || 0;
+    }
   }
 
   // Cleanup method to close the socket when no longer needed
@@ -392,8 +470,11 @@ public connectSocket() {
         for (let x = 0; x < this.gridWidth; x++) {
           const index = getGridIndexForLocation(x, y, this.gridWidth);
           const zi = zoneIndex ? zoneIndex[index] : 0;
-          // console.log(zi);
-          // console.log(zones[zi]);
+          
+          // Debug first row to verify coordinate system
+          if (y === 0 && x < 3) {
+            console.log(`Creating cell[${index}]: x=${x}, y=${y}, zoneIdx=${zi}`);
+          }
           
           // const isRiver = river && river[index] > 0;
           // When fillTerrainEdge is set to true, edges are set to elevation 0.
@@ -459,6 +540,7 @@ public connectSocket() {
     this.fireLineMarkers.length = 0;
     this.lastFireLineTimestamp = -Infinity;
     this.lastHelitackTimestamp = -Infinity;
+    this.helicopterPosition = null;
     this.updateCellsStateFlag();
     this.updateCellsElevationFlag();
     this.time = 0;

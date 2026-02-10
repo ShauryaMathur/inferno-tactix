@@ -223,40 +223,53 @@ def generate_ignition_times_from_cells(cells: List[Cell], width: int, height: in
 
     return np.array(ignition_times_list)
 
-def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
+def perform_helitack(cells: List[Cell], array_x: int, array_y: int) -> int:
+    """
+    Extinguish cells within radius of position (array_x, array_y).
+    
+    Args:
+        cells: List of Cell objects
+        array_x: Grid column (0-239)
+        array_y: Grid row (0-159)
+    
+    Returns:
+        Number of cells extinguished
+    """
     print(f"Helitack coordinates: ({array_x}, {array_y})")
 
-    start_grid_x = array_x
-    start_grid_y = array_y
-    gridWidth = getattr(config, "gridWidth", 50)
-    gridHeight = getattr(config, "gridHeight", 50)
-    if (
-        start_grid_x < 0 or start_grid_x >= gridWidth or
-        start_grid_y < 0 or start_grid_y >= gridHeight
-    ):
-        print(f"Invalid helitack coordinates: ({start_grid_x}, {start_grid_y})")
+    gridWidth = getattr(config, "gridWidth", 240)
+    gridHeight = getattr(config, "gridHeight", 160)
+    
+    # Validate coordinates
+    if not (0 <= array_x < gridWidth and 0 <= array_y < gridHeight):
+        print(f"Invalid helitack coordinates: ({array_x}, {array_y})")
         return 0
 
-    cell_index = get_grid_index_for_location(start_grid_x, start_grid_y, gridWidth)
+    # Get center cell
+    cell_index = get_grid_index_for_location(array_x, array_y, gridWidth)
     if cell_index >= len(cells):
         print(f"Cell not found at index {cell_index}")
         return 0
 
-    cell = cells[cell_index]
-    radius = round(getattr(config, "helitackDropRadius", 50) / getattr(config, "cellSize", 50))
+    center_cell = cells[cell_index]
+    
+    # Calculate radius in grid cells
+    drop_radius_meters = getattr(config, "helitackDropRadius", 500)
+    cell_size_meters = getattr(config, "cellSize", 250)
+    radius = round(drop_radius_meters / cell_size_meters)
+    
     quenched_cells = 0
 
-    for x in range(cell.x - radius, cell.x + radius):
-        for y in range(cell.y - radius, cell.y + radius + 1):
-            if (x - cell.x) ** 2 + (y - cell.y) ** 2 <= radius ** 2:
-                next_cell_x = cell.x - (x - cell.x)
-                next_cell_y = cell.y - (y - cell.y)
-
-                if (
-                    0 <= next_cell_x < gridWidth and
-                    0 <= next_cell_y < gridHeight
-                ):
-                    target_index = get_grid_index_for_location(next_cell_x, next_cell_y, gridWidth)
+    # Iterate over bounding box
+    for x in range(center_cell.x - radius, center_cell.x + radius + 1):
+        for y in range(center_cell.y - radius, center_cell.y + radius + 1):
+            # Check if within circular radius
+            if (x - center_cell.x) ** 2 + (y - center_cell.y) ** 2 <= radius ** 2:
+                # Check bounds
+                if 0 <= x < gridWidth and 0 <= y < gridHeight:
+                    # Get target cell index
+                    target_index = get_grid_index_for_location(x, y, gridWidth)
+                    
                     if target_index < len(cells):
                         target_cell = cells[target_index]
                         target_cell.helitackDropCount += 1
@@ -266,6 +279,7 @@ def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
                             target_cell.fireState = FireState.Unburnt
                             quenched_cells += 1
 
+    print(f"Helitack extinguished {quenched_cells} cells")
     return quenched_cells
 
 def is_helicopter_on_fire(fire_status_list: np.ndarray, array_x: int, array_y: int) -> bool:

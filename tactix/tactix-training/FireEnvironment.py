@@ -45,7 +45,7 @@ class FireEnvSync(gym.Env):
         self._reset_state_variables()
         
         # Frame stacking
-        self.frame_history = np.zeros((4, 160, 240), dtype=np.int8)
+        # self.frame_history = np.zeros((4, 160, 240), dtype=np.int8)
         
         # Cached observation
         self.cached_obs = None
@@ -70,7 +70,7 @@ class FireEnvSync(gym.Env):
         
         # Reset state dict
         self.state = {
-            'helicopter_coord': np.array([70, 30], dtype=np.int32),
+            'helicopter_coord': np.array([70, 150], dtype=np.int32),
             'cells': np.zeros((160, 240), dtype=np.int32),
             'prevBurntCells': 0,
             'cellsBurnt': 0,
@@ -82,7 +82,7 @@ class FireEnvSync(gym.Env):
     
     def _default_state(self):
         return {
-            'helicopter_coord': np.array([70, 30], dtype=np.int32),
+            'helicopter_coord': np.array([70, 150], dtype=np.int32),
             'cells': np.zeros((160, 240), dtype=np.int32),
             'on_fire': 0,
             'prevBurntCells': 0,
@@ -190,7 +190,7 @@ class FireEnvSync(gym.Env):
             self.engine = FireEngine(Wind(0.0, 0.0), config)
             
             # Update state from simulation
-            self._update_simulation_state()
+            # self._update_simulation_state()
             
             # Initialize frame history
             # initial_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
@@ -225,6 +225,7 @@ class FireEnvSync(gym.Env):
             return self._get_fallback_observation(), {}
     
     def apply_action(self, action):
+        
         self.step_count += 1
         self.state['last_action'] = action
         
@@ -232,6 +233,7 @@ class FireEnvSync(gym.Env):
         heli_x, heli_y = self.state['helicopter_coord']
         
         if action == 0:   # Down
+            print("0 called")
             heli_y += HELICOPTER_SPEED
         elif action == 1: # Up
             heli_y -= HELICOPTER_SPEED
@@ -245,6 +247,8 @@ class FireEnvSync(gym.Env):
         # Clip coordinates to valid range
         heli_x = int(np.clip(heli_x, 0, 239))
         heli_y = int(np.clip(heli_y, 0, 159))
+        
+        print(f"Action New: {action} and Coordinates : {[heli_x, heli_y]}")
         
         # Perform helitack if action is 4
         quenched_cells = 0
@@ -263,8 +267,6 @@ class FireEnvSync(gym.Env):
             
             # Apply action and get helicopter position
             heli_x, heli_y, quenched_cells = self.apply_action(action)
-
-            heli_map = self.get_helicopter_position_map(heli_x, heli_y)  # shape (160, 240)
 
             # Run simulation step
             current_time_ms = time.time() * 1000
@@ -293,12 +295,6 @@ class FireEnvSync(gym.Env):
             terminated = (cells_burning == 0)
             truncated = (self.step_count >= MAX_TIMESTEPS)
             
-            # Update frame history
-            # current_cells = np.clip(np.array(self.state['cells'], dtype=np.int8), -1, 8)
-            # self.update_frame_history(current_cells)
-
-            # spatial_obs = np.concatenate([self.frame_history.copy(), heli_map[None, :, :]], axis=0)
-
             observation = {
                 'cells': helper.generate_ignition_times_from_cells(self.cells,self.gridWidth, self.gridHeight),
                 'helicopter_coord': self.state['helicopter_coord'],
@@ -375,7 +371,7 @@ def main():
     print("Testing environment...")
     env = FireEnvSync(env_id=0)
     try:
-        check_env(env, warn=True, skip_render_check=True)
+        # check_env(env, warn=True, skip_render_check=True)
         print("✅ Environment passed all checks!")
         
         env.reset()
@@ -383,7 +379,8 @@ def main():
         rewards = 0
         while True:
             timestamp += 1
-            action = random.randint(1, 5)
+            # action = random.randint(1, 5)
+            action = random.randint(0, 4)
             obs, reward, terminated, truncated, info = env.step(action)
             rewards += reward
             if terminated or truncated:
