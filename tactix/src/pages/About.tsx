@@ -21,7 +21,7 @@ export default function About() {
         <section className={`${styles.card} ${styles.problemCard}`}>
           <div className={styles.cardHeader}>
             <AlertTriangle className={styles.icon} />
-            <h2 className={styles.cardTitle}>Wildfires—Why it matters</h2>
+            <h2 className={styles.cardTitle}>Wildfires - Why it matters</h2>
           </div>
           <div className={styles.cardContent}>
             <div className={styles.imageContainer}>
