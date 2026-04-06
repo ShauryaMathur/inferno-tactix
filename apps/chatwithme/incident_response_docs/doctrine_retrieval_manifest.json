@@ -1,0 +1,13 @@
+{
+  "source_kb": "apps/chatwithme/incident_response_docs/doctrine_kb.jsonl",
+  "chunk_count": 1385,
+  "keyword_index": "apps/chatwithme/incident_response_docs/doctrine_keyword_index.json",
+  "dense_index": {
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_dtype": "float32",
+    "vector_count": 1385,
+    "vector_dim": 384,
+    "vectors_path": "apps/chatwithme/incident_response_docs/doctrine_embeddings.npy",
+    "metadata_path": "apps/chatwithme/incident_response_docs/doctrine_embeddings.meta.jsonl"
+  }
+}

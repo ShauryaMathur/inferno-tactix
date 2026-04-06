@@ -1,0 +1,311 @@
+.container {
+  min-height: 100vh;
+  padding: 24px;
+  color: #fff;
+}
+
+.hero {
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  padding: 32px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(255, 102, 0, 0.24), transparent 38%),
+    linear-gradient(145deg, rgba(22, 22, 22, 0.96), rgba(10, 10, 10, 0.94));
+}
+
+.badge {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 102, 0, 0.16);
+  color: #ffd0bf;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 16px 0 10px;
+  font-size: clamp(2.1rem, 4vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.subtitle {
+  max-width: 840px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.7;
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.status,
+.meta {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.92rem;
+}
+
+.error {
+  margin-top: 14px;
+  color: #ffb4a6;
+}
+
+.layout {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.sidebar,
+.chatArea {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.panel {
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 10, 10, 0.84);
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #fff;
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  button {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.filePicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fileTrigger {
+  width: auto !important;
+  min-width: 160px;
+  margin-bottom: 0 !important;
+  padding: 10px 14px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 102, 0, 0.16) !important;
+  color: #ffd8c7 !important;
+  border-color: rgba(255, 102, 0, 0.24) !important;
+}
+
+.fileName {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, #ff7a1a, #ff5c00) !important;
+  color: #111 !important;
+  font-weight: 700;
+}
+
+.checkbox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 14px;
+  color: rgba(255, 255, 255, 0.82);
+
+  input {
+    width: auto;
+    margin: 0;
+  }
+}
+
+.note {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.actions button {
+  flex: 1 1 220px;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.audio {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.userMessage,
+.assistantMessage {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.userMessage {
+  background: rgba(255, 102, 0, 0.12);
+  border: 1px solid rgba(255, 102, 0, 0.22);
+}
+
+.assistantMessage {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.messageControls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.messageControlButton {
+  width: auto !important;
+  min-width: 72px;
+  max-width: 100%;
+  margin-bottom: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.messageRole {
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.messageBody,
+.summary,
+.empty {
+  margin: 0;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: pre-wrap;
+}
+
+.empty {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 16px;
+  }
+
+  .hero {
+    padding: 24px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .filePicker {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fileTrigger {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  .fileName {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}

@@ -1,7 +1,0 @@
-/node_modules
-/.idea
-/__pycache__
-/__mocks__
-.DS_Store
-/trained_agents
-/tactix-training/node_modules

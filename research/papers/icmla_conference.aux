@@ -1,0 +1,98 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand*\HyPL@Entry[1]{}
+\citation{price2004sensitivity,chuvieco2010integrated}
+\citation{gollner2020deep,zhang2022wildfire}
+\citation{rothermel1972}
+\citation{finney2004farsite}
+\HyPL@Entry{0<</S/D>>}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Wildfire Prediction}{1}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Fire Spread Simulation}{1}{subsection.2.2}\protected@file@percent }
+\citation{li2021reinforcement}
+\citation{matteo2021covid}
+\citation{julian2020wildfire}
+\citation{googlefiresat2023}
+\citation{wildfiresat2022}
+\citation{IRWIN_database}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Inferno Tactics System Architecture Overview. The integrated wildfire forecasting and prevention system contains five integrated phases: (1) acquisition of IRWIN database and GRIDMET weather data, (2) prediction of wildfire ignition using CNN-LSTM artificial neural networks, (3) simulation of RL-Based Helitack Suppression on the basis of real-world terrain and environmental data, (4) creation of Fire Threat Assessment Report with risk forecasts and strategic recommendations, and (5) web-based decision support user interface.}}{2}{figure.1}\protected@file@percent }
+\newlabel{fig:pipeline}{{1}{2}{Inferno Tactics System Architecture Overview. The integrated wildfire forecasting and prevention system contains five integrated phases: (1) acquisition of IRWIN database and GRIDMET weather data, (2) prediction of wildfire ignition using CNN-LSTM artificial neural networks, (3) simulation of RL-Based Helitack Suppression on the basis of real-world terrain and environmental data, (4) creation of Fire Threat Assessment Report with risk forecasts and strategic recommendations, and (5) web-based decision support user interface}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Reinforcement Learning for Disaster Mitigation}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}AI for Wildfire Response}{2}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Proposed Framework}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Stage 1: Data Acquisition}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-A}1}Wildfire Incident Collection and Filtering}{2}{subsubsection.3.1.1}\protected@file@percent }
+\citation{gridmet}
+\citation{ccr}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-A}2}Balancing the dataset}{3}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-A}3}Final Dataset Statistics and Validation}{3}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-A}4}Environmental Feature Augmentation}{3}{subsubsection.3.1.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Snapshot of the 9.5 million-record meteorological dataset showing the 15-feature temporal structure across the 75-day observation window.}}{3}{figure.2}\protected@file@percent }
+\newlabel{fig:dataset_snapshot}{{2}{3}{Snapshot of the 9.5 million-record meteorological dataset showing the 15-feature temporal structure across the 75-day observation window}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Stage 2: Wildfire Ignition Forecasting}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Stage 3: RL-Based Helitack Suppression}{3}{subsection.3.3}\protected@file@percent }
+\citation{concord_consortium}
+\citation{rothermel_fire_spread_eq}
+\citation{finney2004farsite}
+\citation{earth_engine}
+\citation{gridmet}
+\citation{schulman2017ppo}
+\citation{stable-baselines3}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces The architecture of the Neural Network model used for wildfire prediction}}{4}{figure.3}\protected@file@percent }
+\newlabel{fig:cnn_lstm_model}{{3}{4}{The architecture of the Neural Network model used for wildfire prediction}{figure.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}1}Custom Reinforcement Learning Environment}{4}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1a}Code Foundation}{4}{paragraph.3.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1b}Cell Structure and State Variables}{4}{paragraph.3.3.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1c}Fire Engine and Spread Modeling}{4}{paragraph.3.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1d}Fuel Models and Parameters}{4}{paragraph.3.3.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1e}Realistic Terrain and Vegetation Integration}{4}{paragraph.3.3.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1f}Gymnasium Integration and WebSocket Bridge}{4}{paragraph.3.3.1.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1g}Proximal Policy Optimization (PPO)}{4}{paragraph.3.3.1.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1h}Action Space}{4}{paragraph.3.3.1.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1i}Observation Space}{4}{paragraph.3.3.1.9}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces  Four stages of environment creation for simulation: (1) region selection using Google Earth Engine, (2) extracted land cover raster (GeoTIFF), (3) corresponding elevation map (heightmap TIFF), and (4) the final rendered simulation environment with terrain and vegetation. }}{5}{table.1}\protected@file@percent }
+\newlabel{tab:wildfire_environment_creation}{{I}{5}{Four stages of environment creation for simulation: (1) region selection using Google Earth Engine, (2) extracted land cover raster (GeoTIFF), (3) corresponding elevation map (heightmap TIFF), and (4) the final rendered simulation environment with terrain and vegetation}{table.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1j}Reward Function}{5}{paragraph.3.3.1.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1k}Feature Extractor Design: CNN + LSTM + Attention}{5}{paragraph.3.3.1.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-C}1l}Merging Other inputs}{5}{paragraph.3.3.1.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Stage 4: Fire Threat Assessment Report \& Helitack Strategy}{5}{subsection.3.4}\protected@file@percent }
+\citation{ccr}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Custom PPO Policy architecture}}{6}{figure.4}\protected@file@percent }
+\newlabel{fig:ppo_flowchart}{{4}{6}{Custom PPO Policy architecture}{figure.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Stage 5: Web Interface}{6}{subsection.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Results}{6}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Dataset Release for Future Work}{6}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Wildfire-Ignition Forecasting Results}{6}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-B}0a}Model.}{6}{paragraph.4.2.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-B}0b}Training Setup.}{6}{paragraph.4.2.0.2}\protected@file@percent }
+\citation{pyppeteer}
+\citation{apptainer}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Model Comparison}}{7}{figure.5}\protected@file@percent }
+\newlabel{fig:model_comparisons}{{5}{7}{Model Comparison}{figure.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces One-way Classification metrics on the 2023-25 hold-out set}}{7}{table.2}\protected@file@percent }
+\newlabel{tab:cls_metrics}{{II}{7}{One-way Classification metrics on the 2023-25 hold-out set}{table.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Confusion Matrix}}{7}{figure.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Helitack Suppression Performance}{7}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}0a}Training Performance.}{7}{paragraph.4.3.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}1}Training Setup}{7}{subsubsection.4.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}1a}Parallelized Environments.}{7}{paragraph.4.3.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Wildfire simulation environments used for training, with corresponding fire name, location and dates}}{7}{table.3}\protected@file@percent }
+\newlabel{tab:wildfire_envs_details}{{III}{7}{Wildfire simulation environments used for training, with corresponding fire name, location and dates}{table.3}{}}
+\newlabel{tab:wildfire-envs}{{III}{7}{Wildfire simulation environments used for training, with corresponding fire name, location and dates}{table.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}1b}HPC Deployment.}{7}{paragraph.4.3.1.2}\protected@file@percent }
+\citation{ccr}
+\bibstyle{IEEEtran}
+\bibdata{references}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}2}Helitack Agent Evaluation}{8}{subsubsection.4.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Web based Application}{8}{section.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Screenshot of the Web Application}}{8}{figure.7}\protected@file@percent }
+\newlabel{fig:web_app}{{7}{8}{Screenshot of the Web Application}{figure.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{8}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Suggested Extensions}{8}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}Stage~1 — Forecasting Enhancements}{8}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Stage~2 — Simulation and Control}{8}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Stage~3 — Reporting and Decision Support}{8}{subsection.7.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Comparison between Trained PPO Agent and Rule-Based Agent}}{9}{table.4}\protected@file@percent }
+\newlabel{tab:agent_comparison}{{IV}{9}{Comparison between Trained PPO Agent and Rule-Based Agent}{table.4}{}}
+\gdef \@abspage@last{9}
