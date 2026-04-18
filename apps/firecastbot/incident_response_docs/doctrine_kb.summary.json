@@ -1,0 +1,28 @@
+{
+  "docs_found": [
+    "RedBook_Final.pdf",
+    "cal_fire_prescribed_fire_guidebook.pdf",
+    "field_operations_guide.pdf",
+    "how_to_prepare_your_home_for_wildfires.pdf",
+    "pms461.pdf",
+    "sm_0610.pdf"
+  ],
+  "docs_expected": [
+    "RedBook_Final.pdf",
+    "cal_fire_prescribed_fire_guidebook.pdf",
+    "field_operations_guide.pdf",
+    "how_to_prepare_your_home_for_wildfires.pdf",
+    "pms461.pdf",
+    "sm_0610.pdf"
+  ],
+  "doc_count": 6,
+  "chunk_count": 1432,
+  "by_doc": {
+    "Red Book": 298,
+    "CAL FIRE Prescribed Fire Guidebook": 46,
+    "Field Operations Guide": 455,
+    "How to Prepare Your Home for Wildfires": 1,
+    "IRPG": 27,
+    "WUI Firefighting for the Structural Company Officer": 605
+  }
+}

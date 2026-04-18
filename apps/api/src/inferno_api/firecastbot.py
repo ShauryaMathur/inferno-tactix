@@ -18,18 +18,16 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from chatwithme.config import get_settings
-from chatwithme.prompts import build_summary_prompt
-from chatwithme.services.groq_service import GroqService
-from chatwithme.services.speech_service import SpeechService
+from firecastbot.config import get_settings
+from firecastbot.prompts import build_summary_prompt
+from firecastbot.services.llm_service import LLMService
+from firecastbot.services.speech_service import SpeechService
 from inferno_api.firecastbot_runtime import (
     build_grounded_prompt,
     build_runtime_incident_report,
     classify_query,
     load_doctrine_assets,
-    merge_context,
-    retrieve_chunks,
-    retrieve_fact_records,
+    retrieve_firecast_context,
 )
 
 firecastbot_bp = Blueprint("firecastbot", __name__, url_prefix="/api/firecastbot")
@@ -54,9 +52,12 @@ class FireCastBotSession:
     incident_chunks: list[dict[str, Any]] = field(default_factory=list)
     incident_embeddings: Any = None
     incident_keyword_index: dict[str, Any] | None = None
+    incident_embedding_provider: str = "sentence-transformers"
+    incident_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     conversation: list[dict[str, str]] = field(default_factory=list)
+    rolling_conversation_summary: str = ""
+    summarized_message_count: int = 0
     latest_transcript: str = ""
-    chat_summary: str = ""
     latest_query_classification: str = ""
     latest_retrieval_context: list[dict[str, Any]] = field(default_factory=list)
 
@@ -64,8 +65,8 @@ class FireCastBotSession:
 class FireCastBotManager:
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.groq_service = GroqService(self.settings)
-        doctrine_manifest = APPS_ROOT / "chatwithme" / "incident_response_docs" / "doctrine_retrieval_manifest.json"
+        self.llm_service = LLMService(self.settings)
+        doctrine_manifest = APPS_ROOT / "firecastbot" / "incident_response_docs" / "doctrine_retrieval_manifest.json"
         self.doctrine_store = load_doctrine_assets(doctrine_manifest)
         self._sessions: dict[str, FireCastBotSession] = {}
         self._lock = threading.Lock()
@@ -89,12 +90,15 @@ class FireCastBotManager:
         runtime_bundle = build_runtime_incident_report(
             uploaded_file.getvalue(),
             getattr(uploaded_file, "name", "incident_report.pdf"),
+            self.settings.embedding_provider,
             self.settings.embedding_model,
         )
         session.incident_profile = runtime_bundle["incident_profile"]
         session.incident_chunks = runtime_bundle["incident_chunks"]
         session.incident_embeddings = runtime_bundle["incident_embeddings"]
         session.incident_keyword_index = runtime_bundle["incident_keyword_index"]
+        session.incident_embedding_provider = runtime_bundle["embedding_provider"]
+        session.incident_embedding_model = runtime_bundle["embedding_model"]
         return {
             "documentsCount": len(session.incident_chunks),
             "incidentProfile": session.incident_profile,
@@ -102,12 +106,6 @@ class FireCastBotManager:
 
     def load_url(self, session_id: str, url: str) -> dict[str, Any]:
         raise ValueError("URL ingestion is no longer supported for FireCastBot incident sessions.")
-
-    def build_vector_store(self, session_id: str) -> dict[str, Any]:
-        session = self.get_session(session_id)
-        if not session.incident_chunks:
-            raise ValueError("Load an incident report before building retrieval state.")
-        return {"documentsCount": len(session.incident_chunks), "elapsedTime": 0.0}
 
     def run_query(
         self,
@@ -121,10 +119,11 @@ class FireCastBotManager:
         query_class = classify_query(query)
         context_items = self._retrieve_context(session, query, query_class)
         messages = self._build_messages(session, query, query_class, context_items)
-        reply = self.groq_service.chat_completion(messages)
+        reply = self.llm_service.chat_completion(messages)
 
         session.conversation.append({"role": "user", "content": query})
         session.conversation.append({"role": "assistant", "content": reply})
+        self._compact_conversation(session)
         session.latest_query_classification = query_class
         session.latest_retrieval_context = context_items
 
@@ -153,16 +152,6 @@ class FireCastBotManager:
             "retrievalContext": context_items,
         }
 
-    def summarize(self, session_id: str) -> str:
-        session = self.get_session(session_id)
-        messages = [
-            {"role": "system", "content": "You are excellent at summarizing chats."},
-            {"role": "user", "content": build_summary_prompt(session.conversation)},
-        ]
-        summary = self.groq_service.chat_completion(messages)
-        session.chat_summary = summary
-        return summary
-
     def transcribe(self, session_id: str, uploaded_audio: Any, provider_id: str) -> str:
         session = self.get_session(session_id)
         speech_service = SpeechService(
@@ -186,14 +175,12 @@ class FireCastBotManager:
     def _snapshot(self, session_id: str, session: FireCastBotSession) -> dict[str, Any]:
         return {
             "sessionId": session_id,
-            "documentsLoaded": bool(session.incident_chunks),
             "documentsCount": len(session.incident_chunks or []),
-            "vectorStoreReady": bool(session.incident_chunks),
             "conversation": session.conversation,
             "latestTranscript": session.latest_transcript,
-            "chatSummary": session.chat_summary,
             "incidentProfile": session.incident_profile,
             "latestQueryClassification": session.latest_query_classification,
+            "rollingConversationSummary": session.rolling_conversation_summary,
         }
 
     def _build_messages(
@@ -208,12 +195,54 @@ class FireCastBotManager:
             query_class=query_class,
             incident_profile=session.incident_profile,
             context_items=context_items,
-            conversation=session.conversation,
+            conversation_summary=session.rolling_conversation_summary,
+            recent_conversation=self._recent_conversation(session),
         )
         return [
-            {"role": "system", "content": "You are a wildfire decision-support assistant grounded in incident facts and doctrine."},
+            {
+                "role": "system",
+                "content": (
+                    "You are a wildfire decision-support assistant grounded in incident facts and doctrine. "
+                    "Be spatial-context aware: tailor guidance to the incident's geography, terrain, and stated weather. "
+                    "Be risk-context aware: use the incident's stated Overall Risk Level to calibrate urgency, caution, and safety emphasis. "
+                    "You may mention likely regional conditions when location strongly implies them, but label those as inferred context, "
+                    "not confirmed incident facts."
+                ),
+            },
             {"role": "user", "content": prompt},
         ]
+
+    def _recent_conversation(self, session: FireCastBotSession) -> list[dict[str, str]]:
+        recent_message_limit = max(self.settings.chat_recent_turn_limit, 1) * 2
+        return session.conversation[-recent_message_limit:]
+
+    def _compact_conversation(self, session: FireCastBotSession) -> None:
+        summarize_after_messages = max(self.settings.chat_summarize_after_turns, 1) * 2
+        recent_message_limit = max(self.settings.chat_recent_turn_limit, 1) * 2
+
+        if len(session.conversation) <= summarize_after_messages:
+            return
+
+        if len(session.conversation) <= recent_message_limit:
+            return
+
+        older_messages = session.conversation[:-recent_message_limit]
+        if not older_messages:
+            return
+
+        messages = [
+            {"role": "system", "content": "You create concise rolling conversation summaries."},
+            {
+                "role": "user",
+                "content": build_summary_prompt(
+                    older_messages,
+                    existing_summary=session.rolling_conversation_summary,
+                ),
+            },
+        ]
+        session.rolling_conversation_summary = self.llm_service.chat_completion(messages)
+        session.summarized_message_count += len(older_messages)
+        session.conversation = session.conversation[-recent_message_limit:]
 
     def _retrieve_context(
         self,
@@ -221,41 +250,18 @@ class FireCastBotManager:
         query: str,
         query_class: str,
     ) -> list[dict[str, Any]]:
-        incident_fact_hits: list[dict[str, Any]] = []
-        incident_chunk_hits: list[dict[str, Any]] = []
-        doctrine_hits: list[dict[str, Any]] = []
-
-        if session.incident_profile:
-            incident_fact_hits = retrieve_fact_records(query, session.incident_profile)
-
-        if session.incident_chunks and session.incident_keyword_index is not None and session.incident_embeddings is not None:
-            incident_chunk_hits = retrieve_chunks(
-                query,
-                chunks=session.incident_chunks,
-                embeddings=session.incident_embeddings,
-                keyword_index=session.incident_keyword_index,
-                model_name=self.settings.embedding_model,
-                limit=self.settings.retrieval_k,
-            )
-
-        doctrine_hits = retrieve_chunks(
+        return retrieve_firecast_context(
             query,
-            chunks=self.doctrine_store["chunks"],
-            embeddings=self.doctrine_store["embeddings"],
-            keyword_index=self.doctrine_store["keyword_index"],
-            model_name=self.settings.embedding_model,
-            limit=self.settings.retrieval_k,
+            query_class=query_class,
+            retrieval_k=self.settings.retrieval_k,
+            incident_profile=session.incident_profile,
+            incident_chunks=session.incident_chunks,
+            incident_embeddings=session.incident_embeddings,
+            incident_keyword_index=session.incident_keyword_index,
+            incident_embedding_provider=session.incident_embedding_provider,
+            incident_embedding_model=session.incident_embedding_model,
+            doctrine_store=self.doctrine_store,
         )
-
-        if query_class == "incident-fact":
-            return merge_context(incident_fact_hits, incident_chunk_hits)
-        if query_class == "doctrine":
-            return merge_context(doctrine_hits)
-        if query_class in {"incident+doctrine synthesis", "safety-critical"}:
-            return merge_context(incident_fact_hits, incident_chunk_hits, doctrine_hits)
-        if session.incident_profile:
-            return merge_context(incident_fact_hits, incident_chunk_hits, doctrine_hits[:2])
-        return merge_context(doctrine_hits)
 
 
 _manager: FireCastBotManager | None = None
@@ -300,6 +306,10 @@ def firecastbot_config():
     provider_ids = list(SpeechService.provider_options().keys())
     return jsonify(
         {
+            "defaultLlmProvider": settings.llm_provider,
+            "defaultLlmModel": settings.llm_model,
+            "defaultEmbeddingProvider": settings.embedding_provider,
+            "defaultEmbeddingModel": settings.embedding_model,
             "defaultSpeechToTextProvider": settings.speech_to_text_provider,
             "defaultTextToSpeechProvider": settings.text_to_speech_provider,
             "providers": [_provider_status(provider_id) for provider_id in provider_ids],
@@ -318,6 +328,21 @@ def firecastbot_create_session():
 def firecastbot_get_session(session_id: str):
     try:
         return jsonify(get_manager().session_snapshot(session_id))
+    except KeyError as exc:
+        return jsonify({"error": str(exc)}), 404
+
+
+@firecastbot_bp.get("/sessions/<session_id>/debug-profile")
+def firecastbot_debug_profile(session_id: str):
+    try:
+        session = get_manager().get_session(session_id)
+        return jsonify(
+            {
+                "sessionId": session_id,
+                "incidentProfile": session.incident_profile,
+                "documentsCount": len(session.incident_chunks or []),
+            }
+        )
     except KeyError as exc:
         return jsonify({"error": str(exc)}), 404
 
@@ -356,23 +381,6 @@ def firecastbot_load_url():
         return jsonify({"error": str(exc)}), 500
 
 
-@firecastbot_bp.post("/vector-store")
-def firecastbot_build_vector_store():
-    data = request.get_json(silent=True) or {}
-    session_id = str(data.get("session_id", ""))
-    if not session_id:
-        return jsonify({"error": "session_id is required."}), 400
-    try:
-        payload = get_manager().build_vector_store(session_id)
-        return jsonify({**get_manager().session_snapshot(session_id), **payload})
-    except KeyError as exc:
-        return jsonify({"error": str(exc)}), 404
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
 @firecastbot_bp.post("/query")
 def firecastbot_query():
     data = request.get_json(silent=True) or {}
@@ -392,21 +400,6 @@ def firecastbot_query():
             text_to_speech_provider_id=text_to_speech_provider_id,
         )
         return jsonify({**get_manager().session_snapshot(session_id), **payload})
-    except KeyError as exc:
-        return jsonify({"error": str(exc)}), 404
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
-@firecastbot_bp.post("/summary")
-def firecastbot_summary():
-    data = request.get_json(silent=True) or {}
-    session_id = str(data.get("session_id", ""))
-    if not session_id:
-        return jsonify({"error": "session_id is required."}), 400
-    try:
-        summary = get_manager().summarize(session_id)
-        return jsonify({**get_manager().session_snapshot(session_id), "summary": summary})
     except KeyError as exc:
         return jsonify({"error": str(exc)}), 404
     except Exception as exc:

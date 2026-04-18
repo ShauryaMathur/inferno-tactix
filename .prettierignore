@@ -1,0 +1,8 @@
+apps/web/dist
+apps/web/node_modules
+data
+apps/chatwithme/incident_response_docs/*.jsonl
+apps/chatwithme/incident_response_docs/*.npy
+apps/chatwithme/incident_response_docs/*.pdf
+apps/api/evals/rag_model_compare.json
+apps/api/evals/rag_model_compare.csv

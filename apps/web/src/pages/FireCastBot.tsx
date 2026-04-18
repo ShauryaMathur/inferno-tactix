@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
+import { ArrowUp, Settings } from "lucide-react";
 import { API_BASE_URL } from "../env";
 import styles from "./firecastbot.module.scss";
 
@@ -27,12 +28,9 @@ type ConversationEntry = {
 
 type SessionSnapshot = {
   sessionId: string;
-  documentsLoaded: boolean;
   documentsCount: number;
-  vectorStoreReady: boolean;
   conversation: ConversationEntry[];
   latestTranscript: string;
-  chatSummary: string;
   latestQueryClassification?: string;
 };
 
@@ -41,15 +39,144 @@ const SESSION_STORAGE_KEY = "firecastbot-session-id";
 const getSpeechRecognition = () =>
   (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
+const isUnknownSessionError = (exc: any) =>
+  exc?.response?.status === 404 &&
+  typeof exc?.response?.data?.error === "string" &&
+  exc.response.data.error.includes("Unknown FireCastBot session");
+
+const renderInlineMarkdown = (text: string): React.ReactNode[] => {
+  const nodes: React.ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[2] && match[3]) {
+      nodes.push(
+        <a
+          key={`${match.index}-link`}
+          href={match[3]}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {match[2]}
+        </a>,
+      );
+    } else if (match[4]) {
+      nodes.push(<code key={`${match.index}-code`}>{match[4]}</code>);
+    } else if (match[5]) {
+      nodes.push(<strong key={`${match.index}-strong`}>{match[5]}</strong>);
+    } else if (match[6]) {
+      nodes.push(<em key={`${match.index}-em`}>{match[6]}</em>);
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+};
+
+const renderMarkdown = (text: string) => {
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("```")) {
+      const codeLines: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].trim().startsWith("```")) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      if (index < lines.length) {
+        index += 1;
+      }
+      blocks.push(
+        <pre key={`code-${blocks.length}`} className={styles.markdownCodeBlock}>
+          <code>{codeLines.join("\n")}</code>
+        </pre>,
+      );
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
+      const content = renderInlineMarkdown(headingMatch[2]);
+      const key = `heading-${blocks.length}`;
+      if (headingMatch[1].length === 1) {
+        blocks.push(<h1 key={key}>{content}</h1>);
+      } else if (headingMatch[1].length === 2) {
+        blocks.push(<h2 key={key}>{content}</h2>);
+      } else {
+        blocks.push(<h3 key={key}>{content}</h3>);
+      }
+      index += 1;
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(trimmed)) {
+      const items: React.ReactNode[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        items.push(<li key={`bullet-${index}`}>{renderInlineMarkdown(lines[index].trim().replace(/^[-*]\s+/, ""))}</li>);
+        index += 1;
+      }
+      blocks.push(<ul key={`ul-${blocks.length}`}>{items}</ul>);
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: React.ReactNode[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
+        items.push(<li key={`ordered-${index}`}>{renderInlineMarkdown(lines[index].trim().replace(/^\d+\.\s+/, ""))}</li>);
+        index += 1;
+      }
+      blocks.push(<ol key={`ol-${blocks.length}`}>{items}</ol>);
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (index < lines.length) {
+      const current = lines[index].trim();
+      if (!current || current.startsWith("```") || /^(#{1,3})\s+/.test(current) || /^[-*]\s+/.test(current) || /^\d+\.\s+/.test(current)) {
+        break;
+      }
+      paragraphLines.push(current);
+      index += 1;
+    }
+    blocks.push(
+      <p key={`paragraph-${blocks.length}`}>
+        {renderInlineMarkdown(paragraphLines.join(" "))}
+      </p>,
+    );
+  }
+
+  return blocks;
+};
+
 export default function FireCastBot() {
   const [config, setConfig] = useState<FireCastBotConfig | null>(null);
   const [sessionId, setSessionId] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-  const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [documentsCount, setDocumentsCount] = useState(0);
-  const [vectorStoreReady, setVectorStoreReady] = useState(false);
   const [latestTranscript, setLatestTranscript] = useState("");
-  const [chatSummary, setChatSummary] = useState("");
   const [latestQueryClassification, setLatestQueryClassification] = useState("");
   const [queryInput, setQueryInput] = useState("");
   const [speechToTextProviderId, setSpeechToTextProviderId] = useState("");
@@ -64,6 +191,7 @@ export default function FireCastBot() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Connecting FireCastBot...");
   const [isBusy, setIsBusy] = useState(false);
+  const [showSpeechSettings, setShowSpeechSettings] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const audioInputRef = useRef<HTMLInputElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -77,9 +205,10 @@ export default function FireCastBot() {
           axios.get<FireCastBotConfig>(`${API_BASE_URL}/api/firecastbot/config`),
           createOrResumeSession(),
         ]);
+        const browserProviderId = botConfig.providers.find(provider => provider.id === "browser")?.id;
         setConfig(botConfig);
-        setSpeechToTextProviderId(botConfig.defaultSpeechToTextProvider);
-        setTextToSpeechProviderId(botConfig.defaultTextToSpeechProvider);
+        setSpeechToTextProviderId(browserProviderId || botConfig.defaultSpeechToTextProvider);
+        setTextToSpeechProviderId(browserProviderId || botConfig.defaultTextToSpeechProvider);
         applySnapshot(sessionResponse.data);
         setStatus("FireCastBot ready.");
       } catch (exc: any) {
@@ -122,14 +251,29 @@ export default function FireCastBot() {
     return created;
   };
 
+  const createFreshSession = async () => {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    const created = await axios.post<SessionSnapshot>(`${API_BASE_URL}/api/firecastbot/sessions`);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, created.data.sessionId);
+    applySnapshot(created.data);
+    return created.data.sessionId;
+  };
+
+  const withSessionRetry = async <T,>(task: (activeSessionId: string) => Promise<T>) => {
+    try {
+      return await task(sessionId);
+    } catch (exc: any) {
+      if (!isUnknownSessionError(exc)) throw exc;
+      const freshSessionId = await createFreshSession();
+      return await task(freshSessionId);
+    }
+  };
+
   const applySnapshot = (snapshot: SessionSnapshot) => {
     setSessionId(snapshot.sessionId);
     setConversation(snapshot.conversation);
-    setDocumentsLoaded(snapshot.documentsLoaded);
     setDocumentsCount(snapshot.documentsCount);
-    setVectorStoreReady(snapshot.vectorStoreReady);
     setLatestTranscript(snapshot.latestTranscript);
-    setChatSummary(snapshot.chatSummary);
     setLatestQueryClassification(snapshot.latestQueryClassification || "");
   };
 
@@ -240,24 +384,14 @@ export default function FireCastBot() {
     if (!file || !sessionId) return;
     await runTask(async () => {
       setStatus("Loading PDF...");
-      const formData = new FormData();
-      formData.append("session_id", sessionId);
-      formData.append("file", file);
-      const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/documents/pdf`, formData);
-      applySnapshot(data);
-      setStatus(`Incident report parsed into ${data.documentsCount} runtime chunks.`);
-    });
-  };
-
-  const createVectorStore = async () => {
-    if (!sessionId) return;
-    await runTask(async () => {
-      setStatus("Refreshing incident retrieval state...");
-      const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/vector-store`, {
-        session_id: sessionId,
+      const { data } = await withSessionRetry(activeSessionId => {
+        const formData = new FormData();
+        formData.append("session_id", activeSessionId);
+        formData.append("file", file);
+        return axios.post(`${API_BASE_URL}/api/firecastbot/documents/pdf`, formData);
       });
       applySnapshot(data);
-      setStatus(`Incident retrieval state ready over ${data.documentsCount} chunks.`);
+      setStatus(`Incident report parsed into ${data.documentsCount} runtime chunks.`);
     });
   };
 
@@ -267,12 +401,12 @@ export default function FireCastBot() {
       setStatus("Generating response...");
       const query = queryInput.trim();
       setQueryInput("");
-      const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
-        session_id: sessionId,
+      const { data } = await withSessionRetry(activeSessionId => axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
+        session_id: activeSessionId,
         query,
         speak_responses: speakResponses,
         text_to_speech_provider_id: textToSpeechProviderId,
-      });
+      }));
       applySnapshot(data);
       const reply = data.reply as string;
       const latestAssistantIndex = Array.isArray(data.conversation) ? data.conversation.length - 1 : conversation.length + 1;
@@ -289,28 +423,18 @@ export default function FireCastBot() {
     });
   };
 
-  const summarizeConversation = async () => {
-    if (!sessionId) return;
-    await runTask(async () => {
-      setStatus("Generating summary...");
-      const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/summary`, {
-        session_id: sessionId,
-      });
-      applySnapshot(data);
-      setStatus("Summary ready.");
-    });
-  };
-
   const transcribeAudio = async () => {
     const file = audioInputRef.current?.files?.[0];
     if (!file || !sessionId) return;
     await runTask(async () => {
       setStatus("Transcribing audio...");
-      const formData = new FormData();
-      formData.append("session_id", sessionId);
-      formData.append("speech_to_text_provider_id", speechToTextProviderId);
-      formData.append("file", file);
-      const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/transcribe`, formData);
+      const { data } = await withSessionRetry(activeSessionId => {
+        const formData = new FormData();
+        formData.append("session_id", activeSessionId);
+        formData.append("speech_to_text_provider_id", speechToTextProviderId);
+        formData.append("file", file);
+        return axios.post(`${API_BASE_URL}/api/firecastbot/transcribe`, formData);
+      });
       applySnapshot(data);
       setQueryInput(data.transcript || "");
       setStatus("Transcript added to the question box.");
@@ -348,23 +472,107 @@ export default function FireCastBot() {
   const selectedSttProvider = getSelectedProvider(speechToTextProviderId);
   const selectedTtsProvider = getSelectedProvider(textToSpeechProviderId);
   const showBrowserSpeechControls = selectedTtsProvider?.outputMode === "browser";
+  const canSubmitQuery = !isBusy && !!queryInput.trim();
+  const isBotReady = status === "FireCastBot ready.";
 
   return (
     <div className={styles.container}>
       <section className={styles.hero}>
-        <div className={styles.badge}>FireCastBot</div>
+        <div className={styles.heroSettings}>
+          <div className={styles.settingsPanel}>
+            <button
+              type="button"
+              className={styles.settingsButton}
+              onClick={() => setShowSpeechSettings((open) => !open)}
+              aria-expanded={showSpeechSettings}
+              aria-label="Toggle speech settings"
+            >
+              <Settings size={16} />
+            </button>
+
+            {showSpeechSettings && (
+              <div className={styles.settingsDropdown}>
+                <label className={styles.fieldLabel}>Speech to text</label>
+                <select
+                  value={speechToTextProviderId}
+                  onChange={(event) => setSpeechToTextProviderId(event.target.value)}
+                >
+                  {config?.providers.map(provider => (
+                    <option key={provider.id} value={provider.id}>{provider.label}</option>
+                  ))}
+                </select>
+
+                <label className={styles.fieldLabel}>Text to speech</label>
+                <select
+                  value={textToSpeechProviderId}
+                  onChange={(event) => setTextToSpeechProviderId(event.target.value)}
+                >
+                  {config?.providers.map(provider => (
+                    <option key={provider.id} value={provider.id}>{provider.label}</option>
+                  ))}
+                </select>
+
+                <label className={styles.checkbox}>
+                  <input
+                    type="checkbox"
+                    checked={speakResponses}
+                    onChange={(event) => setSpeakResponses(event.target.checked)}
+                  />
+                  Read responses aloud
+                </label>
+
+                {selectedSttProvider?.inputMode === "upload" && (
+                  <>
+                    <input
+                      ref={audioInputRef}
+                      className={styles.hiddenInput}
+                      type="file"
+                      accept="audio/*"
+                      onChange={(event) => setSelectedAudioName(event.target.files?.[0]?.name || "")}
+                    />
+                    <div className={styles.filePicker}>
+                      <button
+                        type="button"
+                        className={styles.fileTrigger}
+                        onClick={() => audioInputRef.current?.click()}
+                      >
+                        Choose Audio
+                      </button>
+                      <div className={styles.fileName}>
+                        {selectedAudioName || "No audio selected"}
+                      </div>
+                    </div>
+                    <button onClick={transcribeAudio} disabled={isBusy || !sessionId}>
+                      Transcribe Audio
+                    </button>
+                  </>
+                )}
+
+                {selectedSttProvider?.inputMode === "browser" && (
+                  <button onClick={startBrowserListening} disabled={isBusy}>
+                    Start Browser Listening
+                  </button>
+                )}
+
+                {selectedSttProvider?.transcriptionUnavailableReason && !selectedSttProvider.transcriptionAvailable && (
+                  <p className={styles.note}>{selectedSttProvider.transcriptionUnavailableReason}</p>
+                )}
+                {selectedTtsProvider?.synthesisUnavailableReason && !selectedTtsProvider.synthesisAvailable && (
+                  <p className={styles.note}>{selectedTtsProvider.synthesisUnavailableReason}</p>
+                )}
+                {latestTranscript && <p className={styles.note}>Latest transcript: {latestTranscript}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className={styles.badge}>
+          <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ""}`} />
+          <span>FIRECASTBOT</span>
+        </div>
         <h1 className={styles.title}>Ask FireCastBot</h1>
         <p className={styles.subtitle}>
           Upload an incident report, extract structured facts, and query it alongside doctrine and safety references without leaving FireCastRL.
         </p>
-        <div className={styles.statusRow}>
-          <span className={styles.status}>{status}</span>
-          {documentsLoaded && (
-            <span className={styles.meta}>
-              {documentsCount} chunks loaded {vectorStoreReady ? "• vector store ready" : "• vector store pending"}
-            </span>
-          )}
-        </div>
         {error && <p className={styles.error}>{error}</p>}
       </section>
 
@@ -386,136 +594,18 @@ export default function FireCastBot() {
                 className={styles.fileTrigger}
                 onClick={() => pdfInputRef.current?.click()}
               >
-                Choose Incident PDF
+                Upload Incident PDF
               </button>
               <div className={styles.fileName}>
                 {selectedPdfName || "No file selected"}
               </div>
             </div>
             <button onClick={uploadPdf} disabled={isBusy || !sessionId}>Ingest Report</button>
-
-            <button
-              className={styles.primaryButton}
-              onClick={createVectorStore}
-              disabled={isBusy || !documentsLoaded}
-            >
-              Refresh Runtime Index
-            </button>
           </div>
 
-          {/* <div className={styles.panel}>
-            <h2>Incident Profile</h2>
-            {!incidentProfile && <p className={styles.empty}>No incident profile extracted yet.</p>}
-            {incidentProfile && (
-              <div className={styles.summary}>
-                {Object.entries(incidentProfile.facts)
-                  .filter(([, value]) => Boolean(value))
-                  .map(([key, value]) => (
-                    <p key={key}>
-                      <strong>{key.replaceAll("_", " ")}:</strong> {value}
-                    </p>
-                  ))}
-              </div>
-            )}
-          </div> */}
-
-          <div className={styles.panel}>
-            <h2>Speech</h2>
-            <label className={styles.fieldLabel}>Speech to text</label>
-            <select
-              value={speechToTextProviderId}
-              onChange={(event) => setSpeechToTextProviderId(event.target.value)}
-            >
-              {config?.providers.map(provider => (
-                <option key={provider.id} value={provider.id}>{provider.label}</option>
-              ))}
-            </select>
-
-            <label className={styles.fieldLabel}>Text to speech</label>
-            <select
-              value={textToSpeechProviderId}
-              onChange={(event) => setTextToSpeechProviderId(event.target.value)}
-            >
-              {config?.providers.map(provider => (
-                <option key={provider.id} value={provider.id}>{provider.label}</option>
-              ))}
-            </select>
-
-            <label className={styles.checkbox}>
-              <input
-                type="checkbox"
-                checked={speakResponses}
-                onChange={(event) => setSpeakResponses(event.target.checked)}
-              />
-              Read responses aloud
-            </label>
-
-            {selectedSttProvider?.inputMode === "upload" && (
-              <>
-                <input
-                  ref={audioInputRef}
-                  className={styles.hiddenInput}
-                  type="file"
-                  accept="audio/*"
-                  onChange={(event) => setSelectedAudioName(event.target.files?.[0]?.name || "")}
-                />
-                <div className={styles.filePicker}>
-                  <button
-                    type="button"
-                    className={styles.fileTrigger}
-                    onClick={() => audioInputRef.current?.click()}
-                  >
-                    Choose Audio
-                  </button>
-                  <div className={styles.fileName}>
-                    {selectedAudioName || "No audio selected"}
-                  </div>
-                </div>
-                <button onClick={transcribeAudio} disabled={isBusy || !sessionId}>
-                  Transcribe Audio
-                </button>
-              </>
-            )}
-
-            {selectedSttProvider?.inputMode === "browser" && (
-              <button onClick={startBrowserListening} disabled={isBusy}>
-                Start Browser Listening
-              </button>
-            )}
-
-            {selectedSttProvider?.transcriptionUnavailableReason && !selectedSttProvider.transcriptionAvailable && (
-              <p className={styles.note}>{selectedSttProvider.transcriptionUnavailableReason}</p>
-            )}
-            {selectedTtsProvider?.synthesisUnavailableReason && !selectedTtsProvider.synthesisAvailable && (
-              <p className={styles.note}>{selectedTtsProvider.synthesisUnavailableReason}</p>
-            )}
-            {latestTranscript && <p className={styles.note}>Latest transcript: {latestTranscript}</p>}
-          </div>
         </aside>
 
         <section className={styles.chatArea}>
-          <div className={styles.panel}>
-            <h2>Chat</h2>
-            <textarea
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Ask about incident facts, doctrine, or strategy grounded in both..."
-              rows={5}
-            />
-            <div className={styles.actions}>
-              <button className={styles.primaryButton} onClick={submitQuery} disabled={isBusy || !queryInput.trim()}>
-                Submit
-              </button>
-              <button onClick={summarizeConversation} disabled={isBusy || conversation.length === 0}>
-                Generate Summary
-              </button>
-            </div>
-            {latestQueryClassification && (
-              <p className={styles.note}>Latest query class: {latestQueryClassification}</p>
-            )}
-            {audioSrc && <audio className={styles.audio} controls src={audioSrc} />}
-          </div>
-
           <div className={styles.panel}>
             <h2>Conversation</h2>
             <div className={styles.messages}>
@@ -526,7 +616,9 @@ export default function FireCastBot() {
                   className={entry.role === "assistant" ? styles.assistantMessage : styles.userMessage}
                 >
                   <div className={styles.messageRole}>{entry.role}</div>
-                  <div className={styles.messageBody}>{entry.content}</div>
+                  <div className={styles.messageBody}>
+                    {entry.role === "assistant" ? renderMarkdown(entry.content) : entry.content}
+                  </div>
                   {entry.role === "assistant" && showBrowserSpeechControls && (
                     <div className={styles.messageControls}>
                       <button
@@ -558,9 +650,37 @@ export default function FireCastBot() {
             </div>
           </div>
 
-          <div className={styles.panel}>
-            <h2>Summary</h2>
-            {chatSummary ? <p className={styles.summary}>{chatSummary}</p> : <p className={styles.empty}>No summary yet.</p>}
+          <div className={`${styles.panel} ${styles.stickyComposer}`}>
+            <h2>Chat</h2>
+            <div className={styles.composerInputWrap}>
+              <textarea
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    if (canSubmitQuery) {
+                      void submitQuery();
+                    }
+                  }
+                }}
+                placeholder="Ask about incident facts, doctrine, or strategy grounded in both..."
+                rows={5}
+              />
+              <button
+                type="button"
+                className={styles.sendButton}
+                onClick={submitQuery}
+                disabled={!canSubmitQuery}
+                aria-label="Submit message"
+              >
+                <ArrowUp size={16} />
+              </button>
+            </div>
+            {latestQueryClassification && (
+              <p className={styles.note}>Latest query class: {latestQueryClassification}</p>
+            )}
+            {audioSrc && <audio className={styles.audio} controls src={audioSrc} />}
           </div>
         </section>
       </div>

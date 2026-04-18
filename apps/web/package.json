@@ -41,6 +41,8 @@
     "build": "npm-run-all clean build:webpack",
     "build:webpack": "webpack --mode production --devtool false",
     "clean": "rimraf dist",
+    "format": "npx prettier --write \"src/**/*.{js,jsx,ts,tsx,scss,css,json}\"",
+    "format:check": "npx prettier --check \"src/**/*.{js,jsx,ts,tsx,scss,css,json}\"",
     "lint": "eslint \"./src/**/*.{js,jsx,ts,tsx}\"",
     "lint:build": "eslint -c \".eslintrc.build.js\" \"./src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"./src/**/*.{js,jsx,ts,tsx}\"",

@@ -1,0 +1,30 @@
+[
+  {
+    "label": "GLM 4.5 Air Free",
+    "provider": "openrouter",
+    "model": "z-ai/glm-4.5-air:free",
+    "temperature": 0.2,
+    "max_tokens": 900
+  },
+  {
+    "label": "Nemotron 3 Super Free",
+    "provider": "openrouter",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "temperature": 0.2,
+    "max_tokens": 900
+  },
+  {
+    "label": "GPT OSS 120B Free",
+    "provider": "openrouter",
+    "model": "openai/gpt-oss-120b:free",
+    "temperature": 0.2,
+    "max_tokens": 900
+  },
+  {
+    "label": "Nemotron 3 Nano 30B Free",
+    "provider": "openrouter",
+    "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+    "temperature": 0.2,
+    "max_tokens": 900
+  }
+]

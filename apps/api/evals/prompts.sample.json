@@ -1,0 +1,23 @@
+[
+  {
+    "id": "incident_resources",
+    "query": "What resources are assigned to this incident?",
+    "expected_contains": ["resources", "incident report"],
+    "rubric": "Answer should stay grounded in the incident report and avoid invented resource types.",
+    "reference_answer": "The answer should describe assigned resources only if they are present in the uploaded incident report."
+  },
+  {
+    "id": "doctrine_watch_out",
+    "query": "What are the watch out situations according to doctrine?",
+    "expected_contains": ["doctrine", "watch out"],
+    "rubric": "Answer should cite doctrine and not drift into incident-specific speculation.",
+    "reference_answer": "The answer should summarize watch out situations from doctrine, ideally naming the doctrine source."
+  },
+  {
+    "id": "strategy_synthesis",
+    "query": "What containment strategy makes sense here?",
+    "expected_contains": ["incident-grounded facts", "doctrine-grounded guidance", "suggested interpretation"],
+    "rubric": "Answer should use the 3-part synthesis format and remain advisory rather than issuing unsupported commands.",
+    "reference_answer": "The answer should combine incident facts and doctrine guidance into a cautious interpretation."
+  }
+]

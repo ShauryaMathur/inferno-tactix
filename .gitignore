@@ -12,6 +12,11 @@ __pycache__/
 *.tar
 *.gz
 *.tif
+*.pdf
+*.pkl
+*.pt
+*.pth
+*.npy
 
 tb-env/
 
@@ -27,6 +32,9 @@ apps/web/test-results/
 
 apps/api/backend/__pycache__/
 apps/api/config/ee-service-account.json
+apps/api/evals/rag_model_compare.json
+apps/api/evals/rag_model_compare.csv
+apps/api/evals/rag_model_compare.txt
 
 apps/simulator/simulator/__pycache__/
 apps/simulator/simulator/tb-env/
@@ -36,7 +44,12 @@ apps/simulator/simulator/metrics_episode_*.json
 
 apps/headless-client/train-headless/screenshots/
 
-apps/chatwithme/incident_response_docs/*.pdf
+apps/api/models/
+
+# Allow prepared knowledge base files even if extensions are globally ignored
+!apps/firecastbot/incident_response_docs/*.jsonl
+!apps/firecastbot/incident_response_docs/*.json
+!apps/firecastbot/incident_response_docs/*.npy
 
 data/generated/
 data/analytics/

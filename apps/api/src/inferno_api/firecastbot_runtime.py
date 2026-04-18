@@ -13,9 +13,12 @@ from typing import Any
 
 import numpy as np
 from pypdf import PdfReader
+from firecastbot.config import Settings
+from firecastbot.services.embedder_service import EmbedderService, prepare_query_texts
 
 os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9+/#.&'-]*")
 
@@ -34,6 +37,10 @@ SECTION_ALIASES = {
         "fire behavior",
         "current conditions",
         "situation update",
+        "environmental & fire behavior inputs",
+        "environmental and fire behavior inputs",
+        "derived fire behavior metrics",
+        "derived fire behavior metrics simulated",
     ),
     "Weather": ("weather", "forecast", "fire weather", "current weather"),
     "Resources": ("resources", "assigned resources", "organization", "resource summary"),
@@ -52,6 +59,8 @@ SECTION_ALIASES = {
         "tactics",
         "operations",
         "planned actions",
+        "rl agent recommendation",
+        "operational implications",
     ),
     "Command Structure": ("command structure", "command", "organization assignment", "ics organization"),
     "Values at Risk": ("values at risk", "values threatened", "exposures", "assets at risk"),
@@ -62,7 +71,8 @@ SECTION_ALIASES = {
 FACT_FIELD_ALIASES = {
     "incident_name": ("incident name", "fire name", "incident"),
     "operational_period": ("operational period", "op period", "shift", "period"),
-    "location": ("location", "jurisdiction", "unit", "division", "branch"),
+    "location": ("location", "region", "jurisdiction", "unit", "division", "branch"),
+    "overall_risk_level": ("overall risk level", "overall_risk_level", "risk level", "incident risk level"),
     "current_fire_behavior": ("current fire behavior", "fire behavior", "situation", "current situation"),
     "containment": ("containment", "percent contained", "% contained"),
     "weather": ("weather", "forecast", "wind", "relative humidity", "humidity"),
@@ -80,6 +90,7 @@ FACT_OUTPUT_LABELS = {
     "incident_name": "Incident Name",
     "operational_period": "Operational Period",
     "location": "Location",
+    "overall_risk_level": "Overall Risk Level",
     "current_fire_behavior": "Current Fire Behavior",
     "containment": "Containment",
     "weather": "Weather",
@@ -191,14 +202,58 @@ def split_into_semantic_blocks(text: str, max_chars: int = 1800) -> list[str]:
     chunks: list[str] = []
     current = ""
     for paragraph in paragraphs:
-        if not current:
-            current = paragraph
+        if len(paragraph) > max_chars:
+            oversized_parts = _split_oversized_block(paragraph, max_chars=max_chars)
+        else:
+            oversized_parts = [paragraph]
+        for part in oversized_parts:
+            if not current:
+                current = part
+                continue
+            if len(current) + 2 + len(part) <= max_chars:
+                current = f"{current}\n\n{part}"
+                continue
+            chunks.append(current)
+            current = part
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _split_oversized_block(text: str, max_chars: int) -> list[str]:
+    raw_lines = [normalize_whitespace(line) for line in text.splitlines() if normalize_whitespace(line)]
+    if len(raw_lines) > 1:
+        return _pack_segments(raw_lines, max_chars=max_chars)
+
+    sentence_parts = [
+        normalize_whitespace(part)
+        for part in re.split(r"(?<=[.!?])\s+", text)
+        if normalize_whitespace(part)
+    ]
+    if len(sentence_parts) > 1:
+        return _pack_segments(sentence_parts, max_chars=max_chars)
+
+    return [text[i : i + max_chars] for i in range(0, len(text), max_chars)]
+
+
+def _pack_segments(parts: list[str], max_chars: int) -> list[str]:
+    chunks: list[str] = []
+    current = ""
+    for part in parts:
+        if len(part) > max_chars:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend([part[i : i + max_chars] for i in range(0, len(part), max_chars)])
             continue
-        if len(current) + 2 + len(paragraph) <= max_chars:
-            current = f"{current}\n\n{paragraph}"
+        if not current:
+            current = part
+            continue
+        if len(current) + 1 + len(part) <= max_chars:
+            current = f"{current}\n{part}"
             continue
         chunks.append(current)
-        current = paragraph
+        current = part
     if current:
         chunks.append(current)
     return chunks
@@ -271,6 +326,19 @@ def _search_label_value(text: str, labels: tuple[str, ...]) -> str:
     return ""
 
 
+def _search_adjacent_label_value(text: str, labels: tuple[str, ...]) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for index, line in enumerate(lines[:-1]):
+        lowered = line.casefold()
+        for label in labels:
+            if lowered == label or lowered.startswith(f"{label}:") or lowered.startswith(f"{label} -"):
+                candidate = normalize_whitespace(lines[index + 1])
+                candidate_lower = candidate.casefold()
+                if candidate_lower not in {"value", "field", "parameter", "metric"}:
+                    return candidate
+    return ""
+
+
 def _section_text(section_map: dict[str, str], *section_names: str) -> str:
     for name in section_names:
         text = section_map.get(name, "")
@@ -287,8 +355,13 @@ def build_incident_profile(
     report_timestamp: str,
 ) -> dict[str, Any]:
     incident_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or Path(filename).stem.replace("_", " ")
-    operational_period = _search_label_value(full_text, FACT_FIELD_ALIASES["operational_period"])
-    location = _search_label_value(full_text, FACT_FIELD_ALIASES["location"]) or _section_text(section_map, "Incident Overview")
+    operational_period = _search_label_value(full_text, FACT_FIELD_ALIASES["operational_period"]) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["operational_period"])
+    location = (
+        _search_label_value(full_text, FACT_FIELD_ALIASES["location"])
+        or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["location"])
+        or _section_text(section_map, "Incident Overview")
+    )
+    overall_risk_level = _search_label_value(full_text, FACT_FIELD_ALIASES["overall_risk_level"]) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["overall_risk_level"])
     containment = _search_label_value(full_text, FACT_FIELD_ALIASES["containment"])
     weather = _section_text(section_map, "Weather") or _search_label_value(full_text, FACT_FIELD_ALIASES["weather"])
     current_fire_behavior = _section_text(section_map, "Current Situation") or _search_label_value(full_text, FACT_FIELD_ALIASES["current_fire_behavior"])
@@ -313,6 +386,7 @@ def build_incident_profile(
             "incident_name": incident_name,
             "operational_period": operational_period,
             "location": location,
+            "overall_risk_level": overall_risk_level,
             "current_fire_behavior": current_fire_behavior,
             "containment": containment,
             "weather": weather,
@@ -328,24 +402,19 @@ def build_incident_profile(
     }
 
 
-@lru_cache(maxsize=2)
-def get_embedding_model(model_name: str):
-    from sentence_transformers import SentenceTransformer
+@lru_cache(maxsize=8)
+def _embedder_service(provider: str, model_name: str) -> EmbedderService:
+    settings = Settings(
+        embedding_provider=provider,
+        embedding_model=model_name,
+    )
+    return EmbedderService(settings, provider=provider, model=model_name)
 
-    return SentenceTransformer(model_name)
 
-
-def embed_texts(texts: list[str], model_name: str) -> np.ndarray:
+def embed_texts(texts: list[str], provider: str, model_name: str) -> np.ndarray:
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
-    model = get_embedding_model(model_name)
-    vectors = model.encode(
-        texts,
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
-    return vectors.astype(np.float32)
+    return _embedder_service(provider, model_name).embed_texts(texts)
 
 
 def build_keyword_index(chunks: list[dict[str, Any]]) -> dict[str, Any]:
@@ -400,10 +469,17 @@ def keyword_scores(query: str, keyword_index: dict[str, Any]) -> dict[str, float
     return dict(scores)
 
 
-def semantic_scores(query: str, embeddings: np.ndarray, chunks: list[dict[str, Any]], model_name: str) -> dict[str, float]:
+def semantic_scores(
+    query: str,
+    embeddings: np.ndarray,
+    chunks: list[dict[str, Any]],
+    embedding_provider: str,
+    model_name: str,
+) -> dict[str, float]:
     if embeddings.size == 0 or not chunks:
         return {}
-    query_embedding = embed_texts([query], model_name)
+    query_text = prepare_query_texts([query], model_name)[0]
+    query_embedding = embed_texts([query_text], embedding_provider, model_name)
     similarities = embeddings @ query_embedding[0]
     return {str(chunk["chunk_id"]): float(score) for chunk, score in zip(chunks, similarities, strict=False)}
 
@@ -446,11 +522,12 @@ def retrieve_chunks(
     chunks: list[dict[str, Any]],
     embeddings: np.ndarray,
     keyword_index: dict[str, Any],
+    embedding_provider: str,
     model_name: str,
     limit: int,
 ) -> list[dict[str, Any]]:
     keyword = keyword_scores(query, keyword_index)
-    semantic = semantic_scores(query, embeddings, chunks, model_name)
+    semantic = semantic_scores(query, embeddings, chunks, embedding_provider, model_name)
     ranked: list[tuple[float, dict[str, Any]]] = []
     for chunk in chunks:
         chunk_id = str(chunk["chunk_id"])
@@ -502,7 +579,7 @@ def load_doctrine_assets(manifest_path: Path) -> dict[str, Any]:
     base = manifest_path.parent
     kb_path = Path(manifest["source_kb"])
     if not kb_path.is_absolute():
-        kb_path = base.parent.parent / "chatwithme" / "incident_response_docs" / kb_path.name
+        kb_path = base.parent.parent / "firecastbot" / "incident_response_docs" / kb_path.name
     chunks = load_jsonl(kb_path)
     keyword_path = Path(manifest["keyword_index"])
     if not keyword_path.is_absolute():
@@ -524,11 +601,18 @@ def load_doctrine_assets(manifest_path: Path) -> dict[str, Any]:
         "chunks": chunks,
         "keyword_index": keyword_index,
         "embeddings": embeddings,
+        "embedding_provider": dense.get("embedding_provider", "sentence-transformers"),
+        "embedding_model": dense.get("embedding_model", "sentence-transformers/all-MiniLM-L6-v2"),
         "topic_map": TOPIC_MAP,
     }
 
 
-def build_runtime_incident_report(pdf_bytes: bytes, filename: str, model_name: str) -> dict[str, Any]:
+def build_runtime_incident_report(
+    pdf_bytes: bytes,
+    filename: str,
+    embedding_provider: str,
+    model_name: str,
+) -> dict[str, Any]:
     report_timestamp = datetime.now(timezone.utc).isoformat()
     pages = extract_pdf_pages(pdf_bytes)
     sections = sectionize_incident_report(pages)
@@ -559,13 +643,15 @@ def build_runtime_incident_report(pdf_bytes: bytes, filename: str, model_name: s
             )
             chunk_counter += 1
 
-    embeddings = embed_texts([str(chunk["text"]) for chunk in chunks], model_name)
+    embeddings = embed_texts([str(chunk["text"]) for chunk in chunks], embedding_provider, model_name)
     keyword_index = build_keyword_index(chunks)
     return {
         "incident_profile": profile,
         "incident_chunks": chunks,
         "incident_embeddings": embeddings,
         "incident_keyword_index": keyword_index,
+        "embedding_provider": embedding_provider,
+        "embedding_model": model_name,
     }
 
 
@@ -580,6 +666,58 @@ def merge_context(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             seen.add(key)
             merged.append(item)
     return merged
+
+
+def retrieve_firecast_context(
+    query: str,
+    *,
+    query_class: str,
+    retrieval_k: int,
+    incident_profile: dict[str, Any] | None,
+    incident_chunks: list[dict[str, Any]],
+    incident_embeddings: np.ndarray | None,
+    incident_keyword_index: dict[str, Any] | None,
+    incident_embedding_provider: str,
+    incident_embedding_model: str,
+    doctrine_store: dict[str, Any],
+) -> list[dict[str, Any]]:
+    incident_fact_hits: list[dict[str, Any]] = []
+    incident_chunk_hits: list[dict[str, Any]] = []
+    doctrine_hits: list[dict[str, Any]] = []
+
+    if incident_profile:
+        incident_fact_hits = retrieve_fact_records(query, incident_profile)
+
+    if incident_chunks and incident_keyword_index is not None and incident_embeddings is not None:
+        incident_chunk_hits = retrieve_chunks(
+            query,
+            chunks=incident_chunks,
+            embeddings=incident_embeddings,
+            keyword_index=incident_keyword_index,
+            embedding_provider=incident_embedding_provider,
+            model_name=incident_embedding_model,
+            limit=retrieval_k,
+        )
+
+    doctrine_hits = retrieve_chunks(
+        query,
+        chunks=doctrine_store["chunks"],
+        embeddings=doctrine_store["embeddings"],
+        keyword_index=doctrine_store["keyword_index"],
+        embedding_provider=doctrine_store["embedding_provider"],
+        model_name=doctrine_store["embedding_model"],
+        limit=retrieval_k,
+    )
+
+    if query_class == "incident-fact":
+        return merge_context(incident_fact_hits, incident_chunk_hits)
+    if query_class == "doctrine":
+        return merge_context(doctrine_hits)
+    if query_class in {"incident+doctrine synthesis", "safety-critical"}:
+        return merge_context(incident_fact_hits, incident_chunk_hits, doctrine_hits)
+    if incident_profile:
+        return merge_context(incident_fact_hits, incident_chunk_hits, doctrine_hits[:2])
+    return merge_context(doctrine_hits)
 
 
 def render_context_items(items: list[dict[str, Any]]) -> str:
@@ -604,9 +742,14 @@ def build_grounded_prompt(
     query_class: str,
     incident_profile: dict[str, Any] | None,
     context_items: list[dict[str, Any]],
-    conversation: list[dict[str, str]],
+    conversation_summary: str,
+    recent_conversation: list[dict[str, str]],
 ) -> str:
     incident_facts = incident_profile.get("facts", {}) if incident_profile else {}
+    location = str(incident_facts.get("location") or "").strip()
+    overall_risk_level = str(incident_facts.get("overall_risk_level") or "").strip()
+    weather = str(incident_facts.get("weather") or "").strip()
+    terrain = str(incident_facts.get("terrain") or "").strip()
     facts_block = "\n".join(
         f"- {FACT_OUTPUT_LABELS[key]}: {value}"
         for key, value in incident_facts.items()
@@ -629,6 +772,12 @@ Rules:
 - Do not invent incident details that are not present.
 - If incident data is insufficient, say so.
 - Prefer safety-grounded, doctrine-backed reasoning.
+- Be spatial-context aware: use the incident location, terrain, and stated weather to tailor advice to local operating conditions.
+- Be risk-context aware: use the incident's stated Overall Risk Level to calibrate tone, urgency, precaution level, and operational conservatism.
+- If Overall Risk Level is high or extreme, emphasize conservative actions, contingency planning, and firefighter/public safety implications.
+- If Overall Risk Level is missing, do not infer a formal risk rating unless the report explicitly states one.
+- If the location strongly implies regional environmental conditions that matter for safety or sustainment, you may mention them as likely considerations, but label them explicitly as likely regional context rather than confirmed incident facts.
+- Never present inferred regional context as if it came from the incident report. Prioritize explicit incident weather and conditions over geographic inference.
 - Do not present speculative tactical recommendations as certainties.
 - Mention when local SOPs, IC direction, or real-time field conditions may override general guidance.
 - Cite which source type supports each point: [Incident Report] or [Doctrine].
@@ -639,11 +788,20 @@ Rules:
 Incident profile:
 {facts_block}
 
+Spatial context cues:
+- Incident location: {location or "Unknown"}
+- Incident overall risk level: {overall_risk_level or "Unknown"}
+- Incident weather: {weather or "Unknown"}
+- Incident terrain: {terrain or "Unknown"}
+
 Retrieved context:
 {render_context_items(context_items)}
 
-Chat history:
-{conversation}
+Conversation summary:
+{conversation_summary or "No prior conversation summary."}
+
+Recent chat turns:
+{recent_conversation or "No recent chat turns."}
 
 User question:
 {query}

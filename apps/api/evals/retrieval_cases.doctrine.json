@@ -1,0 +1,94 @@
+[
+  {
+    "id": "watch_out_situations",
+    "query": "What are the 18 watch out situations according to doctrine?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "Field Operations Guide",
+        "text_contains": "WATCH OUT SITUATIONS"
+      },
+      {
+        "doc_title": "WUI Firefighting for the Structural Company Officer",
+        "section_contains": "18 WATCH OUT SITUATIONS"
+      }
+    ]
+  },
+  {
+    "id": "home_ignition_zones",
+    "query": "What are the home ignition zones and how large are they?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "How to Prepare Your Home for Wildfires",
+        "text_contains": "HOME IGNITION ZONES"
+      }
+    ]
+  },
+  {
+    "id": "emergency_responder_access",
+    "query": "How should a home be prepared for emergency responder access during a wildfire?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "How to Prepare Your Home for Wildfires",
+        "text_contains": "EMERGENCY RESPONDER ACCESS"
+      }
+    ]
+  },
+  {
+    "id": "calfire_burn_permit",
+    "query": "What does the CAL FIRE guidebook say about burn permits for prescribed fire?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "CAL FIRE Prescribed Fire Guidebook",
+        "section_contains": "Burn Permit"
+      }
+    ]
+  },
+  {
+    "id": "go_no_go_checklist",
+    "query": "What is included in a prescribed fire go/no-go checklist?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "CAL FIRE Prescribed Fire Guidebook",
+        "section_contains": "Go/No-Go Checklist"
+      }
+    ]
+  },
+  {
+    "id": "prescribed_fire_plan_requirement",
+    "query": "What does doctrine require for a prescribed fire plan before implementation?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "Red Book",
+        "text_contains": "Ensure a prescribed fire plan is written and approved for each project prior to implementation"
+      }
+    ]
+  },
+  {
+    "id": "structure_protection_principles",
+    "query": "What tactical operating principles apply to structure protection?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "Red Book",
+        "text_contains": "Tactical Operating Principles When engaging in structure protection activities"
+      }
+    ]
+  },
+  {
+    "id": "risk_management_process",
+    "query": "What is the five-step risk management process for fire operations?",
+    "query_class": "doctrine",
+    "expected_matchers": [
+      {
+        "doc_title": "Red Book",
+        "text_contains": "Risk Management Process Fire operations risk management is outlined in the IRPG. The five-step process"
+      }
+    ]
+  }
+]

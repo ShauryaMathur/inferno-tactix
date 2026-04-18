@@ -1,0 +1,30 @@
+[
+  {
+    "label": "Claude Sonnet 4.6",
+    "provider": "openrouter",
+    "model": "anthropic/claude-sonnet-4.6",
+    "temperature": 0.2,
+    "max_tokens": 1200
+  },
+  {
+    "label": "Gemini 2.5 Flash",
+    "provider": "openrouter",
+    "model": "google/gemini-2.5-flash",
+    "temperature": 0.2,
+    "max_tokens": 1200
+  },
+  {
+    "label": "GPT-4o Mini",
+    "provider": "openrouter",
+    "model": "openai/gpt-4o-mini",
+    "temperature": 0.2,
+    "max_tokens": 1200
+  },
+  {
+    "label": "Qwen 3.6 Plus",
+    "provider": "openrouter",
+    "model": "qwen/qwen3.6-plus",
+    "temperature": 0.2,
+    "max_tokens": 1200
+  }
+]

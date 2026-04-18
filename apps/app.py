@@ -1,4 +1,4 @@
-from chatwithme.ui.app import main
+from firecastbot.ui.app import main
 
 
 if __name__ == "__main__":

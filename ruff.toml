@@ -1,0 +1,23 @@
+target-version = "py311"
+line-length = 100
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true
+
+[lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "B",
+]
+
+ignore = [
+  "E501",
+]
+
+[lint.isort]
+known-first-party = ["inferno_api", "inferno_sim", "inferno_headless", "firecastbot"]
