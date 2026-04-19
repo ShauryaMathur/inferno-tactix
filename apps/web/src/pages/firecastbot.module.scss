@@ -52,7 +52,7 @@
 
 .title {
   margin: 14px 0 8px;
-  font-size: clamp(1.7rem, 3.2vw, 2.7rem);
+  font-size: clamp(1.6rem, 3.0vw, 2.6rem);
   line-height: 1;
   letter-spacing: -0.04em;
 }
@@ -313,6 +313,8 @@
 .assistantMessage {
   padding: 12px;
   border-radius: 14px;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .userMessage {
@@ -361,6 +363,8 @@
   line-height: 1.65;
   color: rgba(255, 255, 255, 0.88);
   white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .messageBody {

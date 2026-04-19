@@ -114,6 +114,13 @@ QUERY_CLASS_HINTS = {
         "location",
         "operational period",
         "what is the fire behavior",
+        "where is the fire going",
+        "where will the fire go",
+        "where will the fire spread",
+        "which direction is the fire moving",
+        "which direction will it spread",
+        "spread direction",
+        "predicted spread",
     ),
     "doctrine": (
         "watch out situations",
@@ -761,6 +768,11 @@ def build_grounded_prompt(
             "Format the answer in 3 labeled parts: "
             "1. Incident-grounded facts, 2. Doctrine-grounded guidance, 3. Suggested interpretation."
         )
+    elif query_class == "incident-fact":
+        structure = (
+            "Start with a direct 1-2 sentence answer to the user's exact question. "
+            "Then provide up to 3 short supporting bullets from the incident report if helpful."
+        )
 
     return f"""
 Answer the user's question using:
@@ -768,9 +780,16 @@ Answer the user's question using:
 2. Doctrine and safety guidance from the trusted fire-reference knowledge base
 
 Rules:
+- Answer the user's direct question first. Do not lead with generic caveats or scene-setting if the incident report already contains the answer.
 - Clearly distinguish incident facts from doctrine.
 - Do not invent incident details that are not present.
 - If incident data is insufficient, say so.
+- Target a moderate response length by default: usually 1 short paragraph or 3-6 bullets unless the user explicitly asks for more depth.
+- Keep answers information-dense and avoid repetitive safety boilerplate.
+- Do not produce long preambles, long concluding sections, or oversized lists unless they are necessary to answer the question.
+- Stay comfortably within the token budget: prioritize the highest-value facts first, then stop once the answer is complete.
+- For incident-fact questions, prefer concise incident-report-grounded answers over doctrine-heavy framing.
+- Do not open with statements about uncertainty, command authority, or changing conditions unless they are necessary to avoid a materially misleading answer.
 - Prefer safety-grounded, doctrine-backed reasoning.
 - Be spatial-context aware: use the incident location, terrain, and stated weather to tailor advice to local operating conditions.
 - Be risk-context aware: use the incident's stated Overall Risk Level to calibrate tone, urgency, precaution level, and operational conservatism.
@@ -779,8 +798,8 @@ Rules:
 - If the location strongly implies regional environmental conditions that matter for safety or sustainment, you may mention them as likely considerations, but label them explicitly as likely regional context rather than confirmed incident facts.
 - Never present inferred regional context as if it came from the incident report. Prioritize explicit incident weather and conditions over geographic inference.
 - Do not present speculative tactical recommendations as certainties.
-- Mention when local SOPs, IC direction, or real-time field conditions may override general guidance.
-- Cite which source type supports each point: [Incident Report] or [Doctrine].
+- Mention when local SOPs, IC direction, or real-time field conditions may override general guidance only when you are giving advice or discussing operational decisions.
+- Do not include bracketed source tags such as [Incident Report] or [Doctrine] in the final response.
 - Guide decision quality; do not hallucinate command authority.
 - Query class: {query_class}
 - {structure}

@@ -119,7 +119,29 @@ class FireCastBotManager:
         query_class = classify_query(query)
         context_items = self._retrieve_context(session, query, query_class)
         messages = self._build_messages(session, query, query_class, context_items)
-        reply = self.llm_service.chat_completion(messages)
+        completion = self.llm_service.chat_completion_result(messages)
+        reply = completion.content
+        finish_reason = (completion.finish_reason or "").strip().casefold()
+
+        continuation_attempts = 0
+        while finish_reason in {"length", "max_tokens", "max_output_tokens"} and continuation_attempts < 2:
+            continuation_messages = messages + [
+                {"role": "assistant", "content": reply},
+                {
+                    "role": "user",
+                    "content": (
+                        "Continue exactly where you left off. Do not restart, do not repeat prior text, "
+                        "and finish the answer cleanly."
+                    ),
+                },
+            ]
+            continuation = self.llm_service.chat_completion_result(continuation_messages)
+            continuation_text = continuation.content.strip()
+            if not continuation_text:
+                break
+            reply = f"{reply.rstrip()}\n{continuation_text}"
+            finish_reason = (continuation.finish_reason or "").strip().casefold()
+            continuation_attempts += 1
 
         session.conversation.append({"role": "user", "content": query})
         session.conversation.append({"role": "assistant", "content": reply})
@@ -203,6 +225,8 @@ class FireCastBotManager:
                 "role": "system",
                 "content": (
                     "You are a wildfire decision-support assistant grounded in incident facts and doctrine. "
+                    "Answer direct incident questions directly and concisely before adding caveats or supporting detail. "
+                    "Keep responses to a moderate length by default and avoid unnecessary verbosity or repetitive boilerplate. "
                     "Be spatial-context aware: tailor guidance to the incident's geography, terrain, and stated weather. "
                     "Be risk-context aware: use the incident's stated Overall Risk Level to calibrate urgency, caution, and safety emphasis. "
                     "You may mention likely regional conditions when location strongly implies them, but label those as inferred context, "

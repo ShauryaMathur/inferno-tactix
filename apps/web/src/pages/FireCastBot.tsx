@@ -473,7 +473,7 @@ export default function FireCastBot() {
   const selectedTtsProvider = getSelectedProvider(textToSpeechProviderId);
   const showBrowserSpeechControls = selectedTtsProvider?.outputMode === "browser";
   const canSubmitQuery = !isBusy && !!queryInput.trim();
-  const isBotReady = status === "FireCastBot ready.";
+  const isBotReady = !error && documentsCount > 0;
 
   return (
     <div className={styles.container}>
@@ -569,7 +569,7 @@ export default function FireCastBot() {
           <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ""}`} />
           <span>FIRECASTBOT</span>
         </div>
-        <h1 className={styles.title}>Ask FireCastBot</h1>
+        <h2 className={styles.title}>Ask FireCastBot</h2>
         <p className={styles.subtitle}>
           Upload an incident report, extract structured facts, and query it alongside doctrine and safety references without leaving FireCastRL.
         </p>
@@ -580,7 +580,7 @@ export default function FireCastBot() {
         <aside className={styles.sidebar}>
           <div className={styles.panel}>
             <h2>Incident Report</h2>
-            <label className={styles.fieldLabel}>Upload incident PDF</label>
+            
             <input
               ref={pdfInputRef}
               className={styles.hiddenInput}

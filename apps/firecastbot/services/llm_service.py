@@ -98,6 +98,7 @@ class GroqChatClient:
 
     def chat_completion_result(self, messages: list[dict[str, str]]) -> ChatCompletionResult:
         full_response = ""
+        finish_reason = ""
         stream = self.client.chat.completions.create(
             model=self.request.model,
             messages=messages,
@@ -106,13 +107,17 @@ class GroqChatClient:
             stream=True,
         )
         for chunk in stream:
-            part = chunk.choices[0].delta.content
+            choice = chunk.choices[0]
+            part = choice.delta.content
             if part:
                 full_response += part
+            if getattr(choice, "finish_reason", None):
+                finish_reason = str(choice.finish_reason)
         return ChatCompletionResult(
             content=full_response,
             provider=self.request.provider,
             model=self.request.model,
+            finish_reason=finish_reason,
         )
 
 

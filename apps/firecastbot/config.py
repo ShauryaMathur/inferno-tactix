@@ -30,10 +30,10 @@ class Settings:
     xai_api_key: Optional[str] = None
     llm_provider: str = "groq"
     llm_model: str = "llama-3.3-70b-versatile"
-    llm_max_tokens: int = 1024
+    llm_max_tokens: int = 2048
     llm_temperature: float = 1.3
     groq_model: str = "llama-3.3-70b-versatile"
-    groq_max_tokens: int = 1024
+    groq_max_tokens: int = 2048
     groq_temperature: float = 1.3
     retrieval_k: int = 3
     chat_recent_turn_limit: int = 6
@@ -119,7 +119,7 @@ def get_settings() -> Settings:
     )
     llm_provider = os.getenv("LLM_PROVIDER", "groq")
     llm_model = os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"))
-    llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "1024")))
+    llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "2048")))
     llm_temperature = float(os.getenv("LLM_TEMPERATURE", os.getenv("GROQ_TEMPERATURE", "1.3")))
     groq_model = os.getenv("GROQ_MODEL", llm_model if llm_provider.strip().casefold() == "groq" else "llama-3.3-70b-versatile")
     groq_max_tokens = int(os.getenv("GROQ_MAX_TOKENS", str(llm_max_tokens)))
