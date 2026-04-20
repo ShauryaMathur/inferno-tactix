@@ -1,16 +1,15 @@
-
 /* src/pages/Home.scss */
 
 /* size only the map container */
 
 .map-wrapper {
-width: 600px;          /* fixed width, or use max-width */
-height: 400px;         /* fixed height, or use a vh unit */
-margin: 2rem auto;     /* center it with some top/bottom spacing */
-border-radius: 8px;
-overflow: hidden;
-box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-background: #fff;      /* a clean white “card” behind the map */
+  width: 600px; /* fixed width, or use max-width */
+  height: 400px; /* fixed height, or use a vh unit */
+  margin: 2rem auto; /* center it with some top/bottom spacing */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #fff; /* a clean white “card” behind the map */
 }
 
 h1 {
@@ -49,15 +48,15 @@ button {
   margin-top: 2%;
   border-radius: 12px;
   overflow: hidden;
-  
+
   /* glassmorphism + backdrop blur */
-  background: rgba(255,255,255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(8px);
   box-shadow:
-    0 0 20px rgba(255,102,0,0.6),    /* neon orange glow */
-    0 10px 30px rgba(0,0,0,0.5);      /* deep shadow */
+    0 0 20px rgba(255, 102, 0, 0.6),
+    /* neon orange glow */ 0 10px 30px rgba(0, 0, 0, 0.5); /* deep shadow */
 
-  border: 1px solid rgba(255,102,0,0.8);
+  border: 1px solid rgba(255, 102, 0, 0.8);
   // transform: perspective(600px) rotateX(3deg); /* slight tilt */
   transition: transform 0.3s ease;
 
@@ -70,7 +69,6 @@ button {
     height: 100%;
     filter: contrast(1.2) brightness(0.9);
   }
-
 }
 .preview-frame {
   width: 90%;
@@ -78,7 +76,7 @@ button {
   border: 2px solid #ff6600;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
 }
 
 /* 2) Search‐bar container */
@@ -91,8 +89,8 @@ button {
 }
 
 /* 3) Text + date inputs */
-.searchBar input[type="text"],
-.searchBar input[type="date"] {
+.searchBar input[type='text'],
+.searchBar input[type='date'] {
   // flex: 1;
   // padding: 0.75rem 1rem;
   // font-size: 1rem;
@@ -103,23 +101,23 @@ button {
   // transition: border-color 0.3s ease, box-shadow 0.3s ease;
   -webkit-appearance: none;
   appearance: none;
-  font-family: inherit;    /* inherits from .search-bar or body */
-  color: #fff;             /* match your text color */
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.3);
+  font-family: inherit; /* inherits from .search-bar or body */
+  color: #fff; /* match your text color */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   font-size: 1rem;
 
   &::placeholder {
-    color: rgba(255,255,255,0.6);
+    color: rgba(255, 255, 255, 0.6);
   }
 
   &:focus {
     outline: none;
     border-color: #ff6600;
-    box-shadow: 0 0 10px rgba(255,102,0,0.6);
-    background: rgba(255,255,255,0.15);
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+    background: rgba(255, 255, 255, 0.15);
   }
 }
 
@@ -133,45 +131,48 @@ button {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(255,102,0,0.4);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 102, 0, 0.4);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.3s ease;
 
   &:hover {
     background: linear-gradient(45deg, #ff8a00, #ffd38f);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(255,102,0,0.6);
+    box-shadow: 0 6px 16px rgba(255, 102, 0, 0.6);
   }
 
   &:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(255,102,0,0.4);
+    box-shadow: 0 2px 6px rgba(255, 102, 0, 0.4);
   }
 }
 
-input[type="date"] {
+input[type='date'] {
   -webkit-appearance: none;
   appearance: none;
-  font-family: inherit;    /* inherits from .search-bar or body */
-  color: #fff;             /* match your text color */
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.3);
+  font-family: inherit; /* inherits from .search-bar or body */
+  color: #fff; /* match your text color */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   font-size: 1rem;
 }
 
 /* 2) Style the inner date‐field pieces (WebKit) */
-input[type="date"]::-webkit-datetime-edit-year-field,
-input[type="date"]::-webkit-datetime-edit-month-field,
-input[type="date"]::-webkit-datetime-edit-day-field,
-input[type="date"]::-webkit-datetime-edit-text {
+input[type='date']::-webkit-datetime-edit-year-field,
+input[type='date']::-webkit-datetime-edit-month-field,
+input[type='date']::-webkit-datetime-edit-day-field,
+input[type='date']::-webkit-datetime-edit-text {
   font-family: inherit;
   color: inherit;
 }
 
 /* 3) If you want to keep the calendar icon but restyle it: */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(2);  /* makes it white */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2); /* makes it white */
 }
 
 /* inferno.module.scss */
@@ -184,7 +185,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: background 0.3s ease, transform 0.2s ease;
+  transition:
+    background 0.3s ease,
+    transform 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
@@ -205,4 +208,3 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .lowRisk {
   background: linear-gradient(135deg, #81c784 0%, #4caf50 100%);
 }
-

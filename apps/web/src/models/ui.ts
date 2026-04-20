@@ -1,10 +1,10 @@
-import { observable, makeObservable } from "mobx";
+import { observable, makeObservable } from 'mobx';
 
 export enum Interaction {
-  PlaceSpark = "PlaceSpark",
-  DrawFireLine = "DrawFireLine",
-  HoverOverDraggable = "HoverOverDraggable",
-  Helitack = "Helitack"
+  PlaceSpark = 'PlaceSpark',
+  DrawFireLine = 'DrawFireLine',
+  HoverOverDraggable = 'HoverOverDraggable',
+  Helitack = 'Helitack',
 }
 
 export class UIModel {

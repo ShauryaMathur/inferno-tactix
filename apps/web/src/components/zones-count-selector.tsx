@@ -1,9 +1,9 @@
-import React from "react";
-import { Radio, RadioGroup, FormControlLabel } from "@mui/material";
-import TwoZones from "../assets/bottom-bar/terrain-setup.svg";
-import ThreeZones from "../assets/bottom-bar/terrain-three.svg";
+import React from 'react';
+import { Radio, RadioGroup, FormControlLabel } from '@mui/material';
+import TwoZones from '../assets/bottom-bar/terrain-setup.svg';
+import ThreeZones from '../assets/bottom-bar/terrain-three.svg';
 
-import css from "./zones-count-selector.scss";
+import css from './zones-count-selector.scss';
 
 interface IProps {
   zonesCount: number;
@@ -23,13 +23,27 @@ export const ZonesCountSelector = ({ zonesCount, onChange }: IProps) => (
         className={css.labelContainer}
         control={<Radio color="default" className={css.radio} />}
         value={3}
-        label={<span className={css.label}>3 <div className={css.image}><ThreeZones /></div></span>}
+        label={
+          <span className={css.label}>
+            3{' '}
+            <div className={css.image}>
+              <ThreeZones />
+            </div>
+          </span>
+        }
       />
       <FormControlLabel
         className={css.labelContainer}
         control={<Radio color="default" className={css.radio} />}
         value={2}
-        label={<span className={css.label}>2 <div className={css.image}><TwoZones /></div></span>}
+        label={
+          <span className={css.label}>
+            2{' '}
+            <div className={css.image}>
+              <TwoZones />
+            </div>
+          </span>
+        }
       />
     </RadioGroup>
   </div>

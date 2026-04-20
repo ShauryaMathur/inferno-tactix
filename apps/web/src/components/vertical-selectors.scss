@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 .selector {
   &.disabled {
@@ -94,7 +94,7 @@
     .thumb {
       width: 20px;
       height: 20px;
-      background-image: url("../assets/slider-vertical.svg");
+      background-image: url('../assets/slider-vertical.svg');
       box-shadow: none;
 
       &:hover {

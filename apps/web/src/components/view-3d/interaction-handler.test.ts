@@ -1,8 +1,8 @@
-import { getEventHandlers, InteractionHandler } from "./interaction-handler";
-import { Event } from "three";
+import { getEventHandlers, InteractionHandler } from './interaction-handler';
+import { Event } from 'three';
 
-describe("getEventHandlers", () => {
-  it("should handle all available event types", () => {
+describe('getEventHandlers', () => {
+  it('should handle all available event types', () => {
     const interaction: InteractionHandler = {
       active: true,
       onPointerDown: jest.fn(),
@@ -23,18 +23,18 @@ describe("getEventHandlers", () => {
     expect(handlers.onPointerLeave).toBeDefined();
   });
 
-  it("should return object with event handlers of active interactions only", () => {
+  it('should return object with event handlers of active interactions only', () => {
     const interaction1: InteractionHandler = {
       active: false,
-      onPointerUp: jest.fn()
+      onPointerUp: jest.fn(),
     };
     const interaction2: InteractionHandler = {
       active: true,
-      onPointerDown: jest.fn()
+      onPointerDown: jest.fn(),
     };
     const interaction3: InteractionHandler = {
       active: true,
-      onPointerDown: jest.fn()
+      onPointerDown: jest.fn(),
     };
 
     const handlers = getEventHandlers([interaction1, interaction2, interaction3]);

@@ -1,40 +1,51 @@
-import { observer } from "mobx-react";
-import React, { useCallback, useEffect, useState } from "react";
-import { IBaseProps } from "./base";
-import { Button } from "@mui/material";
-import { renderZones } from "./zone-selector";
-import { TerrainTypeSelector } from "./terrain-type-selector";
-import { VegetationSelector } from "./vegetation-selector";
-import { DroughtSelector } from "./drought-selector";
-import { droughtLabels, DroughtLevel, terrainLabels, TerrainType, Vegetation, vegetationLabels } from "../types";
-import { WindCircularControl } from "./wind-circular-control";
-import { TerrainSummary } from "./terrain-summary";
-import { log } from "@concord-consortium/lara-interactive-api";
-import { useStores } from "../use-stores";
-import { ZonesCountSelector } from "./zones-count-selector";
+import { observer } from 'mobx-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { IBaseProps } from './base';
+import { Button } from '@mui/material';
+import { renderZones } from './zone-selector';
+import { TerrainTypeSelector } from './terrain-type-selector';
+import { VegetationSelector } from './vegetation-selector';
+import { DroughtSelector } from './drought-selector';
+import {
+  droughtLabels,
+  DroughtLevel,
+  terrainLabels,
+  TerrainType,
+  Vegetation,
+  vegetationLabels,
+} from '../types';
+import { WindCircularControl } from './wind-circular-control';
+import { TerrainSummary } from './terrain-summary';
+import { log } from '@concord-consortium/lara-interactive-api';
+import { useStores } from '../use-stores';
+import { ZonesCountSelector } from './zones-count-selector';
 
-import css from "./terrain-panel.scss";
-import { Zone } from "../models/zone";
-import { set } from "mobx";
+import css from './terrain-panel.scss';
+import { Zone } from '../models/zone';
+import { set } from 'mobx';
 
 const cssClasses = [css.zone1, css.zone2, css.zone3];
 
 const panelClasses = [css.panel0, css.panel1, css.panel2];
 const panelInstructions = [
-  "Select the number of zones in your model",
-  "Adjust variables in each zone",
-  "Set initial wind direction and speed"
+  'Select the number of zones in your model',
+  'Adjust variables in each zone',
+  'Set initial wind direction and speed',
 ];
 
-interface IProps extends IBaseProps { }
+interface IProps extends IBaseProps {}
 
 export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent() {
-  const { ui, simulation, simulation: { config } } = useStores();
+  const {
+    ui,
+    simulation,
+    simulation: { config },
+  } = useStores();
   // If zones.length is undefined, user might pick it in the first panel.
   const firstPanel = config.zonesCount === undefined ? 0 : 1;
   const [currentPanel, setCurrentPanel] = useState(firstPanel);
   const [zonesCount, setZonesCount] = useState<2 | 3>(simulation.zonesCount);
-  const [zones, setZones] = useState<Zone[]>(simulation.zones.map(z => z.clone()));
+  const [zones, setZones] = useState<Zone[]>(simulation.zones.map((z) => z.clone()));
   const [windSpeed, setWindSpeed] = useState<number>(simulation.wind.speed);
   const [windDirection, setWindDirection] = useState<number>(simulation.wind.direction);
   const [selectedZone, setSelectedZone] = useState<number>(ui.terrainUISelectedZone || 0);
@@ -60,16 +71,24 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
     if (!ui.showTerrainUI) {
       setCurrentPanel(firstPanel);
       setZonesCount(simulation.zonesCount);
-      setZones(simulation.zones.map(z => z.clone()));
+      setZones(simulation.zones.map((z) => z.clone()));
       setWindSpeed(simulation.wind.speed);
       setWindDirection(simulation.wind.direction);
       setSelectedZone(0);
     }
-  }, [firstPanel, setSelectedZone, simulation.wind, simulation.zones, simulation.zones.length, simulation.zonesCount, ui.showTerrainUI]);
+  }, [
+    firstPanel,
+    setSelectedZone,
+    simulation.wind,
+    simulation.zones,
+    simulation.zones.length,
+    simulation.zonesCount,
+    ui.showTerrainUI,
+  ]);
 
   const handleClose = () => {
     ui.showTerrainUI = !ui.showTerrainUI;
-    log("TerrainPanelClosed");
+    log('TerrainPanelClosed');
   };
 
   const applyAndClose = () => {
@@ -77,7 +96,7 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
     simulation.setWindSpeed(windSpeed);
     simulation.setWindDirection(windDirection);
     simulation.updateZones(zones);
-    log("TerrainPanelSettingsSaved");
+    log('TerrainPanelSettingsSaved');
   };
 
   const handleZoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +104,7 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
     const newZone = parseInt(event.target.value, 10);
     if (newZone !== selectedZone) {
       setSelectedZone(newZone);
-      log("TerrainPanelZoneChanged", { zone: newZone });
+      log('TerrainPanelZoneChanged', { zone: newZone });
     }
   };
 
@@ -94,24 +113,27 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
       // Delay zones count change until user clicks "Next" button, as it might lead to some unavoidable user setup loss.
       applyZonesCountChange();
     }
-    setCurrentPanel(val => val + 1);
-    log("TerrainPanelNextButtonClicked");
+    setCurrentPanel((val) => val + 1);
+    log('TerrainPanelNextButtonClicked');
   };
 
   const showPreviousPanel = () => {
-    setCurrentPanel(val => val - 1);
-    log("TerrainPanelPreviousButtonClicked");
+    setCurrentPanel((val) => val - 1);
+    log('TerrainPanelPreviousButtonClicked');
   };
 
   const handleTerrainTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newTerrainType = parseInt(event.target.value, 10) as TerrainType;
     if (zone.terrainType !== newTerrainType) {
-      const newZones = zones.map(z => z.clone());
+      const newZones = zones.map((z) => z.clone());
       const logData: any = { zone: selectedZone };
       // Switching to Mountain terrain changes land type / vegetation options
       // but keeping the min / max options the same for each range helps with slider rendering.
       // Accommodate this by manual adjustment of land types when switching to-from mountain
-      if (newTerrainType !== TerrainType.Mountains && zone.vegetation === Vegetation.ForestWithSuppression) {
+      if (
+        newTerrainType !== TerrainType.Mountains &&
+        zone.vegetation === Vegetation.ForestWithSuppression
+      ) {
         // switching from Mountains with large forests to lower land type, reduce forest size
         newZones[selectedZone].vegetation = Vegetation.Forest;
         logData.vegetation = vegetationLabels[Vegetation.Forest];
@@ -123,32 +145,32 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
       newZones[selectedZone].terrainType = newTerrainType;
       setZones(newZones);
       logData.terrain = terrainLabels[newTerrainType];
-      log("ZoneUpdated", logData);
+      log('ZoneUpdated', logData);
     }
   };
 
   const handleVegetationChange = (event: Event, value: number) => {
     if (zone.vegetation !== value) {
-      const newZones = zones.map(z => z.clone());
+      const newZones = zones.map((z) => z.clone());
       newZones[selectedZone].vegetation = value;
       setZones(newZones);
     }
   };
 
   const handleVegetationChangeCommitted = (event: Event, value: number) => {
-    log("ZoneUpdated", { zone: selectedZone, vegetation: vegetationLabels[value as Vegetation] });
+    log('ZoneUpdated', { zone: selectedZone, vegetation: vegetationLabels[value as Vegetation] });
   };
 
   const handleDroughtChange = (event: Event, value: number) => {
     if (zone.droughtLevel !== value) {
-      const newZones = zones.map(z => z.clone());
+      const newZones = zones.map((z) => z.clone());
       newZones[selectedZone].droughtLevel = value;
       setZones(newZones);
     }
   };
 
   const handleDroughtChangeCommitted = (event: Event, value: number) => {
-    log("ZoneUpdated", { zone: selectedZone, moisture: droughtLabels[value as DroughtLevel] });
+    log('ZoneUpdated', { zone: selectedZone, moisture: droughtLabels[value as DroughtLevel] });
   };
 
   const handleZonesCountChange = (event: React.ChangeEvent<HTMLInputElement>, value: string) => {
@@ -160,18 +182,22 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
     if (zonesCount !== zones.length) {
       // In this case reset zones to their default properties. We cannot reuse previous settings,
       // as 3 zones dialog doesn't have terrain type selection and we could end up with unsupported configuration.
-      const newZones = config.zones.map(options => new Zone(options));
+      const newZones = config.zones.map((options) => new Zone(options));
       newZones.length = zonesCount;
       setZones(newZones);
       setSelectedZone(0);
-      log("ZonesCountChanged", { count: zonesCount });
+      log('ZonesCountChanged', { count: zonesCount });
     }
   };
 
   const renderZoneTerrainTypeLabels = () => {
     const labels: any[] = [];
     zones.forEach((z, i) => {
-      labels.push(<div className={css.terrainTypeLabel} key={i}>{terrainLabels[z.terrainType]}</div>);
+      labels.push(
+        <div className={css.terrainTypeLabel} key={i}>
+          {terrainLabels[z.terrainType]}
+        </div>
+      );
     });
     return labels;
   };
@@ -188,18 +214,24 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
   };
 
   return (
-    <div className={`${css.terrain} ${ui.showTerrainUI ? "" : css.disabled}`}>
-      {
-        ui.showTerrainUI &&
-        <div className={`${css.background} ${cssClasses[selectedZone]} ${panelClasses[currentPanel]}`}>
-          <div className={css.closeButton} onClick={handleClose}>X</div>
-          <div className={css.header} data-testid="terrain-header">Terrain Setup</div>
-          <div className={css.instructions}>
-            <span className={css.setupStepIcon}>{firstPanel === 0 ? currentPanel + 1 : currentPanel}</span>
-            { panelInstructions[currentPanel] }
+    <div className={`${css.terrain} ${ui.showTerrainUI ? '' : css.disabled}`}>
+      {ui.showTerrainUI && (
+        <div
+          className={`${css.background} ${cssClasses[selectedZone]} ${panelClasses[currentPanel]}`}
+        >
+          <div className={css.closeButton} onClick={handleClose}>
+            X
           </div>
-          {
-            currentPanel === 0 &&
+          <div className={css.header} data-testid="terrain-header">
+            Terrain Setup
+          </div>
+          <div className={css.instructions}>
+            <span className={css.setupStepIcon}>
+              {firstPanel === 0 ? currentPanel + 1 : currentPanel}
+            </span>
+            {panelInstructions[currentPanel]}
+          </div>
+          {currentPanel === 0 && (
             <div className={css.panel}>
               <div className={css.zones.lengthSelector}>
                 <ZonesCountSelector zonesCount={zonesCount} onChange={handleZonesCountChange} />
@@ -210,33 +242,24 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
                 </Button>
               </div>
             </div>
-          }
-          {
-            currentPanel !== 0 &&
+          )}
+          {currentPanel !== 0 && (
             <div className={css.zones}>
-            {
-              renderZones(
-                zones,
-                selectedZone,
-                currentPanel === 2,
-                zones.length,
-                handleZoneChange
-              )
-            }
+              {renderZones(zones, selectedZone, currentPanel === 2, zones.length, handleZoneChange)}
             </div>
-          }
-          {
-            currentPanel === 1 &&
+          )}
+          {currentPanel === 1 && (
             <div className={css.panel}>
               <div className={css.terrainSelector}>
-                {zones.length > 2 &&
+                {zones.length > 2 && (
                   <div className={css.terrainTypeLabels}>{renderZoneTerrainTypeLabels()}</div>
-                }
-                {!config.elevation && zones.length === 2 &&
+                )}
+                {!config.elevation && zones.length === 2 && (
                   <TerrainTypeSelector
                     terrainType={zone.terrainType}
-                    onChange={handleTerrainTypeChange} />
-                }
+                    onChange={handleTerrainTypeChange}
+                  />
+                )}
               </div>
               <div className={css.selectors}>
                 <div className={css.selector}>
@@ -259,20 +282,18 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
                 </div>
               </div>
               <div className={css.buttonContainer}>
-                {
-                  firstPanel === 0 &&
+                {firstPanel === 0 && (
                   <Button className={css.continueButton} onClick={showPreviousPanel}>
                     Previous
                   </Button>
-                }
+                )}
                 <Button className={css.continueButton} onClick={showNextPanel}>
                   Next
                 </Button>
               </div>
             </div>
-          }
-          {
-            currentPanel === 2 &&
+          )}
+          {currentPanel === 2 && (
             <div className={css.panel}>
               <div className={css.terrainTypeLabels}>{renderZoneTerrainTypeLabels()}</div>
               <div className={css.terrainProperties}>{renderTerrainProperties()}</div>
@@ -294,9 +315,9 @@ export const TerrainPanel: React.FC<IProps> = observer(function WrappedComponent
                 </Button>
               </div>
             </div>
-          }
+          )}
         </div>
-      }
+      )}
     </div>
   );
 });

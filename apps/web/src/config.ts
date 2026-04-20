@@ -1,6 +1,6 @@
-import { ZoneOptions } from "./models/zone";
-import { DroughtLevel, Vegetation, TerrainType, VegetationType } from "./types";
-import { GENERATED_ASSETS_BASE_URL } from "./env";
+import { ZoneOptions } from './models/zone';
+import { DroughtLevel, Vegetation, TerrainType, VegetationType } from './types';
+import { GENERATED_ASSETS_BASE_URL } from './env';
 
 interface TownOptions {
   name: string;
@@ -90,15 +90,19 @@ export interface IUrlConfig extends ISimulationConfig {
 }
 
 export const getDefaultConfig: () => IUrlConfig = () => ({
-  preset: "default",
+  preset: 'default',
   // Most of the presets will use heightmap images that work the best with 120000x80000ft dimensions.
   modelWidth: 120000,
   modelHeight: 80000,
   // 240 works well with presets based on heightmap images.
   // gridWidth: 1200, //HD
-  gridWidth: 240, 
-  get cellSize() { return this.modelWidth / this.gridWidth; },
-  get gridHeight() { return Math.ceil(this.modelHeight / this.cellSize); },
+  gridWidth: 240,
+  get cellSize() {
+    return this.modelWidth / this.gridWidth;
+  },
+  get gridHeight() {
+    return Math.ceil(this.modelHeight / this.cellSize);
+  },
   elevation: undefined, // will be derived from zone properties
   unburntIslands: undefined, // will be derived from zone properties
   zoneIndex: undefined,
@@ -119,96 +123,96 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   zonesCount: 18,
   zones: [
     {
-    terrainType: TerrainType.Mountains,
-    vegetation: VegetationType.EvergreenNeedleleaf,
-    droughtLevel: DroughtLevel.MildDrought // 0. Dummy Zone
-  },
-  {
-    terrainType: TerrainType.Mountains,
-    vegetation: VegetationType.EvergreenNeedleleaf,
-    droughtLevel: DroughtLevel.MildDrought // 1. Evergreen Needleleaf Forest
-  },
-  {
-    terrainType: TerrainType.Tropical,
-    vegetation: VegetationType.EvergreenBroadleaf,
-    droughtLevel: DroughtLevel.NoDrought // 2. Evergreen Broadleaf Forest
-  },
-  {
-    terrainType: TerrainType.Plains,
-    vegetation: VegetationType.DeciduousNeedleleaf,
-    droughtLevel: DroughtLevel.MildDrought // 3. Deciduous Needleleaf Forest
-  },
-  {
-    terrainType: TerrainType.Plains,
-    vegetation: VegetationType.DeciduousBroadleaf,
-    droughtLevel: DroughtLevel.MildDrought // 4. Deciduous Broadleaf Forest
-  },
-  {
-    terrainType: TerrainType.Hills,
-    vegetation: VegetationType.MixedForest,
-    droughtLevel: DroughtLevel.MediumDrought // 5. Mixed Forest
-  },
-  {
-    terrainType: TerrainType.Desert,
-    vegetation: VegetationType.ClosedShrublands,
-    droughtLevel: DroughtLevel.MediumDrought // 6. Closed Shrublands
-  },
-  {
-    terrainType: TerrainType.Desert,
-    vegetation: VegetationType.OpenShrublands,
-    droughtLevel: DroughtLevel.SevereDrought // 7. Open Shrublands
-  },
-  {
-    terrainType: TerrainType.Plains,
-    vegetation: VegetationType.WoodySavannas,
-    droughtLevel: DroughtLevel.MildDrought // 8. Woody Savannas
-  },
-  {
-    terrainType: TerrainType.Plains,
-    vegetation: VegetationType.Savannas,
-    droughtLevel: DroughtLevel.MediumDrought // 9. Savannas
-  },
-  {
-    terrainType: TerrainType.Plains,
-    vegetation: VegetationType.Grasslands,
-    droughtLevel: DroughtLevel.MildDrought // 10. Grasslands
-  },
-  {
-    terrainType: TerrainType.Wetlands,
-    vegetation: VegetationType.PermanentWetlands,
-    droughtLevel: DroughtLevel.NoDrought // 11. Permanent Wetlands
-  },
-  {
-    terrainType: TerrainType.Agricultural,
-    vegetation: VegetationType.Croplands,
-    droughtLevel: DroughtLevel.MildDrought // 12. Croplands
-  },
-  {
-    terrainType: TerrainType.Urban,
-    vegetation: VegetationType.UrbanBuilt,
-    droughtLevel: DroughtLevel.SevereDrought // 13. Urban and Built-Up
-  },
-  {
-    terrainType: TerrainType.Mixed,
-    vegetation: VegetationType.CroplandMosaic,
-    droughtLevel: DroughtLevel.MediumDrought // 14. Cropland/Natural Vegetation Mosaic
-  },
-  {
-    terrainType: TerrainType.Ice,
-    vegetation: VegetationType.SnowIce,
-    droughtLevel: DroughtLevel.NoDrought // 15. Snow and Ice
-  },
-  {
-    terrainType: TerrainType.Desert,
-    vegetation: VegetationType.Barren,
-    droughtLevel: DroughtLevel.SevereDrought // 16. Barren or Sparsely Vegetated
-  },
-  {
-    terrainType: TerrainType.Water,
-    vegetation: VegetationType.Water,
-    droughtLevel: DroughtLevel.NoDrought // 17. Water
-  }
-],
+      terrainType: TerrainType.Mountains,
+      vegetation: VegetationType.EvergreenNeedleleaf,
+      droughtLevel: DroughtLevel.MildDrought, // 0. Dummy Zone
+    },
+    {
+      terrainType: TerrainType.Mountains,
+      vegetation: VegetationType.EvergreenNeedleleaf,
+      droughtLevel: DroughtLevel.MildDrought, // 1. Evergreen Needleleaf Forest
+    },
+    {
+      terrainType: TerrainType.Tropical,
+      vegetation: VegetationType.EvergreenBroadleaf,
+      droughtLevel: DroughtLevel.NoDrought, // 2. Evergreen Broadleaf Forest
+    },
+    {
+      terrainType: TerrainType.Plains,
+      vegetation: VegetationType.DeciduousNeedleleaf,
+      droughtLevel: DroughtLevel.MildDrought, // 3. Deciduous Needleleaf Forest
+    },
+    {
+      terrainType: TerrainType.Plains,
+      vegetation: VegetationType.DeciduousBroadleaf,
+      droughtLevel: DroughtLevel.MildDrought, // 4. Deciduous Broadleaf Forest
+    },
+    {
+      terrainType: TerrainType.Hills,
+      vegetation: VegetationType.MixedForest,
+      droughtLevel: DroughtLevel.MediumDrought, // 5. Mixed Forest
+    },
+    {
+      terrainType: TerrainType.Desert,
+      vegetation: VegetationType.ClosedShrublands,
+      droughtLevel: DroughtLevel.MediumDrought, // 6. Closed Shrublands
+    },
+    {
+      terrainType: TerrainType.Desert,
+      vegetation: VegetationType.OpenShrublands,
+      droughtLevel: DroughtLevel.SevereDrought, // 7. Open Shrublands
+    },
+    {
+      terrainType: TerrainType.Plains,
+      vegetation: VegetationType.WoodySavannas,
+      droughtLevel: DroughtLevel.MildDrought, // 8. Woody Savannas
+    },
+    {
+      terrainType: TerrainType.Plains,
+      vegetation: VegetationType.Savannas,
+      droughtLevel: DroughtLevel.MediumDrought, // 9. Savannas
+    },
+    {
+      terrainType: TerrainType.Plains,
+      vegetation: VegetationType.Grasslands,
+      droughtLevel: DroughtLevel.MildDrought, // 10. Grasslands
+    },
+    {
+      terrainType: TerrainType.Wetlands,
+      vegetation: VegetationType.PermanentWetlands,
+      droughtLevel: DroughtLevel.NoDrought, // 11. Permanent Wetlands
+    },
+    {
+      terrainType: TerrainType.Agricultural,
+      vegetation: VegetationType.Croplands,
+      droughtLevel: DroughtLevel.MildDrought, // 12. Croplands
+    },
+    {
+      terrainType: TerrainType.Urban,
+      vegetation: VegetationType.UrbanBuilt,
+      droughtLevel: DroughtLevel.SevereDrought, // 13. Urban and Built-Up
+    },
+    {
+      terrainType: TerrainType.Mixed,
+      vegetation: VegetationType.CroplandMosaic,
+      droughtLevel: DroughtLevel.MediumDrought, // 14. Cropland/Natural Vegetation Mosaic
+    },
+    {
+      terrainType: TerrainType.Ice,
+      vegetation: VegetationType.SnowIce,
+      droughtLevel: DroughtLevel.NoDrought, // 15. Snow and Ice
+    },
+    {
+      terrainType: TerrainType.Desert,
+      vegetation: VegetationType.Barren,
+      droughtLevel: DroughtLevel.SevereDrought, // 16. Barren or Sparsely Vegetated
+    },
+    {
+      terrainType: TerrainType.Water,
+      vegetation: VegetationType.Water,
+      droughtLevel: DroughtLevel.NoDrought, // 17. Water
+    },
+  ],
   towns: [],
   fillTerrainEdges: true,
   riverData: `${GENERATED_ASSETS_BASE_URL}/river-texmap.png`,
@@ -231,27 +235,27 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   forestWithSuppressionAvailable: true,
   changeWindOnDay: undefined,
   newWindDirection: undefined,
-  newWindSpeed: undefined
+  newWindSpeed: undefined,
 });
 
 const getURLParam = (name: string) => {
   const url = (self || window).location.href;
   console.log(url);
-  
-  name = name.replace(/[[]]/g, "\\$&");
+
+  name = name.replace(/[[]]/g, '\\$&');
   const regex = new RegExp(`[?&]${name}(=([^&#]*)|&|#|$)`);
   const results = regex.exec(url);
   if (!results) return null;
   if (!results[2]) return true;
-  return decodeURIComponent(results[2].replace(/\+/g, " "));
+  return decodeURIComponent(results[2].replace(/\+/g, ' '));
 };
 
 const isArray = (value: any) => {
-  return typeof value === "string" && value.match(/^\[.*\]$/);
+  return typeof value === 'string' && value.match(/^\[.*\]$/);
 };
 
 const isJSON = (value: any) => {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return false;
   }
   try {
@@ -264,46 +268,46 @@ const isJSON = (value: any) => {
 
 const getQueryParams = (url: string): { [key: string]: string } => {
   console.log(url);
-  
+
   const params: { [key: string]: any } = {};
   const queryString = url.split('?')[1];
   console.log(queryString);
-  
+
   if (queryString) {
     const pairs = queryString.split('&');
-    pairs.forEach(pair => {
+    pairs.forEach((pair) => {
       const [key, value] = pair.split('=');
       params[key] = decodeURIComponent(value);
     });
   }
   console.log(params);
-  
+
   return params;
-}
+};
 
 export const getUrlConfig: () => IUrlConfig = () => {
   const urlConfig: any = {};
   // Populate `urlConfig` with values read from URL.
   Object.keys(getDefaultConfig()).forEach((key) => {
     const urlValue: any = getURLParam(key);
-    
+
     // const params = getQueryParams((self || window).location.href);
     // const urlValue = params[key];
     // console.log(urlValue);
-    
-    if (urlValue === true || urlValue === "true") {
+
+    if (urlValue === true || urlValue === 'true') {
       urlConfig[key] = true;
-    } else if (urlValue === "false") {
+    } else if (urlValue === 'false') {
       urlConfig[key] = false;
     } else if (isJSON(urlValue)) {
       urlConfig[key] = JSON.parse(urlValue);
     } else if (isArray(urlValue)) {
       // Array can be provided in URL using following format:
       // &parameter=[value1,value2,value3]
-      if (urlValue === "[]") {
+      if (urlValue === '[]') {
         urlConfig[key] = [];
       } else {
-        urlConfig[key] = urlValue.substring(1, urlValue.length - 1).split(",");
+        urlConfig[key] = urlValue.substring(1, urlValue.length - 1).split(',');
       }
     } else if (urlValue !== null && !isNaN(urlValue)) {
       // !isNaN(string) means isNumber(string).
@@ -314,4 +318,3 @@ export const getUrlConfig: () => IUrlConfig = () => {
   });
   return urlConfig as IUrlConfig;
 };
-

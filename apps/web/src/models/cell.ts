@@ -1,17 +1,17 @@
-import { Zone, moistureLookupByLandCover, moistureLookups } from "./zone";
-import { Vegetation, DroughtLevel, VegetationType } from "../types";
+import { Zone, moistureLookupByLandCover, moistureLookups } from './zone';
+import { Vegetation, DroughtLevel, VegetationType } from '../types';
 
 export enum FireState {
   Unburnt = 0,
   Burning = 1,
-  Burnt = 2
+  Burnt = 2,
 }
 
 // See: https://www.pivotaltracker.com/story/show/170344417
 export enum BurnIndex {
   Low = 0,
   Medium = 1,
-  High = 2
+  High = 2,
 }
 
 export interface CellOptions {
@@ -83,7 +83,10 @@ export class Cell {
   }
 
   public get isBurningOrWillBurn() {
-    return this.fireState === FireState.Burning || this.fireState === FireState.Unburnt && this.ignitionTime < Infinity;
+    return (
+      this.fireState === FireState.Burning ||
+      (this.fireState === FireState.Unburnt && this.ignitionTime < Infinity)
+    );
   }
 
   public get canSurviveFire() {
@@ -123,7 +126,7 @@ export class Cell {
   //   return BurnIndex.High;
   // }
 
-    public get burnIndex(): BurnIndex {
+  public get burnIndex(): BurnIndex {
     switch (this.vegetation) {
       case VegetationType.Grasslands:
         return this.spreadRate < 45 ? BurnIndex.Low : BurnIndex.Medium;

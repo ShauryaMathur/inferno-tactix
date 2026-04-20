@@ -1,12 +1,12 @@
-import { SimulationModel } from "./simulation";
+import { SimulationModel } from './simulation';
 
-describe("SimulationModel", () => {
-  it("should let user add fire line after model reset", async () => {
+describe('SimulationModel', () => {
+  it('should let user add fire line after model reset', async () => {
     const sim = new SimulationModel({
       modelWidth: 100000,
       modelHeight: 100000,
       gridWidth: 5,
-      sparks: [ [50000, 50000] ],
+      sparks: [[50000, 50000]],
       zoneIndex: [[0]],
       elevation: [[0]],
       unburntIslands: [[1]],
@@ -15,18 +15,18 @@ describe("SimulationModel", () => {
     });
     await sim.dataReadyPromise;
     expect(sim.canAddFireLineMarker).toEqual(true);
-    sim.buildFireLine({x: 0, y: 50000}, {x: 50000, y: 50000});
+    sim.buildFireLine({ x: 0, y: 50000 }, { x: 50000, y: 50000 });
     expect(sim.canAddFireLineMarker).toEqual(false);
     sim.restart();
     expect(sim.canAddFireLineMarker).toEqual(true);
   });
 
-  it("should report constant totalCellCountByZone values after model reload", async () => {
+  it('should report constant totalCellCountByZone values after model reload', async () => {
     const sim = new SimulationModel({
       modelWidth: 100000,
       modelHeight: 100000,
       gridWidth: 5,
-      sparks: [ [50000, 50000] ],
+      sparks: [[50000, 50000]],
       zoneIndex: [[0]],
       elevation: [[0]],
       unburntIslands: [[1]],
@@ -40,7 +40,7 @@ describe("SimulationModel", () => {
     expect(sim.totalCellCountByZone[0]).toEqual(25);
   });
 
-  it("changes the wind if changeWindOnDay config is defined and then restore wind properties after reset", async () => {
+  it('changes the wind if changeWindOnDay config is defined and then restore wind properties after reset', async () => {
     const windScaleFactor = 0.2;
     const newWindDirection = 20;
     const newWindSpeed = 20; // mph
@@ -48,7 +48,7 @@ describe("SimulationModel", () => {
       modelWidth: 100000,
       modelHeight: 100000,
       gridWidth: 5,
-      sparks: [ [50000, 50000] ],
+      sparks: [[50000, 50000]],
       zoneIndex: [[0]],
       elevation: [[0]],
       unburntIslands: [[0]],
@@ -56,7 +56,7 @@ describe("SimulationModel", () => {
       changeWindOnDay: 0.5,
       newWindDirection,
       newWindSpeed,
-      windScaleFactor
+      windScaleFactor,
     });
     await sim.dataReadyPromise;
     expect(sim.windDidChange).toBe(false);

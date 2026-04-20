@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 .simulationInfo {
   height: 0;
@@ -82,17 +82,17 @@
     }
   }
 
-@keyframes highlight {
-  0% {
-    background: #fff;
+  @keyframes highlight {
+    0% {
+      background: #fff;
+    }
+    15% {
+      background: rgb(255, 158, 158);
+    }
+    100% {
+      background: #fff;
+    }
   }
-  15% {
-    background: rgb(255, 158, 158);
-  }
-  100% {
-    background: #fff;
-  }
-}
 
   .windContainer {
     width: 90px;

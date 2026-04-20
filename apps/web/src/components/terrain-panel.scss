@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 .terrain {
   $width: 288px;
@@ -65,7 +65,7 @@
     font-weight: 800;
 
     &:hover {
-      background-color: $controlGrayLight1
+      background-color: $controlGrayLight1;
     }
   }
 
@@ -119,7 +119,6 @@
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: center;
-
   }
 
   .terrainSelector {
@@ -179,7 +178,7 @@
       font-size: 14px;
     }
 
-    .continueButton+.continueButton {
+    .continueButton + .continueButton {
       margin-left: 20px;
     }
   }

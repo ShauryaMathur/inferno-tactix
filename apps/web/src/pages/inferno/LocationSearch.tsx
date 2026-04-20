@@ -15,7 +15,7 @@ export function LocationSearch({
   setZoom,
   onSuggestionClick,
   onInputChange,
-  onKeyEnter
+  onKeyEnter,
 }: {
   query: string;
   setQuery: (q: string) => void;
@@ -58,7 +58,7 @@ export function LocationSearch({
             background: '#333',
             border: '1px solid #444',
             borderRadius: '4px',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           {suggestions.map((suggestion, index) => (
@@ -70,7 +70,7 @@ export function LocationSearch({
                 padding: '8px 12px',
                 cursor: 'pointer',
                 borderBottom: '1px solid #444',
-                color: '#fff'
+                color: '#fff',
               }}
             >
               {suggestion.display_name}
@@ -80,13 +80,15 @@ export function LocationSearch({
       )}
 
       {isLoading && (
-        <div style={{
-          position: 'absolute',
-          right: '10px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          color: '#999'
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            right: '10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: '#999',
+          }}
+        >
           Loading...
         </div>
       )}

@@ -1,16 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Composer } from "./components/Composer";
-import { ConversationPanel } from "./components/ConversationPanel";
-import { HeroSection } from "./components/HeroSection";
-import { IncidentPanel } from "./components/IncidentPanel";
-import styles from "./firecastbot.module.scss";
-import { useBrowserSpeech } from "./hooks/useBrowserSpeech";
-import { useFireCastBotSession } from "./hooks/useFireCastBotSession";
-import { useMicInput } from "./hooks/useMicInput";
+import React, { useEffect, useRef, useState } from 'react';
+import { Composer } from './components/Composer';
+import { ConversationPanel } from './components/ConversationPanel';
+import { HeroSection } from './components/HeroSection';
+import { IncidentPanel } from './components/IncidentPanel';
+import styles from './firecastbot.module.scss';
+import { useBrowserSpeech } from './hooks/useBrowserSpeech';
+import { useFireCastBotSession } from './hooks/useFireCastBotSession';
+import { useMicInput } from './hooks/useMicInput';
 
 export default function FireCastBot() {
-  const [queryInput, setQueryInput] = useState("");
-  const [speechToTextProviderId, setSpeechToTextProviderId] = useState("browser");
+  const [queryInput, setQueryInput] = useState('');
+  const [speechToTextProviderId, setSpeechToTextProviderId] = useState('browser');
   const [speakResponses, setSpeakResponses] = useState(false);
   const [showSpeechSettings, setShowSpeechSettings] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
@@ -47,22 +47,22 @@ export default function FireCastBot() {
   // Sync STT provider when config loads
   useEffect(() => {
     if (session.config) {
-      setSpeechToTextProviderId(session.config.defaultSpeechToTextProvider || "browser");
+      setSpeechToTextProviderId(session.config.defaultSpeechToTextProvider || 'browser');
     }
   }, [session.config]);
 
   // Cancel speech on page unload
   useEffect(() => {
     const cancel = () => {
-      if ("speechSynthesis" in window) {
+      if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
     };
-    window.addEventListener("beforeunload", cancel);
-    window.addEventListener("pagehide", cancel);
+    window.addEventListener('beforeunload', cancel);
+    window.addEventListener('pagehide', cancel);
     return () => {
-      window.removeEventListener("beforeunload", cancel);
-      window.removeEventListener("pagehide", cancel);
+      window.removeEventListener('beforeunload', cancel);
+      window.removeEventListener('pagehide', cancel);
       cancel();
     };
   }, []);
@@ -70,12 +70,16 @@ export default function FireCastBot() {
   // Close settings on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (showSpeechSettings && settingsPanelRef.current && !settingsPanelRef.current.contains(e.target as Node)) {
+      if (
+        showSpeechSettings &&
+        settingsPanelRef.current &&
+        !settingsPanelRef.current.contains(e.target as Node)
+      ) {
         setShowSpeechSettings(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [showSpeechSettings]);
 
   const selectedSttProvider = session.getSelectedProvider(speechToTextProviderId);

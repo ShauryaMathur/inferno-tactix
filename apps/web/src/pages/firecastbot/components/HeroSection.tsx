@@ -1,7 +1,7 @@
-import React from "react";
-import { Settings } from "lucide-react";
-import type { Provider, FireCastBotConfig } from "../types";
-import styles from "../firecastbot.module.scss";
+import React from 'react';
+import { Settings } from 'lucide-react';
+import type { Provider, FireCastBotConfig } from '../types';
+import styles from '../firecastbot.module.scss';
 
 type Props = {
   isBotReady: boolean;
@@ -12,7 +12,7 @@ type Props = {
   showSpeechSettings: boolean;
   setShowSpeechSettings: (v: boolean | ((prev: boolean) => boolean)) => void;
   settingsPanelRef: React.RefObject<HTMLDivElement | null>;
-  providers: FireCastBotConfig["providers"];
+  providers: FireCastBotConfig['providers'];
   speechToTextProviderId: string;
   setSpeechToTextProviderId: (v: string) => void;
   selectedSttProvider: Provider | null;
@@ -58,13 +58,18 @@ export function HeroSection({
                 onChange={(e) => setSpeechToTextProviderId(e.target.value)}
               >
                 {providers.map((p) => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
                 ))}
               </select>
 
-              {selectedSttProvider?.transcriptionUnavailableReason && !selectedSttProvider.transcriptionAvailable && (
-                <p className={styles.note}>{selectedSttProvider.transcriptionUnavailableReason}</p>
-              )}
+              {selectedSttProvider?.transcriptionUnavailableReason &&
+                !selectedSttProvider.transcriptionAvailable && (
+                  <p className={styles.note}>
+                    {selectedSttProvider.transcriptionUnavailableReason}
+                  </p>
+                )}
 
               <label className={styles.checkbox}>
                 <input
@@ -80,17 +85,18 @@ export function HeroSection({
       </div>
 
       <div className={styles.badge}>
-        <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ""}`} />
+        <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ''}`} />
         <span>FIRECASTBOT</span>
         {sessionReadyAt && (
           <span className={styles.sessionTime}>
-            · {sessionReadyAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            · {sessionReadyAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
       </div>
       <h2 className={styles.title}>Ask FireCastBot</h2>
       <p className={styles.subtitle}>
-        Upload an incident report, extract structured facts, and query it alongside doctrine and safety references without leaving FireCastRL.
+        Upload an incident report, extract structured facts, and query it alongside doctrine and
+        safety references without leaving FireCastRL.
       </p>
       {isLoading && <p className={styles.loadingText}>Starting FireCastBot&hellip;</p>}
       {error && !isLoading && (

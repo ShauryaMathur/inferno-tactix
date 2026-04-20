@@ -12,16 +12,9 @@
     "resolveJsonModule": true,
     "experimentalDecorators": true,
     "strictNullChecks": true,
-    "types": ["jest","node"],
+    "types": ["jest", "node"],
     "jsx": "react",
-    "lib": [
-      "dom",
-      "es5",
-      "es2017"
-    ]
+    "lib": ["dom", "es5", "es2017"]
   },
-  "include": [
-    "./src/**/*",
-    "./setupTests.ts"
-  ]
+  "include": ["./src/**/*", "./setupTests.ts"]
 }

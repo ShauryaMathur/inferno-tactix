@@ -16,7 +16,7 @@ const MIN_DATE = '1980-01-01';
 const MAX_DATE = new Date().toISOString().slice(0, 10);
 const USA_BOUNDS: [[number, number], [number, number]] = [
   [24.396308, -124.848974],
-  [49.384358, -66.885444]
+  [49.384358, -66.885444],
 ];
 
 interface ApiResponse {
@@ -63,7 +63,9 @@ export default function Inferno() {
           setShowSuggestions(false);
           return;
         }
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(input)}`);
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(input)}`
+        );
         const results = await resp.json();
         setSuggestions(results);
         setShowSuggestions(true);
@@ -87,7 +89,9 @@ export default function Inferno() {
       lon = parseFloat(coordMatch[3]);
     } else {
       try {
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(trimmed)}`);
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(trimmed)}`
+        );
         const results = await resp.json();
         if (!results.length) return alert('No results found');
         lat = +results[0].lat;
@@ -149,7 +153,7 @@ export default function Inferno() {
     setIsFetchingPrediction(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/api/predictWildfire`, null, {
-        params: { lat: position[0], lon: position[1], date: selectedDate }
+        params: { lat: position[0], lon: position[1], date: selectedDate },
       });
       if (response.data.prediction) {
         setApiResponse(response.data);
@@ -164,7 +168,7 @@ export default function Inferno() {
     }
   };
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const createEnvironmentAndNavigate = async () => {
     if (!markerPos) return alert('Please select a location on the map first');
@@ -172,10 +176,14 @@ export default function Inferno() {
     setIsCreatingEnvironment(true);
     try {
       await axios.post(`${API_BASE_URL}/api/createEnvironment`, null, {
-        params: { lat: markerPos[0], lon: markerPos[1], date }
+        params: { lat: markerPos[0], lon: markerPos[1], date },
       });
-      const query = new URLSearchParams({ lat: markerPos[0].toString(), lon: markerPos[1].toString(), date }).toString();
-    //   await sleep(7000);
+      const query = new URLSearchParams({
+        lat: markerPos[0].toString(),
+        lon: markerPos[1].toString(),
+        date,
+      }).toString();
+      //   await sleep(7000);
       window.open(`/#/tactics?${query}`, '_blank');
     } catch (error) {
       console.error('Error creating environment:', error);
@@ -203,7 +211,17 @@ export default function Inferno() {
       {isCreatingEnvironment && <LoadingSpinner message="Creating environment… Please wait" />}
       {isFetchingPrediction && <LoadingSpinner message="Getting prediction…" />}
 
-      <div className={styles.searchBar} style={{ maxWidth: '800px', margin: '1rem auto', display: 'flex', gap: '2.5rem', alignItems: 'center', position: 'relative' }}>
+      <div
+        className={styles.searchBar}
+        style={{
+          maxWidth: '800px',
+          margin: '1rem auto',
+          display: 'flex',
+          gap: '2.5rem',
+          alignItems: 'center',
+          position: 'relative',
+        }}
+      >
         <LocationSearch
           query={query}
           setQuery={setQuery}
@@ -221,12 +239,31 @@ export default function Inferno() {
           onKeyEnter={handleSearch}
         />
         <DatePicker value={date} onChange={setDate} min={MIN_DATE} max={MAX_DATE} />
-        <button style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#ffdf00c2', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSearch}>Analyze Risk</button>
+        <button
+          style={{
+            padding: '0.75rem 1.5rem',
+            fontSize: '1rem',
+            background: '#ffdf00c2',
+            color: '#000',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+          onClick={handleSearch}
+        >
+          Analyze Risk
+        </button>
       </div>
 
       <div className={styles.preview}>
         <div className={styles.previewFrame} style={{ display: 'flex', justifyContent: 'center' }}>
-          <MapView center={mapCenter} zoom={zoom} markerPos={markerPos} theme={theme} onClick={handlePositionChange} />
+          <MapView
+            center={mapCenter}
+            zoom={zoom}
+            markerPos={markerPos}
+            theme={theme}
+            onClick={handlePositionChange}
+          />
         </div>
       </div>
 

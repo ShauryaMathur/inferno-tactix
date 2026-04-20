@@ -1,23 +1,23 @@
-@import "common.scss";
+@import 'common.scss';
 
-.terrainSummary{
+.terrainSummary {
   flex-grow: 1;
   font-size: 10px;
   font-family: 'Roboto Condensed';
-  .row{
+  .row {
     display: flex;
     padding: 4px;
-    .column{
+    .column {
       flex: 1;
       display: flex;
       justify-content: space-between;
-      .icon{
+      .icon {
         margin: auto;
         margin-right: 0px;
         width: 26px;
         height: 26px;
         border: 1px solid $controlGray;
-        &.drought{
+        &.drought {
           padding-top: 6px;
           right: 5px;
           width: 18px;
@@ -25,7 +25,7 @@
           border: 0;
         }
       }
-      .caption{
+      .caption {
         margin: auto;
         margin-left: 0px;
         width: 50px;

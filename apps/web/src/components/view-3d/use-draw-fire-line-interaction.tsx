@@ -1,12 +1,12 @@
-import { useRef } from "react";
-import { useStores } from "../../use-stores";
-import { ftToViewUnit } from "./helpers";
-import { Event } from "three";
-import { Interaction } from "../../models/ui";
-import { useDragging } from "./use-dragging";
-import * as THREE from "three";
-import { InteractionHandler } from "./interaction-handler";
-import { log } from "@concord-consortium/lara-interactive-api";
+import { useRef } from 'react';
+import { useStores } from '../../use-stores';
+import { ftToViewUnit } from './helpers';
+import { Event } from 'three';
+import { Interaction } from '../../models/ui';
+import { useDragging } from './use-dragging';
+import * as THREE from 'three';
+import { InteractionHandler } from './interaction-handler';
+import { log } from '@concord-consortium/lara-interactive-api';
 
 const MIN_DIST = 1500; // feet
 
@@ -27,12 +27,18 @@ export const useDrawFireLineInteraction: () => InteractionHandler = () => {
     onDragEnd: () => {
       const lastIdx = simulation.fireLineMarkers.length - 1;
       if (
-        Math.abs(simulation.fireLineMarkers[lastIdx - 1].x - simulation.fireLineMarkers[lastIdx].x) < MIN_DIST &&
-        Math.abs(simulation.fireLineMarkers[lastIdx - 1].y - simulation.fireLineMarkers[lastIdx].y) < MIN_DIST
+        Math.abs(
+          simulation.fireLineMarkers[lastIdx - 1].x - simulation.fireLineMarkers[lastIdx].x
+        ) < MIN_DIST &&
+        Math.abs(
+          simulation.fireLineMarkers[lastIdx - 1].y - simulation.fireLineMarkers[lastIdx].y
+        ) < MIN_DIST
       ) {
         // Markers are too close, it was a click probably. Reset them and keep interaction on.
         simulation.markFireLineUnderConstruction(
-          simulation.fireLineMarkers[lastIdx - 1], simulation.fireLineMarkers[lastIdx], false
+          simulation.fireLineMarkers[lastIdx - 1],
+          simulation.fireLineMarkers[lastIdx],
+          false
         );
         simulation.fireLineMarkers.length = simulation.fireLineMarkers.length - 2;
       } else {
@@ -42,16 +48,16 @@ export const useDrawFireLineInteraction: () => InteractionHandler = () => {
         const firelineStartPoint = simulation.fireLineMarkers[lastIdx - 1];
         const cell1 = simulation.cellAt(firelineStartPoint.x, firelineStartPoint.y);
         const cell2 = simulation.cellAt(firelineEndPoint.x, firelineEndPoint.y);
-        log("FireLineAdded", {
+        log('FireLineAdded', {
           x1: firelineStartPoint.x / simulation.config.modelWidth,
           y1: firelineStartPoint.y / simulation.config.modelHeight,
           elevation1: cell1.elevation,
           x2: firelineEndPoint.x / simulation.config.modelWidth,
           y2: firelineEndPoint.y / simulation.config.modelHeight,
-          elevation2: cell2.elevation
+          elevation2: cell2.elevation,
         });
       }
-    }
+    },
   });
 
   return {
@@ -65,6 +71,6 @@ export const useDrawFireLineInteraction: () => InteractionHandler = () => {
       // There's assumption that user will click on terrain mesh to start drawing fire line.
       dragPlane.current = e.object as THREE.Mesh;
       startDragging(e);
-    }
+    },
   };
 };

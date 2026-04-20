@@ -1,14 +1,14 @@
-import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
-import { Provider } from "mobx-react";
-import React, { useEffect, useRef } from "react";
-import Shutterbug from "shutterbug";
-import * as THREE from "three";
-import { useStores } from "../../use-stores";
-import { FireLineMarkersContainer } from "./fire-line-marker";
-import { DEFAULT_UP, PLANE_WIDTH, planeHeight } from "./helpers";
-import { SparksContainer } from "./spark";
-import { Terrain } from "./terrain";
+import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Provider } from 'mobx-react';
+import React, { useEffect, useRef } from 'react';
+import Shutterbug from 'shutterbug';
+import * as THREE from 'three';
+import { useStores } from '../../use-stores';
+import { FireLineMarkersContainer } from './fire-line-marker';
+import { DEFAULT_UP, PLANE_WIDTH, planeHeight } from './helpers';
+import { SparksContainer } from './spark';
+import { Terrain } from './terrain';
 
 // This needs to be a separate component, as useThree depends on context provided by <Canvas> component.
 const ShutterbugSupport = () => {
@@ -17,8 +17,8 @@ const ShutterbugSupport = () => {
     const render = () => {
       gl.render(scene, camera);
     };
-    Shutterbug.on("saycheese", render);
-    return () => Shutterbug.off("saycheese", render);
+    Shutterbug.on('saycheese', render);
+    return () => Shutterbug.off('saycheese', render);
   }, [gl, scene, camera]);
   return null;
 };
@@ -27,7 +27,11 @@ export const View3d = () => {
   const stores = useStores();
   const simulation = stores.simulation;
   const ui = stores.ui;
-  const cameraPos: [number, number, number] = [PLANE_WIDTH * 0.5, planeHeight(simulation) * -1.5, PLANE_WIDTH * 1.5];
+  const cameraPos: [number, number, number] = [
+    PLANE_WIDTH * 0.5,
+    planeHeight(simulation) * -1.5,
+    PLANE_WIDTH * 1.5,
+  ];
   const terrainRef = useRef<THREE.Mesh>(null);
 
   return (
@@ -81,11 +85,8 @@ export const View3d = () => {
           minAzimuthAngle={-Math.PI * 0.25}
           maxAzimuthAngle={Math.PI * 0.25}
         />
-        <hemisphereLight args={[0xC6C2B6, 0x3A403B, 1.2]} up={DEFAULT_UP} />
-        <directionalLight
-          args={[0xffffff, 0.8]}
-          position={[-100, 100, -100]}
-        />
+        <hemisphereLight args={[0xc6c2b6, 0x3a403b, 1.2]} up={DEFAULT_UP} />
+        <directionalLight args={[0xffffff, 0.8]} position={[-100, 100, -100]} />
         <Terrain ref={terrainRef} />
         <SparksContainer dragPlane={terrainRef} />
         <FireLineMarkersContainer dragPlane={terrainRef} />

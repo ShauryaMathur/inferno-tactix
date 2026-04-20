@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 .windContainer {
   width: 100%;
@@ -121,14 +121,16 @@
     .thumb {
       width: 14px;
       height: 14px;
-      background-image: url("../assets/slider-horizontal.svg");
+      background-image: url('../assets/slider-horizontal.svg');
       box-shadow: none;
 
       &:hover {
         box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
       }
 
-      &:active, &:global(.Mui-active), &:global(.Mui-focusVisible) {
+      &:active,
+      &:global(.Mui-active),
+      &:global(.Mui-focusVisible) {
         box-shadow: 0 0 0 3px rgba(255, 255, 255, 1);
       }
     }

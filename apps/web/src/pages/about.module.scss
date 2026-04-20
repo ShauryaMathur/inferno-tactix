@@ -1,14 +1,14 @@
 :root {
-  --primary-black: #0F0F0F;
-  --primary-orange: #FF5722;
-  --secondary-orange: #FF8A65;
-  --accent-amber: #FFA000;
-  --dark-bg: #1A1A1A;
+  --primary-black: #0f0f0f;
+  --primary-orange: #ff5722;
+  --secondary-orange: #ff8a65;
+  --accent-amber: #ffa000;
+  --dark-bg: #1a1a1a;
   --card-bg: #262626;
-  --text-light: #FFFFFF;
+  --text-light: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.7);
-  --gradient-dark: linear-gradient(135deg, #0F0F0F 0%, #262626 100%);
-  --gradient-orange: linear-gradient(135deg, #FF5722 0%, #FFA000 100%);
+  --gradient-dark: linear-gradient(135deg, #0f0f0f 0%, #262626 100%);
+  --gradient-orange: linear-gradient(135deg, #ff5722 0%, #ffa000 100%);
   --gradient-card: linear-gradient(160deg, rgba(255, 87, 34, 0.15) 0%, rgba(38, 38, 38, 0.1) 100%);
   --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.15);
@@ -27,7 +27,9 @@
   padding: var(--spacing-lg);
   background: var(--primary-black);
   color: var(--text-light);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+    'Helvetica Neue', sans-serif;
 }
 
 /* Hero Section */
@@ -184,10 +186,12 @@
   position: absolute;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, 
+  background: linear-gradient(
+    90deg,
     rgba(255, 87, 34, 0.05) 0%,
     rgba(255, 87, 34, 0.2) 50%,
-    rgba(255, 87, 34, 0.05) 100%);
+    rgba(255, 87, 34, 0.05) 100%
+  );
   background-size: 200% 100%;
   animation: shimmer 3s infinite;
 }
@@ -215,7 +219,7 @@
 
 /* Problem Card */
 .problemCard .icon {
-  color: #FF3D00;
+  color: #ff3d00;
 }
 
 /* Inferno Card */
@@ -230,7 +234,7 @@
 
 /* Report Card */
 .reportCard .icon {
-  color: #FFAB00;
+  color: #ffab00;
 }
 
 .reportCard {
@@ -301,17 +305,18 @@
   .container {
     padding: var(--spacing-xl);
   }
-  
+
   .cardContent {
     flex-direction: row;
     align-items: center;
     gap: var(--spacing-lg);
   }
-  
-  .visualizer, .imageContainer {
+
+  .visualizer,
+  .imageContainer {
     flex: 0 0 40%;
   }
-  
+
   .cardBody {
     flex: 1;
   }
@@ -321,7 +326,7 @@
   .title {
     font-size: 4.5rem;
   }
-  
+
   .subtitle {
     font-size: 1.5rem;
   }

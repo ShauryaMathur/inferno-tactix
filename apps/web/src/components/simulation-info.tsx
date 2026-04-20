@@ -1,25 +1,35 @@
-import React from "react";
-import { observer } from "mobx-react";
-import { useStores } from "../use-stores";
-import { droughtIcons, vegetationIcons } from "./vertical-selectors";
-import { Zone } from "../models/zone";
-import { WindDial, degToCompass } from "./wind-dial";
-import LockIcon from "../assets/lock.svg";
-import { log } from "@concord-consortium/lara-interactive-api";
-import css from "./simulation-info.scss";
+import React from 'react';
+import { observer } from 'mobx-react';
+import { useStores } from '../use-stores';
+import { droughtIcons, vegetationIcons } from './vertical-selectors';
+import { Zone } from '../models/zone';
+import { WindDial, degToCompass } from './wind-dial';
+import LockIcon from '../assets/lock.svg';
+import { log } from '@concord-consortium/lara-interactive-api';
+import css from './simulation-info.scss';
 
 const zoneTypeText = {
-  0: "Plains",
-  1: "Foothills",
-  2: "Mountains"
+  0: 'Plains',
+  1: 'Foothills',
+  2: 'Mountains',
 };
 
 const zoneCssClasses = [css.zone1, css.zone2, css.zone3];
 
-export const ZoneInfo = ({zone, idx, locked, onClick}: {zone: Zone; idx: number; locked: boolean; onClick: () => void}) => (
+export const ZoneInfo = ({
+  zone,
+  idx,
+  locked,
+  onClick,
+}: {
+  zone: Zone;
+  idx: number;
+  locked: boolean;
+  onClick: () => void;
+}) => (
   <div
     data-testid="zone-info"
-    className={`${css.zone} ${zoneCssClasses[idx]} ${locked ? "" : css.active}`}
+    className={`${css.zone} ${zoneCssClasses[idx]} ${locked ? '' : css.active}`}
     onClick={locked ? undefined : onClick}
   >
     <div className={`${css.icon} ${css.vegetationIcon}`}>{vegetationIcons[zone.vegetation]}</div>
@@ -28,7 +38,11 @@ export const ZoneInfo = ({zone, idx, locked, onClick}: {zone: Zone; idx: number;
       <div className={css.zoneName}>Zone {idx + 1}</div>
       <div className={css.terrain}>{zoneTypeText[zone.terrainType]}</div>
     </div>
-    { locked && <div className={css.lockIcon} data-testid="lock-icon"><LockIcon/></div> }
+    {locked && (
+      <div className={css.lockIcon} data-testid="lock-icon">
+        <LockIcon />
+      </div>
+    )}
   </div>
 );
 
@@ -42,20 +56,24 @@ export const SimulationInfo = observer(function WrappedComponent() {
       ui.showTerrainUI = true;
       ui.terrainUISelectedZone = zoneIdx;
     }
-    log("ZoneButtonClicked", { zone: zoneIdx });
+    log('ZoneButtonClicked', { zone: zoneIdx });
   };
 
   return (
     <div className={css.simulationInfo}>
-      {
-        simulation.zones.map((zone, idx) =>
-          <ZoneInfo key={idx} idx={idx} zone={zone} locked={uiDisabled} onClick={showTerrainPanel.bind(null, idx)} />
-        )
-      }
-      <div className={`${css.windContainer} ${simulation.windDidChange ? css.windDidChange : ""}`}>
+      {simulation.zones.map((zone, idx) => (
+        <ZoneInfo
+          key={idx}
+          idx={idx}
+          zone={zone}
+          locked={uiDisabled}
+          onClick={showTerrainPanel.bind(null, idx)}
+        />
+      ))}
+      <div className={`${css.windContainer} ${simulation.windDidChange ? css.windDidChange : ''}`}>
         <div className={css.windHeader}>Wind Meter</div>
         <div className={css.windText}>
-            {`${Math.round(scaledWind)} MPH from the ${degToCompass(simulation.wind.direction)}`}
+          {`${Math.round(scaledWind)} MPH from the ${degToCompass(simulation.wind.direction)}`}
         </div>
         <div className={css.windDial}>
           <WindDial windDirection={simulation.wind.direction} />

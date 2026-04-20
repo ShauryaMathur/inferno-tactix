@@ -1,14 +1,14 @@
-import { observer } from "mobx-react";
-import React, { useEffect } from "react";
-import { useStores } from "../use-stores";
-import { Chart } from "../charts/components/chart";
-import css from "./graph.scss";
-import { Annotation } from "../charts/models/chart-annotation";
-import { DataPoint, ChartDataSet } from "../charts/models/chart-data-set";
+import { observer } from 'mobx-react';
+import React, { useEffect } from 'react';
+import { useStores } from '../use-stores';
+import { Chart } from '../charts/components/chart';
+import css from './graph.scss';
+import { Annotation } from '../charts/models/chart-annotation';
+import { DataPoint, ChartDataSet } from '../charts/models/chart-data-set';
 
-const chartColor0 = "#ffb7f5";
-const chartColor1 = "#6badff";
-const chartColor2 = "#ffc085";
+const chartColor0 = '#ffb7f5';
+const chartColor1 = '#6badff';
+const chartColor2 = '#ffc085';
 const borderDash0 = [];
 const borderDash1 = [5, 5];
 const borderDash2 = [10, 5];
@@ -25,48 +25,52 @@ export const Graph = observer(function WrappedComponent() {
   useEffect(() => {
     // only add chart annotation after the simulation has been started
     if (simulation.timeInHours > 0) {
-      chartStore.chart.addAnnotation(new Annotation({
-        type: "verticalLine",
-        value: simulation.timeInHours,
-        label: "Fire Line",
-        labelXOffset: 0,
-        labelYOffset: 4,
-        labelPosition: "top",
-        labelBackgroundColor: "white",
-        fontFamily: "'Roboto Condensed', Lato, arial, sans-serif",
-        fontSize: 10,
-        labelColor: "#606060",
-        thickness: 1,
-        dashArray: borderDash1
-      }));
+      chartStore.chart.addAnnotation(
+        new Annotation({
+          type: 'verticalLine',
+          value: simulation.timeInHours,
+          label: 'Fire Line',
+          labelXOffset: 0,
+          labelYOffset: 4,
+          labelPosition: 'top',
+          labelBackgroundColor: 'white',
+          fontFamily: "'Roboto Condensed', Lato, arial, sans-serif",
+          fontSize: 10,
+          labelColor: '#606060',
+          thickness: 1,
+          dashArray: borderDash1,
+        })
+      );
     }
   }, [simulation.lastFireLineTimestamp]);
 
   useEffect(() => {
     if (simulation.timeInHours > 0) {
-      chartStore.chart.addAnnotation(new Annotation({
-        type: "verticalLine",
-        value: simulation.timeInHours,
-        label: "Helitack",
-        labelXOffset: 0,
-        labelYOffset: 4,
-        labelPosition: "top",
-        labelBackgroundColor: "white",
-        fontFamily: "'Roboto Condensed', Lato, arial, sans-serif",
-        fontSize: 10,
-        labelColor: "#606060",
-        thickness: 1,
-        dashArray: borderDash2
-      }));
+      chartStore.chart.addAnnotation(
+        new Annotation({
+          type: 'verticalLine',
+          value: simulation.timeInHours,
+          label: 'Helitack',
+          labelXOffset: 0,
+          labelYOffset: 4,
+          labelPosition: 'top',
+          labelBackgroundColor: 'white',
+          fontFamily: "'Roboto Condensed', Lato, arial, sans-serif",
+          fontSize: 10,
+          labelColor: '#606060',
+          thickness: 1,
+          dashArray: borderDash2,
+        })
+      );
     }
   }, [simulation.lastHelitackTimestamp]);
 
   useEffect(() => {
     chartStore.clearData();
     if (!chartStore.chart.name || chartStore.chart.name.length === 0) {
-      chartStore.chart.name = "Acres Burned vs. Time";
-      chartStore.chart.defaultAxisLabelA1 = "Time (hours)";
-      chartStore.chart.defaultAxisLabelA2 =  "Acres Burned (thousands)";
+      chartStore.chart.name = 'Acres Burned vs. Time';
+      chartStore.chart.defaultAxisLabelA1 = 'Time (hours)';
+      chartStore.chart.defaultAxisLabelA2 = 'Acres Burned (thousands)';
     }
     if (chartStore.chart?.dataSets) {
       if (chartStore.chart.dataSets.length < simulation.zones.length) {
@@ -94,7 +98,9 @@ export const Graph = observer(function WrappedComponent() {
 
   const updateChartData = (zoneIdx: number) => {
     // Burn acres is in thousands to simplify the y-axis
-    const burnAcres = Math.ceil(simulation.simulationAreaAcres * simulation.getZoneBurnPercentage(zoneIdx) / 1000);
+    const burnAcres = Math.ceil(
+      (simulation.simulationAreaAcres * simulation.getZoneBurnPercentage(zoneIdx)) / 1000
+    );
 
     if (zoneIdx <= chartStore.chart.dataSets.length - 1) {
       // we have a chart with existing datasets that contains this zone
@@ -107,9 +113,9 @@ export const Graph = observer(function WrappedComponent() {
       }
     } else {
       const points = [];
-      points.push(new DataPoint({ a1: simulation.timeInHours, a2: burnAcres, label: "" }));
+      points.push(new DataPoint({ a1: simulation.timeInHours, a2: burnAcres, label: '' }));
       const newDataset = new ChartDataSet({
-        name: "Zone " + (zoneIdx + 1),
+        name: 'Zone ' + (zoneIdx + 1),
         dataPoints: points,
         color: chartColor0,
         maxPoints: defaultMaxPoints,
@@ -123,7 +129,7 @@ export const Graph = observer(function WrappedComponent() {
         allowExpandA2: true,
         axisLabelA1: chartStore.chart.defaultAxisLabelA1,
         axisLabelA2: chartStore.chart.defaultAxisLabelA2,
-        axisRoundValueA2: 10
+        axisRoundValueA2: 10,
       });
       chartStore.chart.dataSets.push(newDataset);
     }
@@ -164,14 +170,15 @@ export const Graph = observer(function WrappedComponent() {
 
   return (
     <div className={css.chartContainer}>
-      {chartStore.chart?.dataSets && chartStore.chart.dataSets.length > 0 &&
+      {chartStore.chart?.dataSets && chartStore.chart.dataSets.length > 0 && (
         <Chart
-        title="Acres Burned vs. Time"
-        chartType="line"
-        isPlaying={simulation.simulationRunning}
-        axisLabelA1Function={axisLabelA1}
-        axisLabelA2Function={axisLabelA2} />
-      }
+          title="Acres Burned vs. Time"
+          chartType="line"
+          isPlaying={simulation.simulationRunning}
+          axisLabelA1Function={axisLabelA1}
+          axisLabelA2Function={axisLabelA2}
+        />
+      )}
     </div>
   );
 });

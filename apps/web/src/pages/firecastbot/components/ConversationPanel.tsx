@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from "react";
-import { Play, Pause } from "lucide-react";
-import type { ConversationEntry } from "../types";
-import { renderMarkdown } from "../markdown";
-import styles from "../firecastbot.module.scss";
+import React, { useEffect, useRef } from 'react';
+import { Play, Pause } from 'lucide-react';
+import type { ConversationEntry } from '../types';
+import { renderMarkdown } from '../markdown';
+import styles from '../firecastbot.module.scss';
 
 type Props = {
   conversation: ConversationEntry[];
@@ -28,7 +28,7 @@ export function ConversationPanel({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation, isQuerying]);
 
   return (
@@ -44,13 +44,13 @@ export function ConversationPanel({
           return (
             <div
               key={messageKey}
-              className={entry.role === "assistant" ? styles.assistantMessage : styles.userMessage}
+              className={entry.role === 'assistant' ? styles.assistantMessage : styles.userMessage}
             >
               <div className={styles.messageRole}>{entry.role}</div>
               <div className={styles.messageBody}>
-                {entry.role === "assistant" ? renderMarkdown(entry.content) : entry.content}
+                {entry.role === 'assistant' ? renderMarkdown(entry.content) : entry.content}
               </div>
-              {entry.role === "assistant" && (
+              {entry.role === 'assistant' && (
                 <div className={styles.messageControls}>
                   <button
                     type="button"
@@ -62,8 +62,8 @@ export function ConversationPanel({
                         startBrowserSpeech(entry.content, messageKey);
                       }
                     }}
-                    aria-label={isThisMessagePaused ? "Resume" : "Play"}
-                    data-tooltip={isThisMessagePaused ? "Resume" : "Play"}
+                    aria-label={isThisMessagePaused ? 'Resume' : 'Play'}
+                    data-tooltip={isThisMessagePaused ? 'Resume' : 'Play'}
                   >
                     <Play size={14} />
                   </button>
@@ -71,7 +71,9 @@ export function ConversationPanel({
                     type="button"
                     className={`${styles.messageControlButton} ${styles.pauseButton}`}
                     onClick={() => pauseBrowserSpeech(messageKey)}
-                    disabled={activeSpeechMessageKey !== messageKey || !isSpeaking || isSpeechPaused}
+                    disabled={
+                      activeSpeechMessageKey !== messageKey || !isSpeaking || isSpeechPaused
+                    }
                     aria-label="Pause"
                     data-tooltip="Pause"
                   >
@@ -84,7 +86,9 @@ export function ConversationPanel({
         })}
         {isQuerying && (
           <div className={styles.typingIndicator}>
-            <span /><span /><span />
+            <span />
+            <span />
+            <span />
           </div>
         )}
         <div ref={messagesEndRef} />

@@ -3,10 +3,10 @@ export type Provider = {
   label: string;
   transcriptionAvailable: boolean;
   transcriptionUnavailableReason: string | null;
-  inputMode: "upload" | "browser" | "none";
+  inputMode: 'upload' | 'browser' | 'none';
   synthesisAvailable: boolean;
   synthesisUnavailableReason: string | null;
-  outputMode: "audio_bytes" | "browser" | "none";
+  outputMode: 'audio_bytes' | 'browser' | 'none';
 };
 
 export type FireCastBotConfig = {

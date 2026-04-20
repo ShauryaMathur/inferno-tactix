@@ -1,6 +1,6 @@
-import React from "react";
-import { ArrowUp, Mic, MicOff } from "lucide-react";
-import styles from "../firecastbot.module.scss";
+import React from 'react';
+import { ArrowUp, Mic, MicOff } from 'lucide-react';
+import styles from '../firecastbot.module.scss';
 
 type Props = {
   queryInput: string;
@@ -31,22 +31,30 @@ export function Composer({
           value={queryInput}
           onChange={(e) => setQueryInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               if (canSubmitQuery) void submitQuery();
             }
           }}
-          placeholder={isBotReady ? "Ask a question about this wildfire situation..." : "Load an incident report to start chatting..."}
+          placeholder={
+            isBotReady
+              ? 'Ask a question about this wildfire situation...'
+              : 'Load an incident report to start chatting...'
+          }
           disabled={!isBotReady}
           rows={5}
         />
         <button
           type="button"
-          className={`${styles.micButton} ${isListening || isRecording ? styles.micButtonActive : ""}`}
+          className={`${styles.micButton} ${isListening || isRecording ? styles.micButtonActive : ''}`}
           onClick={handleMicClick}
           disabled={!isBotReady}
-          aria-label={isRecording ? "Stop recording" : isListening ? "Listening..." : "Speak your question"}
-          title={isRecording ? "Stop recording" : isListening ? "Listening…" : "Speak your question"}
+          aria-label={
+            isRecording ? 'Stop recording' : isListening ? 'Listening...' : 'Speak your question'
+          }
+          title={
+            isRecording ? 'Stop recording' : isListening ? 'Listening…' : 'Speak your question'
+          }
         >
           {isListening || isRecording ? <MicOff size={15} /> : <Mic size={15} />}
         </button>

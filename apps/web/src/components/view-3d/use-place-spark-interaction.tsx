@@ -1,8 +1,8 @@
-import { ftToViewUnit } from "./helpers";
-import { Interaction } from "../../models/ui";
-import { useStores } from "../../use-stores";
-import { log } from "@concord-consortium/lara-interactive-api";
-import { Event } from "three";
+import { ftToViewUnit } from './helpers';
+import { Interaction } from '../../models/ui';
+import { useStores } from '../../use-stores';
+import { log } from '@concord-consortium/lara-interactive-api';
+import { Event } from 'three';
 
 export const usePlaceSparkInteraction = () => {
   const { simulation, ui } = useStores();
@@ -15,7 +15,11 @@ export const usePlaceSparkInteraction = () => {
       simulation.addSpark(x, y);
       const cell = simulation.cellAt(x, y);
       ui.interaction = null;
-      log("SparkPlaced", { x: x / simulation.config.modelWidth, y: y / simulation.config.modelHeight, elevation: cell.elevation });
-    }
+      log('SparkPlaced', {
+        x: x / simulation.config.modelWidth,
+        y: y / simulation.config.modelHeight,
+        elevation: cell.elevation,
+      });
+    },
   };
 };

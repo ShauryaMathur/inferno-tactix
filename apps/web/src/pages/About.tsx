@@ -1,8 +1,8 @@
-import React from "react";
-import { Flame, AlertTriangle, Brain, FileText } from "lucide-react";
-import styles from "./about.module.scss";
-import PPOImage from "../assets/ppo_policy_thumb.png";
-import infernix from "../assets/infernix.png";
+import React from 'react';
+import { Flame, AlertTriangle, Brain, FileText } from 'lucide-react';
+import styles from './about.module.scss';
+import PPOImage from '../assets/ppo_policy_thumb.png';
+import infernix from '../assets/infernix.png';
 
 export default function About() {
   return (
@@ -25,16 +25,18 @@ export default function About() {
           </div>
           <div className={styles.cardContent}>
             <div className={styles.imageContainer}>
-              <img 
+              <img
                 src="https://images.pexels.com/photos/14840720/pexels-photo-14840720.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-                alt="Intense wildfire burning through forest" 
-                className={styles.cardImage} 
+                alt="Intense wildfire burning through forest"
+                className={styles.cardImage}
               />
             </div>
             <p className={styles.cardBody}>
-              U.S. wildfires now scorch <strong>10&nbsp;million&nbsp;acres</strong> annually, with suppression costs exceeding
-              <strong> $4&nbsp;billion</strong>. Beyond dollars, flames threaten communities, ecosystems, and air quality.
-              Reactive approaches can't keep pace; we need prediction and intelligent response.
+              U.S. wildfires now scorch <strong>10&nbsp;million&nbsp;acres</strong> annually, with
+              suppression costs exceeding
+              <strong> $4&nbsp;billion</strong>. Beyond dollars, flames threaten communities,
+              ecosystems, and air quality. Reactive approaches can't keep pace; we need prediction
+              and intelligent response.
             </p>
           </div>
         </section>
@@ -45,17 +47,17 @@ export default function About() {
             <h2 className={styles.cardTitle}>Inferno – Deep-Learning Forecasts</h2>
           </div>
           <div className={styles.cardContent}>
-          <div className={styles.imageContainer}>
-              <img 
+            <div className={styles.imageContainer}>
+              <img
                 src={infernix}
-                alt="AI Infernix Model Visualization" 
+                alt="AI Infernix Model Visualization"
                 className={styles.cardImage}
               />
-              
             </div>
             <p className={styles.cardBody}>
               A CNN-BiLSTM model ingests 75-day GRIDMET weather histories for every ignition point
-              and hits <strong>84.79&nbsp;% accuracy</strong> on unseen test regions—flagging high-risk periods up to two weeks ahead.
+              and hits <strong>84.79&nbsp;% accuracy</strong> on unseen test regions—flagging
+              high-risk periods up to two weeks ahead.
             </p>
           </div>
         </section>
@@ -67,15 +69,16 @@ export default function About() {
           </div>
           <div className={styles.cardContent}>
             <div className={styles.imageContainer}>
-              <img 
-                src={PPOImage} 
-                alt="AI visualization representing the helitack policy" 
-                className={styles.cardImage} 
+              <img
+                src={PPOImage}
+                alt="AI visualization representing the helitack policy"
+                className={styles.cardImage}
               />
             </div>
             <p className={styles.cardBody}>
-              A Three.js environment with a physics-based fire engine feeds stacked fire-growth frames to a
-              PPO agent. The learned helitack policy circles hotspots and cuts spread, reducing burn area by
+              A Three.js environment with a physics-based fire engine feeds stacked fire-growth
+              frames to a PPO agent. The learned helitack policy circles hotspots and cuts spread,
+              reducing burn area by
               <strong> ~50&nbsp;%</strong> versus scripted baselines.
             </p>
           </div>
@@ -88,18 +91,23 @@ export default function About() {
           </div>
           <div className={styles.cardContent}>
             <div className={styles.imageContainer}>
-              <img 
-                src="https://images.pexels.com/photos/9835606/pexels-photo-9835606.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
-                alt="Digital report visualization" 
-                className={styles.cardImage} 
+              <img
+                src="https://images.pexels.com/photos/9835606/pexels-photo-9835606.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                alt="Digital report visualization"
+                className={styles.cardImage}
               />
             </div>
             <p className={styles.cardBody}>
-              With one click, field commanders receive a concise PDF: timestamped risk score, predicted burn curve,
-              and GPS coordinates for optimal <strong>helitack</strong> deployment under the RL policy.
+              With one click, field commanders receive a concise PDF: timestamped risk score,
+              predicted burn curve, and GPS coordinates for optimal <strong>helitack</strong>{' '}
+              deployment under the RL policy.
             </p>
           </div>
-          <a href="https://buffalo.app.box.com/file/1854274825450?s=jpljoklsw6y68xeq9bdxtvc7jy6b12kg" className={styles.button} target="_blank">
+          <a
+            href="https://buffalo.app.box.com/file/1854274825450?s=jpljoklsw6y68xeq9bdxtvc7jy6b12kg"
+            className={styles.button}
+            target="_blank"
+          >
             View sample report <span aria-hidden="true">→</span>
           </a>
         </section>

@@ -1,18 +1,18 @@
-import React, { useMemo, RefObject } from "react";
-import * as THREE from "three";
-import { observer } from "mobx-react";
-import { ftToViewUnit, PLANE_WIDTH } from "./helpers";
-import { useStores } from "../../use-stores";
-import { getEventHandlers } from "./interaction-handler";
-import { useDraggingOverPlaneInteraction } from "./use-dragging-over-plane-interaction";
+import React, { useMemo, RefObject } from 'react';
+import * as THREE from 'three';
+import { observer } from 'mobx-react';
+import { ftToViewUnit, PLANE_WIDTH } from './helpers';
+import { useStores } from '../../use-stores';
+import { getEventHandlers } from './interaction-handler';
+import { useDraggingOverPlaneInteraction } from './use-dragging-over-plane-interaction';
 
 const getTexture = (imgSrcOrCanvas: string | HTMLCanvasElement) => {
   let source;
   let Texture = THREE.Texture;
-  if (typeof imgSrcOrCanvas === "string") {
-    source = document.createElement("img");
+  if (typeof imgSrcOrCanvas === 'string') {
+    source = document.createElement('img');
     source.src = imgSrcOrCanvas;
-    source.onload = () => texture.needsUpdate = true;
+    source.onload = () => (texture.needsUpdate = true);
   } else {
     source = imgSrcOrCanvas; // canvas
     Texture = THREE.CanvasTexture;
@@ -25,7 +25,7 @@ const getTexture = (imgSrcOrCanvas: string | HTMLCanvasElement) => {
 interface IProps {
   // Image src or HTML Canvas that is going to be used as a texture source.
   markerImg: string | HTMLCanvasElement;
-  position: {x: number, y: number};
+  position: { x: number; y: number };
   // Width relative to the plane/terrain width.
   width?: number;
   // Height relative to the plane/terrain width.
@@ -42,16 +42,33 @@ interface IProps {
 }
 
 export const Marker: React.FC<IProps> = observer(function WrappedComponent({
- markerImg, markerHighlightImg, position, onDrag, onDragEnd, dragPlane,
- width = 0.06, height = 0.06, anchorX = 0.5, anchorY = 0, lockOnSimStart = false
+  markerImg,
+  markerHighlightImg,
+  position,
+  onDrag,
+  onDragEnd,
+  dragPlane,
+  width = 0.06,
+  height = 0.06,
+  anchorX = 0.5,
+  anchorY = 0,
+  lockOnSimStart = false,
 }) {
   const { simulation } = useStores();
   const defTexture = useMemo(() => getTexture(markerImg), [markerImg]);
-  const highlightTexture = useMemo(() => markerHighlightImg && getTexture(markerHighlightImg), [markerHighlightImg]);
+  const highlightTexture = useMemo(
+    () => markerHighlightImg && getTexture(markerHighlightImg),
+    [markerHighlightImg]
+  );
   const lockedOnSimStart = lockOnSimStart && simulation.simulationStarted;
   // Dragging is disabled when onDrag and dragPlane are missing, or when marker is locked on sim start.
   const draggingEnabled = !!onDrag && !!dragPlane && !lockedOnSimStart;
-  const draggingInteraction = useDraggingOverPlaneInteraction(draggingEnabled, onDrag, onDragEnd, dragPlane);
+  const draggingInteraction = useDraggingOverPlaneInteraction(
+    draggingEnabled,
+    onDrag,
+    onDragEnd,
+    dragPlane
+  );
 
   if (!simulation.dataReady) {
     // Don't render markers when simulation data isn't downloaded yet.
@@ -67,7 +84,7 @@ export const Marker: React.FC<IProps> = observer(function WrappedComponent({
 
   const texture = draggingInteraction.hovered && highlightTexture ? highlightTexture : defTexture;
 
-  const eventHandlers = getEventHandlers([ draggingInteraction ]);
+  const eventHandlers = getEventHandlers([draggingInteraction]);
   return (
     /* eslint-disable react/no-unknown-property */
     // See: https://github.com/jsx-eslint/eslint-plugin-react/issues/3423

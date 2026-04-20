@@ -1,8 +1,7 @@
-import { observable, action, makeObservable } from "mobx";
-import { ChartDataModel } from "../charts/models/chart-data";
+import { observable, action, makeObservable } from 'mobx';
+import { ChartDataModel } from '../charts/models/chart-data';
 
 export class ChartStore {
-
   public defaultMaxPoints = 20;
   public defaultMaxA1 = 20;
   @observable public chart: ChartDataModel;
@@ -29,12 +28,12 @@ export class ChartStore {
   };
   private createNewChart = () => {
     this.chart = new ChartDataModel({
-      name: "",
+      name: '',
       dataSets: [],
-      defaultAxisLabelA1: "Time",
-      defaultAxisLabelA2: "Value",
+      defaultAxisLabelA1: 'Time',
+      defaultAxisLabelA2: 'Value',
       defaultMaxPoints: this.defaultMaxPoints,
-      defaultMaxA1: this.defaultMaxA1
+      defaultMaxA1: this.defaultMaxA1,
     });
   };
 }

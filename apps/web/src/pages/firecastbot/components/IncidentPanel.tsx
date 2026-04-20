@@ -1,7 +1,7 @@
-import React from "react";
-import { API_BASE_URL } from "../../../env";
-import type { ConversationEntry, Preset } from "../types";
-import styles from "../firecastbot.module.scss";
+import React from 'react';
+import { API_BASE_URL } from '../../../env';
+import type { ConversationEntry, Preset } from '../types';
+import styles from '../firecastbot.module.scss';
 
 type Props = {
   presets: Preset[];
@@ -21,24 +21,24 @@ type Props = {
 function exportConversationAsPdf(
   conversation: ConversationEntry[],
   incidentName: string,
-  sessionReadyAt: Date | null,
+  sessionReadyAt: Date | null
 ) {
   const dateStr = sessionReadyAt
-    ? sessionReadyAt.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
-    : new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    ? sessionReadyAt.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+    : new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
   const rows = conversation
     .map((entry) => {
-      const role = entry.role === "user" ? "You" : "FireCastBot";
-      const roleClass = entry.role === "user" ? "user" : "assistant";
+      const role = entry.role === 'user' ? 'You' : 'FireCastBot';
+      const roleClass = entry.role === 'user' ? 'user' : 'assistant';
       const text = entry.content
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\n/g, "<br>");
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
       return `<div class="message ${roleClass}"><span class="role">${role}</span><p>${text}</p></div>`;
     })
-    .join("");
+    .join('');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -63,13 +63,13 @@ function exportConversationAsPdf(
 <body>
 <header>
   <h1>FireCastBot — ${incidentName}</h1>
-  <p>Session started ${dateStr} &nbsp;·&nbsp; ${conversation.length} message${conversation.length !== 1 ? "s" : ""}</p>
+  <p>Session started ${dateStr} &nbsp;·&nbsp; ${conversation.length} message${conversation.length !== 1 ? 's' : ''}</p>
 </header>
 ${rows}
 </body>
 </html>`;
 
-  const win = window.open("", "_blank");
+  const win = window.open('', '_blank');
   if (!win) return;
   win.document.write(html);
   win.document.close();
@@ -91,7 +91,7 @@ export function IncidentPanel({
   conversation,
   sessionReadyAt,
 }: Props) {
-  const incidentName = selectedPdfName || "Conversation";
+  const incidentName = selectedPdfName || 'Conversation';
   const canExport = conversation.length > 0;
 
   return (
@@ -112,9 +112,9 @@ export function IncidentPanel({
         type="file"
         accept="application/pdf"
         disabled={isIncidentSourceLocked}
-        onChange={(e) => setSelectedPdfName(e.target.files?.[0]?.name || "")}
+        onChange={(e) => setSelectedPdfName(e.target.files?.[0]?.name || '')}
       />
-      <div className={`${styles.filePicker} ${isIncidentSourceLocked ? styles.lockedSection : ""}`}>
+      <div className={`${styles.filePicker} ${isIncidentSourceLocked ? styles.lockedSection : ''}`}>
         <button
           type="button"
           className={styles.fileTrigger}
@@ -123,13 +123,15 @@ export function IncidentPanel({
         >
           Upload Incident PDF
         </button>
-        <div className={styles.fileName}>{selectedPdfName || "No file selected"}</div>
+        <div className={styles.fileName}>{selectedPdfName || 'No file selected'}</div>
       </div>
       <button onClick={uploadPdf} disabled={isBusy || !sessionId || isIncidentSourceLocked}>
         Load Report
       </button>
 
-      <div className={`${styles.presetSection} ${isIncidentSourceLocked ? styles.lockedSection : ""}`}>
+      <div
+        className={`${styles.presetSection} ${isIncidentSourceLocked ? styles.lockedSection : ''}`}
+      >
         <p className={styles.fieldLabel}>Quick presets</p>
         <div className={styles.presetGrid}>
           {presets.map((preset) => (
@@ -141,7 +143,7 @@ export function IncidentPanel({
                 disabled={isBusy || !sessionId || !preset.available || isIncidentSourceLocked}
                 title={
                   isIncidentSourceLocked
-                    ? "This session already has an incident report loaded."
+                    ? 'This session already has an incident report loaded.'
                     : preset.available
                       ? `Load ${preset.label}`
                       : `${preset.label} is not available in incident_reports`
@@ -167,7 +169,8 @@ export function IncidentPanel({
 
       {isIncidentSourceLocked && (
         <p className={styles.note}>
-          Incident source is locked for this chat session. Start a new session to load a different report.
+          Incident source is locked for this chat session. Start a new session to load a different
+          report.
         </p>
       )}
 
@@ -177,7 +180,7 @@ export function IncidentPanel({
           type="button"
           className={styles.exportButton}
           disabled={!canExport}
-          title={canExport ? "Export conversation as PDF" : "No conversation to export yet"}
+          title={canExport ? 'Export conversation as PDF' : 'No conversation to export yet'}
           onClick={() => exportConversationAsPdf(conversation, incidentName, sessionReadyAt)}
         >
           Export as PDF

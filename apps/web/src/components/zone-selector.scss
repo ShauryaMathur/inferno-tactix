@@ -1,6 +1,6 @@
-@import "common.scss";
+@import 'common.scss';
 
-.zone{
+.zone {
   flex-grow: 1;
   /* flex options for children */
   display: flex;
@@ -12,47 +12,39 @@
   margin: auto;
   padding: 4px;
 
-  &.selected, &:hover{
-      .terrainPreview{
-        border: solid 4px #ffffff;
-        .terrainImage {
-          opacity: 100%;
-        }
+  &.selected,
+  &:hover {
+    .terrainPreview {
+      border: solid 4px #ffffff;
+      .terrainImage {
+        opacity: 100%;
       }
     }
+  }
 
-  .terrainPreview{
+  .terrainPreview {
     width: 100%;
     height: 100%;
     border: solid 4px transparent;
     position: relative;
 
-    .terrainImage{
+    .terrainImage {
       width: 100%;
       opacity: 50%;
       height: 100%;
       background-size: cover;
-      &.mildDrought{
-        filter:
-          hue-rotate(327deg)
-          saturate(80%)
-          brightness(115%);
+      &.mildDrought {
+        filter: hue-rotate(327deg) saturate(80%) brightness(115%);
       }
-      &.mediumDrought{
-        filter:
-          hue-rotate(316deg)
-          saturate(80%)
-          brightness(130%);
+      &.mediumDrought {
+        filter: hue-rotate(316deg) saturate(80%) brightness(130%);
       }
-      &.severeDrought{
-        filter:
-          hue-rotate(297deg)
-          saturate(65%)
-          brightness(120%);
+      &.severeDrought {
+        filter: hue-rotate(297deg) saturate(65%) brightness(120%);
       }
     }
 
-    .riverOverlay{
+    .riverOverlay {
       width: 100%;
       height: 100%;
       position: absolute;
@@ -62,7 +54,7 @@
       background-size: cover;
     }
 
-    .vegetationPreview{
+    .vegetationPreview {
       position: absolute;
       left: 6px;
       bottom: 6px;
@@ -71,20 +63,20 @@
       border: 1px solid #ffffff;
       background-color: #ffffff;
       opacity: 60%;
-      &.right{
+      &.right {
         left: auto;
         right: 6px;
       }
-      &.mid{
+      &.mid {
         left: 26px;
       }
-      svg{
+      svg {
         width: 100%;
         height: 100%;
       }
     }
 
-    .zoneLabelBorder{
+    .zoneLabelBorder {
       position: absolute;
       left: calc(50% - 32px);
       z-index: 1;
@@ -96,7 +88,7 @@
       margin-top: 8px;
     }
 
-    .zoneLabel{
+    .zoneLabel {
       position: absolute;
       z-index: 2;
       width: 55px;
@@ -114,60 +106,61 @@
       opacity: 50%;
     }
 
-    .zoneOption{
+    .zoneOption {
       display: none;
     }
 
-    &:hover{
-      border: solid 4px rgba(255,255,255,0.5);
-      .zoneLabelBorder{
-        background-color: rgba(255,255,255,0.5);
+    &:hover {
+      border: solid 4px rgba(255, 255, 255, 0.5);
+      .zoneLabelBorder {
+        background-color: rgba(255, 255, 255, 0.5);
       }
     }
 
-    &:active{
+    &:active {
       border: solid 4px #ffffff;
-      .zoneLabelBorder{
-        background-color: rgba(255,255,255,1.0);
+      .zoneLabelBorder {
+        background-color: rgba(255, 255, 255, 1);
       }
     }
   }
 
-  &.selected, &:hover{
+  &.selected,
+  &:hover {
     .vegetationPreview {
       opacity: 100%;
     }
-    .zoneLabelBorder{
-      background-color: rgba(255,255,255,0.5);
+    .zoneLabelBorder {
+      background-color: rgba(255, 255, 255, 0.5);
     }
-    .zoneLabel{
+    .zoneLabel {
       opacity: 100%;
-      &.zone1{
+      &.zone1 {
         background-color: $zone1Red;
       }
-      &.zone2{
+      &.zone2 {
         background-color: $zone2Blue;
       }
-      &.zone3{
+      &.zone3 {
         background-color: $zone3Orange;
       }
     }
   }
 
-  &.fixed{
-    .terrainPreview{
-      &:hover{
+  &.fixed {
+    .terrainPreview {
+      &:hover {
         border: solid 4px transparent;
       }
-      .zoneLabel{
+      .zoneLabel {
         border: none;
-        &.zone1{
+        &.zone1 {
           background-color: $zone1Red;
         }
-        &.zone2{
+        &.zone2 {
           background-color: $zone2Blue;
         }
-        &.zone3{
+        &.zone3 {
           background-color: $zone3Orange;
         }
       }

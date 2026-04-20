@@ -1,14 +1,14 @@
-import { TerrainType } from "../../types";
-import { ISimulationConfig } from "../../config";
-import { getInputData } from "./image-utils";
-import { Zone } from "../zone";
-import { log } from "console";
-import { GENERATED_ASSETS_BASE_URL } from "../../env";
+import { TerrainType } from '../../types';
+import { ISimulationConfig } from '../../config';
+import { getInputData } from './image-utils';
+import { Zone } from '../zone';
+import { log } from 'console';
+import { GENERATED_ASSETS_BASE_URL } from '../../env';
 
 // Maps zones config to image data files (see data dir)
 const zonesToImageDataFile = (zones: Zone[]): string => {
-  const zoneTypes = zones.map(z => TerrainType[z.terrainType].toLowerCase());
-  return `${GENERATED_ASSETS_BASE_URL}/${zoneTypes.join("-")}`;
+  const zoneTypes = zones.map((z) => TerrainType[z.terrainType].toLowerCase());
+  return `${GENERATED_ASSETS_BASE_URL}/${zoneTypes.join('-')}`;
 };
 
 export const getZoneIndex = (
@@ -29,30 +29,28 @@ export const getZoneIndex = (
   );
 };
 
-export const getLandCoverZoneIndex = (
-  config: ISimulationConfig
-): Promise<number[] | undefined> => {
-  const landcoverImage =  `${GENERATED_ASSETS_BASE_URL}/landcover_1200x813.png`;
+export const getLandCoverZoneIndex = (config: ISimulationConfig): Promise<number[] | undefined> => {
+  const landcoverImage = `${GENERATED_ASSETS_BASE_URL}/landcover_1200x813.png`;
 
   // Map MODIS IGBP landcover classes (based on color palette) to raw landcover index (1-17)
   const rgbToLandCoverIndex: Record<string, number> = {
-    "0,100,0": 1,       // Evergreen Needleleaf Forest
-    "34,139,34": 2,     // Evergreen Broadleaf Forest
-    "50,205,50": 3,     // Deciduous Needleleaf Forest
-    "0,128,0": 4,       // Deciduous Broadleaf Forest
-    "60,179,113": 5,    // Mixed Forest
-    "240,230,140": 6,   // Closed Shrublands
-    "218,165,32": 7,    // Open Shrublands
-    "128,128,0": 8,     // Woody Savannas
-    "154,205,50": 9,    // Savannas
-    "144,238,144": 10,  // Grasslands
-    "143,188,143": 11,  // Permanent Wetlands
-    "210,180,140": 12,  // Croplands
-    "128,128,128": 13,  // Urban and Built-Up
-    "222,184,135": 14,  // Cropland/Natural Vegetation Mosaic
-    "255,255,255": 15,  // Snow and Ice
-    "211,211,211": 16,  // Barren or Sparsely Vegetated
-    "0,0,255": 17       // Water
+    '0,100,0': 1, // Evergreen Needleleaf Forest
+    '34,139,34': 2, // Evergreen Broadleaf Forest
+    '50,205,50': 3, // Deciduous Needleleaf Forest
+    '0,128,0': 4, // Deciduous Broadleaf Forest
+    '60,179,113': 5, // Mixed Forest
+    '240,230,140': 6, // Closed Shrublands
+    '218,165,32': 7, // Open Shrublands
+    '128,128,0': 8, // Woody Savannas
+    '154,205,50': 9, // Savannas
+    '144,238,144': 10, // Grasslands
+    '143,188,143': 11, // Permanent Wetlands
+    '210,180,140': 12, // Croplands
+    '128,128,128': 13, // Urban and Built-Up
+    '222,184,135': 14, // Cropland/Natural Vegetation Mosaic
+    '255,255,255': 15, // Snow and Ice
+    '211,211,211': 16, // Barren or Sparsely Vegetated
+    '0,0,255': 17, // Water
   };
 
   return getInputData(
@@ -86,13 +84,7 @@ export const getElevationData = (
     return hNorm * config.heightmapMaxElevation;
   };
 
-  return getInputData(
-    elevation,
-    config.gridWidth,
-    config.gridHeight,
-    true,
-    heightFn
-  );
+  return getInputData(elevation, config.gridWidth, config.gridHeight, true, heightFn);
 };
 
 export const getUnburntIslandsData = (
@@ -123,9 +115,7 @@ export const getUnburntIslandsData = (
   );
 };
 
-export const getRiverData = (
-  config: ISimulationConfig
-): Promise<number[] | undefined> => {
+export const getRiverData = (config: ISimulationConfig): Promise<number[] | undefined> => {
   if (!config.riverData) return Promise.resolve(undefined);
 
   return getInputData(

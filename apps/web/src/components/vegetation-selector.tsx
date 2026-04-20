@@ -1,9 +1,9 @@
-import React from "react";
-import { Slider } from "@mui/material";
-import { TerrainType, Vegetation, vegetationLabels } from "../types";
-import { generateMarks, vegetationIcons } from "./vertical-selectors";
+import React from 'react';
+import { Slider } from '@mui/material';
+import { TerrainType, Vegetation, vegetationLabels } from '../types';
+import { generateMarks, vegetationIcons } from './vertical-selectors';
 
-import css from "./vertical-selectors.scss";
+import css from './vertical-selectors.scss';
 
 interface IProps {
   vegetation: Vegetation;
@@ -42,26 +42,36 @@ const getMarks = (terrainType: TerrainType, forestWithSuppressionAvailable: bool
   return generateMarks(labelsArray.slice(0, 3));
 };
 
-export const VegetationSelector = ({ vegetation, terrainType, onChange, onChangeCommitted, forestWithSuppressionAvailable }: IProps) => {
+export const VegetationSelector = ({
+  vegetation,
+  terrainType,
+  onChange,
+  onChangeCommitted,
+  forestWithSuppressionAvailable,
+}: IProps) => {
   const marks = getMarks(terrainType, forestWithSuppressionAvailable);
   const icons = getIcons(terrainType, forestWithSuppressionAvailable);
 
-  const adjustSliderValue = (value: number) => terrainType === TerrainType.Mountains ? value + 1 : value;
-  const handleOnChange = (event: Event, value: number) => onChange?.(event, adjustSliderValue(value));
-  const handleOnChangeCommitted = (event: Event, value: number) => onChangeCommitted?.(event, adjustSliderValue(value));
+  const adjustSliderValue = (value: number) =>
+    terrainType === TerrainType.Mountains ? value + 1 : value;
+  const handleOnChange = (event: Event, value: number) =>
+    onChange?.(event, adjustSliderValue(value));
+  const handleOnChangeCommitted = (event: Event, value: number) =>
+    onChangeCommitted?.(event, adjustSliderValue(value));
 
   return (
     <div className={`${css.selector} ${css.vegetation}`}>
       <div className={css.header}>Vegetation Type</div>
       <div className={css.sliderContainer}>
         <div className={css.sliderIcons}>
-          {
-            icons.map((icon, idx) =>
-              <div key={idx} className={`${css.sliderIcon} ${css.placeholder} ${idx === 0 ? css.bottom : (idx === icons.length - 1 ? css.top : css.mid)}`}>
-                { icon }
-              </div>
-            )
-          }
+          {icons.map((icon, idx) => (
+            <div
+              key={idx}
+              className={`${css.sliderIcon} ${css.placeholder} ${idx === 0 ? css.bottom : idx === icons.length - 1 ? css.top : css.mid}`}
+            >
+              {icon}
+            </div>
+          ))}
         </div>
         <Slider
           className={css.slider}
@@ -70,7 +80,7 @@ export const VegetationSelector = ({ vegetation, terrainType, onChange, onChange
             rail: css.rail,
             mark: css.mark,
             markLabel: css.markLabel,
-            disabled: css.disabled
+            disabled: css.disabled,
           }}
           min={0}
           max={marks.length - 1}

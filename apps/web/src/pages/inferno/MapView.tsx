@@ -21,7 +21,7 @@ function ClickableMarker({ onClick }: { onClick: (pos: [number, number]) => void
     click(e) {
       const newPos: [number, number] = [e.latlng.lat, e.latlng.lng];
       onClick(newPos);
-    }
+    },
   });
 
   return null;
@@ -30,7 +30,7 @@ function ClickableMarker({ onClick }: { onClick: (pos: [number, number]) => void
 export const MapView: React.FC<Props> = ({ center, zoom, markerPos, theme, onClick }) => {
   const USA_BOUNDS: [[number, number], [number, number]] = [
     [24.396308, -124.848974],
-    [49.384358, -66.885444]
+    [49.384358, -66.885444],
   ];
 
   return (
@@ -44,7 +44,7 @@ export const MapView: React.FC<Props> = ({ center, zoom, markerPos, theme, onCli
         height: '65vh',
         margin: '0 auto',
         borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
       <Recenter center={center} />

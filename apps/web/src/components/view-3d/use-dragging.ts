@@ -1,15 +1,15 @@
-import { RefObject, useRef, useState } from "react";
-import * as THREE from "three";
-import { useThree } from "@react-three/fiber";
-import { useStores } from "../../use-stores";
+import { RefObject, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { useThree } from '@react-three/fiber';
+import { useStores } from '../../use-stores';
 
 interface UseDraggingInput {
   // If true, this will prevent object from initial jumping between its previous
   // position and point where user grabbed the object.
   useOffset: boolean;
-  dragPlane: RefObject<THREE.Mesh | undefined | null> | undefined | null,
-  onDrag?: (point: THREE.Vector3) => void
-  onDragEnd?: () => void
+  dragPlane: RefObject<THREE.Mesh | undefined | null> | undefined | null;
+  onDrag?: (point: THREE.Vector3) => void;
+  onDragEnd?: () => void;
 }
 
 // This helper can be used by interactions.
@@ -24,7 +24,10 @@ export const useDragging = ({ useOffset, dragPlane, onDrag, onDragEnd }: UseDrag
       return;
     }
     if (offset.current) {
-      const mouseWithOffset = new THREE.Vector2(mouse.x + offset.current.x, mouse.y + offset.current.y);
+      const mouseWithOffset = new THREE.Vector2(
+        mouse.x + offset.current.x,
+        mouse.y + offset.current.y
+      );
       raycaster.setFromCamera(mouseWithOffset, camera);
     }
     const result = raycaster.intersectObject(dragPlane.current);
@@ -34,8 +37,8 @@ export const useDragging = ({ useOffset, dragPlane, onDrag, onDragEnd }: UseDrag
   });
 
   const pointerUpHandler = useRef(() => {
-    window.removeEventListener("pointermove", pointerMoveHandler.current);
-    window.removeEventListener("pointerup", pointerUpHandler.current);
+    window.removeEventListener('pointermove', pointerMoveHandler.current);
+    window.removeEventListener('pointerup', pointerUpHandler.current);
     ui.dragging = false; // necessary to re-enable orbit controls
     setDragged(false);
     if (onDragEnd) {
@@ -51,16 +54,19 @@ export const useDragging = ({ useOffset, dragPlane, onDrag, onDragEnd }: UseDrag
         // grab object exactly at its anchor point. This will prevent object from initial jumping between its previous
         // position and point where user grabbed the object.
         const projectedPosition = e.object.position.clone().project(camera);
-        offset.current = new THREE.Vector2(projectedPosition.x - mouse.x, projectedPosition.y - mouse.y);
+        offset.current = new THREE.Vector2(
+          projectedPosition.x - mouse.x,
+          projectedPosition.y - mouse.y
+        );
       }
       e.stopPropagation();
       if (!dragPlane?.current) {
         return;
       }
-      window.addEventListener("pointermove", pointerMoveHandler.current);
-      window.addEventListener("pointerup", pointerUpHandler.current);
+      window.addEventListener('pointermove', pointerMoveHandler.current);
+      window.addEventListener('pointerup', pointerUpHandler.current);
       ui.dragging = true; // necessary to disable orbit controls
       setDragged(true);
-    }
+    },
   };
 };

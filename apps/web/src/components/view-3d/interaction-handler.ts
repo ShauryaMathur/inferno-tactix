@@ -1,4 +1,4 @@
-import { Event } from "three";
+import { Event } from 'three';
 
 // All the events listed here:
 // https://github.com/react-spring/@react-three/fiber#events
@@ -7,13 +7,13 @@ export enum InteractionAction {
   // Note that onClick is intentionally not listed here. It won't work on touch devices because of OrbitControls.
   // It seems that once OrbitControls are added, they swallow onClick event generation on touch devices.
   // Probably it adds touch events and browser stops generating synthetic click events. Use onPointerDown or Up instead.
-  onPointerDown = "onPointerDown",
-  onPointerUp = "onPointerUp",
-  onPointerOver = "onPointerOver",
-  onPointerOut = "onPointerOut",
-  onPointerEnter = "onPointerEnter",
-  onPointerLeave = "onPointerLeave",
-  onPointerMove = "onPointerMove",
+  onPointerDown = 'onPointerDown',
+  onPointerUp = 'onPointerUp',
+  onPointerOver = 'onPointerOver',
+  onPointerOut = 'onPointerOut',
+  onPointerEnter = 'onPointerEnter',
+  onPointerLeave = 'onPointerLeave',
+  onPointerMove = 'onPointerMove',
   // onWheel = "onWheel" - causes type errors after updating TypeScript, and not used anyway
 }
 
@@ -22,7 +22,7 @@ type EventHandler = (e: Event) => void;
 export type InteractionHandler = {
   [action in InteractionAction]?: EventHandler;
 } & {
-  active: boolean
+  active: boolean;
 };
 
 // Takes list of interactions and returns object with event handlers necessary for **active** interactions.
@@ -33,10 +33,10 @@ export type InteractionHandler = {
 // const eventHandlers = getEventHandlers(interactions);
 // return <mesh {...eventHandlers> /* ... */ </mesh>
 export const getEventHandlers = (interactions: InteractionHandler[]) => {
-  const handlers: {[action in InteractionAction]?: EventHandler[]} = {};
+  const handlers: { [action in InteractionAction]?: EventHandler[] } = {};
   interactions.forEach((interaction: InteractionHandler) => {
     if (interaction.active) {
-      Object.values(InteractionAction).forEach(eventName => {
+      Object.values(InteractionAction).forEach((eventName) => {
         const eventHandler = interaction[eventName];
         if (eventHandler) {
           if (!handlers[eventName]) {
@@ -47,10 +47,10 @@ export const getEventHandlers = (interactions: InteractionHandler[]) => {
       });
     }
   });
-  const result: {[action in InteractionAction]?: EventHandler} = {};
+  const result: { [action in InteractionAction]?: EventHandler } = {};
   Object.keys(handlers).forEach((eventName: InteractionAction) => {
     result[eventName] = (e: Event) => {
-      handlers[eventName]?.forEach(handler => {
+      handlers[eventName]?.forEach((handler) => {
         handler(e);
       });
     };

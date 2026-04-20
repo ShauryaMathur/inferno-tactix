@@ -1,7 +1,7 @@
-import { ftToViewUnit } from "./helpers";
-import { InteractionHandler } from "./interaction-handler";
-import { useStores } from "../../use-stores";
-import { Event } from "three";
+import { ftToViewUnit } from './helpers';
+import { InteractionHandler } from './interaction-handler';
+import { useStores } from '../../use-stores';
+import { Event } from 'three';
 
 export const useShowCoordsInteraction: () => InteractionHandler = () => {
   const { simulation } = useStores();
@@ -15,8 +15,8 @@ export const useShowCoordsInteraction: () => InteractionHandler = () => {
       const yRel = yFt / simulation.config.modelHeight;
       window.alert(
         `x: ${xFt.toFixed(3)} ft, y: ${yFt.toFixed(3)} ft\n` +
-        `x relative: ${xRel.toFixed(3)}, y relative: ${yRel.toFixed(3)}`
+          `x relative: ${xRel.toFixed(3)}, y relative: ${yRel.toFixed(3)}`
       );
-    }
+    },
   };
 };

@@ -9,16 +9,24 @@ interface Props {
   theme?: string;
 }
 
-export const PredictionPanel: React.FC<Props> = ({ prediction, date, isCreating, onCreate, theme = 'dark' }) => {
+export const PredictionPanel: React.FC<Props> = ({
+  prediction,
+  date,
+  isCreating,
+  onCreate,
+  theme = 'dark',
+}) => {
   return (
-    <div style={{
-      maxWidth: '800px',
-      margin: '1rem auto',
-      padding: '1rem',
-      color: theme === 'dark' ? '#fff' : '#000',
-      borderRadius: '8px',
-      textAlign: 'center',
-    }}>
+    <div
+      style={{
+        maxWidth: '800px',
+        margin: '1rem auto',
+        padding: '1rem',
+        color: theme === 'dark' ? '#fff' : '#000',
+        borderRadius: '8px',
+        textAlign: 'center',
+      }}
+    >
       <div
         style={{
           padding: '1rem 0',
@@ -51,7 +59,7 @@ export const PredictionPanel: React.FC<Props> = ({ prediction, date, isCreating,
             cursor: isCreating ? 'not-allowed' : 'pointer',
             fontSize: '1rem',
             fontWeight: 'bold',
-            opacity: isCreating ? 0.7 : 1
+            opacity: isCreating ? 0.7 : 1,
           }}
         >
           {isCreating ? 'Creating Environment...' : 'Go to Tactics'}

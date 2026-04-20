@@ -1,4 +1,4 @@
-import { Vector2 } from "three";
+import { Vector2 } from 'three';
 
 export interface Fuel {
   sav: number;
@@ -17,49 +17,48 @@ export enum Vegetation {
   Grass = 0,
   Shrub = 1,
   Forest = 2,
-  ForestWithSuppression = 3
+  ForestWithSuppression = 3,
 }
 
 export const vegetationLabels: Record<Vegetation, string> = {
-  [Vegetation.Grass]: "Grass",
-  [Vegetation.Shrub]: "Shrub",
-  [Vegetation.Forest]: "Forest",
-  [Vegetation.ForestWithSuppression]: "Forest With Suppression"
+  [Vegetation.Grass]: 'Grass',
+  [Vegetation.Shrub]: 'Shrub',
+  [Vegetation.Forest]: 'Forest',
+  [Vegetation.ForestWithSuppression]: 'Forest With Suppression',
 };
 
 export enum TerrainType {
-  Mountains = "mountains",
-  Plains = "plains",
-  Hills = "hills",
-  Tropical = "tropical",
-  Desert = "desert",
-  Wetlands = "wetlands",
-  Agricultural = "agricultural",
-  Urban = "urban",
-  Mixed = "mixed",
-  Ice = "ice",
-  Water = "water"
+  Mountains = 'mountains',
+  Plains = 'plains',
+  Hills = 'hills',
+  Tropical = 'tropical',
+  Desert = 'desert',
+  Wetlands = 'wetlands',
+  Agricultural = 'agricultural',
+  Urban = 'urban',
+  Mixed = 'mixed',
+  Ice = 'ice',
+  Water = 'water',
 }
 
-
 export const terrainLabels: Record<TerrainType, string> = {
-  [TerrainType.Plains]: "Plains",
-  [TerrainType.Foothills]: "Foothills",
-  [TerrainType.Mountains]: "Mountains",
+  [TerrainType.Plains]: 'Plains',
+  [TerrainType.Foothills]: 'Foothills',
+  [TerrainType.Mountains]: 'Mountains',
 };
 
 export enum DroughtLevel {
   NoDrought = 0,
   MildDrought = 1,
   MediumDrought = 2,
-  SevereDrought = 3
+  SevereDrought = 3,
 }
 
 export const droughtLabels: Record<DroughtLevel, string> = {
-  [DroughtLevel.NoDrought]: "No Drought",
-  [DroughtLevel.MildDrought]: "Mild Drought",
-  [DroughtLevel.MediumDrought]: "Medium Drought",
-  [DroughtLevel.SevereDrought]: "Severe Drought",
+  [DroughtLevel.NoDrought]: 'No Drought',
+  [DroughtLevel.MildDrought]: 'Mild Drought',
+  [DroughtLevel.MediumDrought]: 'Medium Drought',
+  [DroughtLevel.SevereDrought]: 'Severe Drought',
 };
 
 export enum VegetationType {
@@ -79,9 +78,8 @@ export enum VegetationType {
   CroplandMosaic = 14,
   SnowIce = 15,
   Barren = 16,
-  Water = 17
+  Water = 17,
 }
-
 
 export interface IWindProps {
   // Wind speed in mph.

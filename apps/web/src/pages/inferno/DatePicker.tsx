@@ -13,13 +13,5 @@ export const DatePicker: React.FC<Props> = ({ value, onChange, min, max }) => {
     onChange(e.target.value);
   };
 
-  return (
-    <input
-      type="date"
-      value={value}
-      onChange={handleChange}
-      min={min}
-      max={max}
-    />
-  );
+  return <input type="date" value={value} onChange={handleChange} min={min} max={max} />;
 };

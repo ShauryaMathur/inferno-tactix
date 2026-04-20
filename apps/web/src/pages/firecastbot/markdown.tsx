@@ -1,5 +1,5 @@
-import React from "react";
-import styles from "./firecastbot.module.scss";
+import React from 'react';
+import styles from './firecastbot.module.scss';
 
 const renderInlineMarkdown = (text: string): React.ReactNode[] => {
   const nodes: React.ReactNode[] = [];
@@ -10,7 +10,11 @@ const renderInlineMarkdown = (text: string): React.ReactNode[] => {
   while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
     if (match[2] && match[3]) {
-      nodes.push(<a key={`${match.index}-link`} href={match[3]} target="_blank" rel="noreferrer">{match[2]}</a>);
+      nodes.push(
+        <a key={`${match.index}-link`} href={match[3]} target="_blank" rel="noreferrer">
+          {match[2]}
+        </a>
+      );
     } else if (match[4]) {
       nodes.push(<code key={`${match.index}-code`}>{match[4]}</code>);
     } else if (match[5]) {
@@ -25,8 +29,8 @@ const renderInlineMarkdown = (text: string): React.ReactNode[] => {
 };
 
 export const renderMarkdown = (text: string): React.ReactNode[] => {
-  const normalized = text.replace(/\r\n/g, "\n");
-  const lines = normalized.split("\n");
+  const normalized = text.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
   const blocks: React.ReactNode[] = [];
   let index = 0;
 
@@ -39,17 +43,17 @@ export const renderMarkdown = (text: string): React.ReactNode[] => {
       continue;
     }
 
-    if (trimmed.startsWith("```")) {
+    if (trimmed.startsWith('```')) {
       const codeLines: string[] = [];
       index += 1;
-      while (index < lines.length && !lines[index].trim().startsWith("```")) {
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
         codeLines.push(lines[index]);
         index += 1;
       }
       if (index < lines.length) index += 1;
       blocks.push(
         <pre key={`code-${blocks.length}`} className={styles.markdownCodeBlock}>
-          <code>{codeLines.join("\n")}</code>
+          <code>{codeLines.join('\n')}</code>
         </pre>
       );
       continue;
@@ -69,7 +73,11 @@ export const renderMarkdown = (text: string): React.ReactNode[] => {
     if (/^[-*]\s+/.test(trimmed)) {
       const items: React.ReactNode[] = [];
       while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
-        items.push(<li key={`bullet-${index}`}>{renderInlineMarkdown(lines[index].trim().replace(/^[-*]\s+/, ""))}</li>);
+        items.push(
+          <li key={`bullet-${index}`}>
+            {renderInlineMarkdown(lines[index].trim().replace(/^[-*]\s+/, ''))}
+          </li>
+        );
         index += 1;
       }
       blocks.push(<ul key={`ul-${blocks.length}`}>{items}</ul>);
@@ -79,7 +87,11 @@ export const renderMarkdown = (text: string): React.ReactNode[] => {
     if (/^\d+\.\s+/.test(trimmed)) {
       const items: React.ReactNode[] = [];
       while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
-        items.push(<li key={`ordered-${index}`}>{renderInlineMarkdown(lines[index].trim().replace(/^\d+\.\s+/, ""))}</li>);
+        items.push(
+          <li key={`ordered-${index}`}>
+            {renderInlineMarkdown(lines[index].trim().replace(/^\d+\.\s+/, ''))}
+          </li>
+        );
         index += 1;
       }
       blocks.push(<ol key={`ol-${blocks.length}`}>{items}</ol>);
@@ -89,11 +101,20 @@ export const renderMarkdown = (text: string): React.ReactNode[] => {
     const paragraphLines: string[] = [];
     while (index < lines.length) {
       const current = lines[index].trim();
-      if (!current || current.startsWith("```") || /^(#{1,3})\s+/.test(current) || /^[-*]\s+/.test(current) || /^\d+\.\s+/.test(current)) break;
+      if (
+        !current ||
+        current.startsWith('```') ||
+        /^(#{1,3})\s+/.test(current) ||
+        /^[-*]\s+/.test(current) ||
+        /^\d+\.\s+/.test(current)
+      )
+        break;
       paragraphLines.push(current);
       index += 1;
     }
-    blocks.push(<p key={`paragraph-${blocks.length}`}>{renderInlineMarkdown(paragraphLines.join(" "))}</p>);
+    blocks.push(
+      <p key={`paragraph-${blocks.length}`}>{renderInlineMarkdown(paragraphLines.join(' '))}</p>
+    );
   }
 
   return blocks;
