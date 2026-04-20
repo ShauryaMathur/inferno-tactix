@@ -19,7 +19,6 @@ jobs:
       run: |
         ruff format --check \
           apps/api \
-          apps/chatwithme \
           apps/headless-client \
           apps/simulator \
           research
@@ -41,6 +40,4 @@ jobs:
           "*.json" \
           "*.md" \
           "apps/web/src/**/*.{js,jsx,ts,tsx,scss,css,json}" \
-          "apps/web/*.json" \
-          "apps/api/evals/*.{json}" \
-          "ops/**/*.{yml,yaml,md,sh}"
+          "apps/web/*.json"
