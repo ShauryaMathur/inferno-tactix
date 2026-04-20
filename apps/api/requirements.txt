@@ -1,6 +1,6 @@
 anthropic==0.46.0
 beautifulsoup4==4.13.3
-earthengine-api==1.4.9
+earthengine-api==1.4.6
 faiss-cpu==1.8.0.post1
 Flask==3.0.3
 Flask-Cors==5.0.0

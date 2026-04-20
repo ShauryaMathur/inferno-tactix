@@ -21,7 +21,7 @@ dependencies = [
   "langchain-community==0.3.9",
   "langchain-openai==0.2.10",
   "langchain-text-splitters==0.3.2",
-  "earthengine-api==1.4.9",
+  "earthengine-api==1.4.6",
   "joblib==1.4.2",
   "netCDF4==1.7.2",
   "numpy==1.24.3",
