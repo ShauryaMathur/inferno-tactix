@@ -15,9 +15,12 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from firecastbot.config import Settings, get_settings
-from firecastbot.services.llm_service import ChatCompletionResult, LLMService
-from inferno_api.firecastbot_runtime import (
+from firecastbot.config import Settings, get_settings  # noqa: E402
+from firecastbot.services.llm_service import (  # noqa: E402
+    ChatCompletionResult,
+    LLMService,
+)
+from inferno_api.firecastbot_runtime import (  # noqa: E402
     FACT_OUTPUT_LABELS,
     build_runtime_incident_report,
     classify_query,
@@ -25,7 +28,7 @@ from inferno_api.firecastbot_runtime import (
     normalize_whitespace,
     retrieve_firecast_context,
 )
-from inferno_api.rag_model_compare import (
+from inferno_api.rag_model_compare import (  # noqa: E402
     _is_rate_limit_error,
     _result_metrics,
     _text_metrics,
@@ -64,11 +67,14 @@ def build_messages_upgraded(
     context_items: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
     incident_facts = incident_profile.get("facts", {}) if incident_profile else {}
-    facts_block = "\n".join(
-        f"- {FACT_OUTPUT_LABELS[key]}: {value}"
-        for key, value in incident_facts.items()
-        if value
-    ) or "- No incident facts are available."
+    facts_block = (
+        "\n".join(
+            f"- {FACT_OUTPUT_LABELS[key]}: {value}"
+            for key, value in incident_facts.items()
+            if value
+        )
+        or "- No incident facts are available."
+    )
     answer_contract = (
         "Output exactly three sections titled: "
         "1. Incident-grounded facts, 2. Doctrine-grounded guidance, 3. Suggested interpretation."
@@ -124,9 +130,15 @@ def build_strict_judge_messages(
     rag_reply: str,
     retrieval_sources: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    expected_contains = [str(item).strip() for item in prompt_record.get("expected_contains", []) if str(item).strip()]
+    expected_contains = [
+        str(item).strip()
+        for item in prompt_record.get("expected_contains", [])
+        if str(item).strip()
+    ]
     rubric = str(prompt_record.get("rubric") or "").strip() or "No rubric provided."
-    reference_answer = str(prompt_record.get("reference_answer") or "").strip() or "No reference answer provided."
+    reference_answer = (
+        str(prompt_record.get("reference_answer") or "").strip() or "No reference answer provided."
+    )
     schema = {
         "correctness_score": "number in [0,1]",
         "groundedness_score": "number in [0,1]",
@@ -335,12 +347,18 @@ def run_upgraded_evaluation(
                     rag_reply=reply,
                     retrieval_sources=retrieval_sources,
                 )
-                if fail_on_rate_limit and judge_result["judge_error"] and _is_rate_limit_error(judge_result["judge_error"]):
+                if (
+                    fail_on_rate_limit
+                    and judge_result["judge_error"]
+                    and _is_rate_limit_error(judge_result["judge_error"])
+                ):
                     raise RuntimeError(
                         f"Judge rate limit error for {judge_provider}:{judge_model} on prompt {prompt_record.get('id') or query[:40]}: {judge_result['judge_error']}"
                     )
 
-            matched_expected = judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+            matched_expected = (
+                judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+            )
             rag_prompt_text = "\n\n".join(message["content"] for message in rag_messages)
             query_metrics = _text_metrics(query)
             reply_metrics = _text_metrics(reply)
@@ -349,7 +367,10 @@ def run_upgraded_evaluation(
                 {
                     "provider": effective_settings.llm_provider,
                     "model": effective_settings.llm_model,
-                    "label": str(model_record.get("label") or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"),
+                    "label": str(
+                        model_record.get("label")
+                        or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"
+                    ),
                     "prompt_id": str(prompt_record.get("id") or query[:40]),
                     "query_class": query_class,
                     "latency_ms": latency_ms,
@@ -424,8 +445,13 @@ def main() -> None:
     )
     parser.add_argument("--prompts", default="apps/api/evals/prompts.sample.json")
     parser.add_argument("--models", default="apps/api/evals/models.openrouter.all.json")
-    parser.add_argument("--incident-report", default="apps/firecastbot/incident_reports/incident_report_boulder.pdf")
-    parser.add_argument("--doctrine-manifest", default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json")
+    parser.add_argument(
+        "--incident-report", default="apps/firecastbot/incident_reports/incident_report_boulder.pdf"
+    )
+    parser.add_argument(
+        "--doctrine-manifest",
+        default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json",
+    )
     parser.add_argument("--embedding-provider", default="sentence-transformers")
     parser.add_argument("--embedding-model", default="BAAI/bge-base-en-v1.5")
     parser.add_argument("--judge-provider", default="groq")
@@ -433,8 +459,12 @@ def main() -> None:
     parser.add_argument("--judge-temperature", type=float, default=0.0)
     parser.add_argument("--judge-max-tokens", type=int, default=900)
     parser.add_argument("--retrieval-k", type=int, default=5)
-    parser.add_argument("--output-json", default="apps/api/evals/rag_model_compare_upgraded_bge_groq_judge.json")
-    parser.add_argument("--output-csv", default="apps/api/evals/rag_model_compare_upgraded_bge_groq_judge.csv")
+    parser.add_argument(
+        "--output-json", default="apps/api/evals/rag_model_compare_upgraded_bge_groq_judge.json"
+    )
+    parser.add_argument(
+        "--output-csv", default="apps/api/evals/rag_model_compare_upgraded_bge_groq_judge.csv"
+    )
     parser.add_argument("--fail-on-rate-limit", action="store_true", default=True)
     args = parser.parse_args()
 

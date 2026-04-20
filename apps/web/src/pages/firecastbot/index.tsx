@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useFireCastBotSession } from "./hooks/useFireCastBotSession";
-import { useBrowserSpeech } from "./hooks/useBrowserSpeech";
-import { useMicInput } from "./hooks/useMicInput";
+import { Composer } from "./components/Composer";
+import { ConversationPanel } from "./components/ConversationPanel";
 import { HeroSection } from "./components/HeroSection";
 import { IncidentPanel } from "./components/IncidentPanel";
-import { ConversationPanel } from "./components/ConversationPanel";
-import { Composer } from "./components/Composer";
 import styles from "./firecastbot.module.scss";
+import { useBrowserSpeech } from "./hooks/useBrowserSpeech";
+import { useFireCastBotSession } from "./hooks/useFireCastBotSession";
+import { useMicInput } from "./hooks/useMicInput";
 
 export default function FireCastBot() {
   const [queryInput, setQueryInput] = useState("");
@@ -36,8 +36,6 @@ export default function FireCastBot() {
 
   const mic = useMicInput({
     speechToTextProviderId,
-    isBotReady: session.isBotReady,
-    isBusy: session.isBusy,
     getSelectedProvider: session.getSelectedProvider,
     onError: session.setError,
     setQueryInput,

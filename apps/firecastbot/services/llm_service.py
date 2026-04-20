@@ -9,11 +9,9 @@ from firecastbot.config import Settings
 
 
 class ChatClient(Protocol):
-    def chat_completion(self, messages: list[dict[str, str]]) -> str:
-        ...
+    def chat_completion(self, messages: list[dict[str, str]]) -> str: ...
 
-    def chat_completion_result(self, messages: list[dict[str, str]]) -> "ChatCompletionResult":
-        ...
+    def chat_completion_result(self, messages: list[dict[str, str]]) -> "ChatCompletionResult": ...
 
 
 @dataclass(frozen=True)
@@ -153,7 +151,9 @@ class OpenAICompatibleChatClient:
         usage = getattr(response, "usage", None)
         prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
         completion_tokens_details = getattr(usage, "completion_tokens_details", None)
-        cached_tokens = getattr(prompt_tokens_details, "cached_tokens", None) if prompt_tokens_details else None
+        cached_tokens = (
+            getattr(prompt_tokens_details, "cached_tokens", None) if prompt_tokens_details else None
+        )
         reasoning_tokens = (
             getattr(completion_tokens_details, "reasoning_tokens", None)
             if completion_tokens_details
@@ -213,7 +213,9 @@ class AnthropicChatClient:
         return self.chat_completion_result(messages).content
 
     def chat_completion_result(self, messages: list[dict[str, str]]) -> ChatCompletionResult:
-        system_messages = [message["content"] for message in messages if message["role"] == "system"]
+        system_messages = [
+            message["content"] for message in messages if message["role"] == "system"
+        ]
         user_messages = [
             {
                 "role": "assistant" if message["role"] == "assistant" else "user",
@@ -264,7 +266,7 @@ class GeminiChatClient:
         except ImportError:
             try:
                 import google.generativeai as genai_legacy
-            except ImportError as exc:  # pragma: no cover
+            except ImportError:  # pragma: no cover
                 self._mode = "rest"
                 self._client = None
                 return
@@ -394,6 +396,4 @@ class OllamaChatClient:
 
 
 def _join_messages(messages: list[dict[str, str]]) -> str:
-    return "\n\n".join(
-        f"{message['role'].upper()}:\n{message['content']}" for message in messages
-    )
+    return "\n\n".join(f"{message['role'].upper()}:\n{message['content']}" for message in messages)

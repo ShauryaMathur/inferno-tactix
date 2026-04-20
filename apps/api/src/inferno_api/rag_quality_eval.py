@@ -15,11 +15,26 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from firecastbot.config import get_settings
-from firecastbot.services.llm_service import ChatCompletionResult, LLMService
-from inferno_api.firecastbot_runtime import build_runtime_incident_report, classify_query, load_doctrine_assets, retrieve_firecast_context
-from inferno_api.rag_model_compare import _is_rate_limit_error, _result_metrics, _text_metrics, load_json_records, normalize_settings, write_csv
-from inferno_api.rag_model_compare_upgraded import build_messages_upgraded
+from firecastbot.config import get_settings  # noqa: E402
+from firecastbot.services.llm_service import (  # noqa: E402
+    ChatCompletionResult,
+    LLMService,
+)
+from inferno_api.firecastbot_runtime import (  # noqa: E402
+    build_runtime_incident_report,
+    classify_query,
+    load_doctrine_assets,
+    retrieve_firecast_context,
+)
+from inferno_api.rag_model_compare import (  # noqa: E402
+    _is_rate_limit_error,
+    _result_metrics,
+    _text_metrics,
+    load_json_records,
+    normalize_settings,
+    write_csv,
+)
+from inferno_api.rag_model_compare_upgraded import build_messages_upgraded  # noqa: E402
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -186,10 +201,18 @@ def run_quality_eval(
                 retrieval_k=retrieval_k,
                 incident_profile=incident_bundle["incident_profile"] if use_incident else None,
                 incident_chunks=incident_bundle["incident_chunks"] if use_incident else [],
-                incident_embeddings=incident_bundle["incident_embeddings"] if use_incident else None,
-                incident_keyword_index=incident_bundle["incident_keyword_index"] if use_incident else None,
-                incident_embedding_provider=str(incident_bundle["embedding_provider"]) if use_incident else settings.embedding_provider,
-                incident_embedding_model=str(incident_bundle["embedding_model"]) if use_incident else settings.embedding_model,
+                incident_embeddings=incident_bundle["incident_embeddings"]
+                if use_incident
+                else None,
+                incident_keyword_index=incident_bundle["incident_keyword_index"]
+                if use_incident
+                else None,
+                incident_embedding_provider=str(incident_bundle["embedding_provider"])
+                if use_incident
+                else settings.embedding_provider,
+                incident_embedding_model=str(incident_bundle["embedding_model"])
+                if use_incident
+                else settings.embedding_model,
                 doctrine_store=doctrine_store,
             )
             rag_messages = build_messages_upgraded(
@@ -216,7 +239,9 @@ def run_quality_eval(
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 if fail_on_rate_limit and _is_rate_limit_error(error):
-                    raise RuntimeError(f"Rate limit error for {effective_settings.llm_provider}:{effective_settings.llm_model}: {error}") from exc
+                    raise RuntimeError(
+                        f"Rate limit error for {effective_settings.llm_provider}:{effective_settings.llm_model}: {error}"
+                    ) from exc
             latency_ms = round((time.perf_counter() - started) * 1000, 2)
 
             judge_result = {
@@ -245,7 +270,10 @@ def run_quality_eval(
             rows.append(
                 {
                     "case_id": str(case["id"]),
-                    "label": str(model_record.get("label") or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"),
+                    "label": str(
+                        model_record.get("label")
+                        or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"
+                    ),
                     "provider": effective_settings.llm_provider,
                     "model": effective_settings.llm_model,
                     "query": query,
@@ -296,18 +324,29 @@ def run_quality_eval(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run strict faithfulness/refusal/multi-step quality evals for RAG answers.")
+    parser = argparse.ArgumentParser(
+        description="Run strict faithfulness/refusal/multi-step quality evals for RAG answers."
+    )
     parser.add_argument("--cases", default="apps/api/evals/quality_cases.strict.json")
     parser.add_argument("--models", default="apps/api/evals/models.top4.upgraded.json")
-    parser.add_argument("--doctrine-manifest", default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json")
-    parser.add_argument("--incident-report", default="apps/firecastbot/incident_reports/incident_report_boulder.pdf")
+    parser.add_argument(
+        "--doctrine-manifest",
+        default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json",
+    )
+    parser.add_argument(
+        "--incident-report", default="apps/firecastbot/incident_reports/incident_report_boulder.pdf"
+    )
     parser.add_argument("--judge-provider", default="groq")
     parser.add_argument("--judge-model", default="llama-3.3-70b-versatile")
     parser.add_argument("--judge-temperature", type=float, default=0.0)
     parser.add_argument("--judge-max-tokens", type=int, default=900)
     parser.add_argument("--retrieval-k", type=int, default=5)
-    parser.add_argument("--output-json", default="apps/api/evals/rag_quality_eval_top4_groq_judge.json")
-    parser.add_argument("--output-csv", default="apps/api/evals/rag_quality_eval_top4_groq_judge.csv")
+    parser.add_argument(
+        "--output-json", default="apps/api/evals/rag_quality_eval_top4_groq_judge.json"
+    )
+    parser.add_argument(
+        "--output-csv", default="apps/api/evals/rag_quality_eval_top4_groq_judge.csv"
+    )
     parser.add_argument("--fail-on-rate-limit", action="store_true", default=True)
     args = parser.parse_args()
     cases = load_json_records(Path(args.cases))
@@ -328,7 +367,9 @@ def main() -> None:
     output_json.parent.mkdir(parents=True, exist_ok=True)
     output_json.write_text(json.dumps(report, indent=2), encoding="utf-8")
     write_csv(report["rows"], Path(args.output_csv))
-    print(f"Wrote {report['result_count']} quality eval rows to {output_json} and {args.output_csv}.")
+    print(
+        f"Wrote {report['result_count']} quality eval rows to {output_json} and {args.output_csv}."
+    )
 
 
 if __name__ == "__main__":

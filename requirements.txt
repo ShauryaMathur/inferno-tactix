@@ -77,7 +77,6 @@ multiprocess==0.70.16
 narwhals==1.34.0
 nest-asyncio==1.6.0
 networkx==3.1
-nump==5.5.5.5
 numpy==1.24.3
 oauthlib==3.2.2
 opencv-python==4.11.0.86

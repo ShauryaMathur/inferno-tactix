@@ -19,9 +19,12 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from firecastbot.config import Settings, get_settings
-from firecastbot.services.llm_service import ChatCompletionResult, LLMService
-from inferno_api.firecastbot_runtime import (
+from firecastbot.config import Settings, get_settings  # noqa: E402
+from firecastbot.services.llm_service import (  # noqa: E402
+    ChatCompletionResult,
+    LLMService,
+)
+from inferno_api.firecastbot_runtime import (  # noqa: E402
     build_grounded_prompt,
     build_runtime_incident_report,
     classify_query,
@@ -83,7 +86,9 @@ def build_messages(
 
 
 def evaluate_correctness(reply: str, prompt: dict[str, Any]) -> dict[str, Any]:
-    expected_contains = [str(item).strip() for item in prompt.get("expected_contains", []) if str(item).strip()]
+    expected_contains = [
+        str(item).strip() for item in prompt.get("expected_contains", []) if str(item).strip()
+    ]
     lowered_reply = reply.casefold()
     matched = [item for item in expected_contains if item.casefold() in lowered_reply]
     score = None
@@ -98,7 +103,12 @@ def evaluate_correctness(reply: str, prompt: dict[str, Any]) -> dict[str, Any]:
 
 def _is_rate_limit_error(message: str) -> bool:
     lowered = message.casefold()
-    return "ratelimit" in lowered or "rate limit" in lowered or "code': 429" in lowered or "error code: 429" in lowered
+    return (
+        "ratelimit" in lowered
+        or "rate limit" in lowered
+        or "code': 429" in lowered
+        or "error code: 429" in lowered
+    )
 
 
 def _text_metrics(text: str) -> dict[str, int]:
@@ -129,7 +139,9 @@ def _result_metrics(prefix: str, result: ChatCompletionResult | None) -> dict[st
         f"{prefix}_total_tokens": result.total_tokens,
         f"{prefix}_reasoning_tokens": result.reasoning_tokens,
         f"{prefix}_cached_tokens": result.cached_tokens,
-        f"{prefix}_response_metadata": json.dumps(result.response_metadata or {}, ensure_ascii=True),
+        f"{prefix}_response_metadata": json.dumps(
+            result.response_metadata or {}, ensure_ascii=True
+        ),
     }
 
 
@@ -162,12 +174,20 @@ def build_judge_messages(
     rag_reply: str,
     retrieval_sources: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    expected_contains = [str(item).strip() for item in prompt_record.get("expected_contains", []) if str(item).strip()]
+    expected_contains = [
+        str(item).strip()
+        for item in prompt_record.get("expected_contains", [])
+        if str(item).strip()
+    ]
     rubric = str(prompt_record.get("rubric") or "").strip() or "No rubric provided."
-    reference_answer = str(prompt_record.get("reference_answer") or "").strip() or "No reference answer provided."
+    reference_answer = (
+        str(prompt_record.get("reference_answer") or "").strip() or "No reference answer provided."
+    )
     judge_schema = {
         "correctness_score": "number from 0.0 to 1.0",
-        "matched_expected": ["subset of expected_contains strings actually satisfied by the answer"],
+        "matched_expected": [
+            "subset of expected_contains strings actually satisfied by the answer"
+        ],
         "groundedness_score": "number from 0.0 to 1.0",
         "instruction_following_score": "number from 0.0 to 1.0",
         "error": "empty string if no problem, otherwise concise issue description",
@@ -491,13 +511,21 @@ def run_evaluation(
             query_class = str(prompt_record.get("query_class") or classify_query(query))
             incident_profile = incident_bundle["incident_profile"] if incident_bundle else None
             incident_chunks = incident_bundle["incident_chunks"] if incident_bundle else []
-            incident_embeddings = incident_bundle["incident_embeddings"] if incident_bundle else None
-            incident_keyword_index = incident_bundle["incident_keyword_index"] if incident_bundle else None
+            incident_embeddings = (
+                incident_bundle["incident_embeddings"] if incident_bundle else None
+            )
+            incident_keyword_index = (
+                incident_bundle["incident_keyword_index"] if incident_bundle else None
+            )
             incident_embedding_provider = (
-                str(incident_bundle["embedding_provider"]) if incident_bundle else settings.embedding_provider
+                str(incident_bundle["embedding_provider"])
+                if incident_bundle
+                else settings.embedding_provider
             )
             incident_embedding_model = (
-                str(incident_bundle["embedding_model"]) if incident_bundle else settings.embedding_model
+                str(incident_bundle["embedding_model"])
+                if incident_bundle
+                else settings.embedding_model
             )
             context_items = retrieve_firecast_context(
                 query,
@@ -530,7 +558,10 @@ def run_evaluation(
                 {
                     "provider": effective_settings.llm_provider,
                     "model": effective_settings.llm_model,
-                    "label": str(model_record.get("label") or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"),
+                    "label": str(
+                        model_record.get("label")
+                        or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"
+                    ),
                     "prompt_id": str(prompt_record.get("id") or query[:40]),
                     "query_class": query_class,
                     "latency_ms": latency_ms,
@@ -545,14 +576,18 @@ def run_evaluation(
                         [
                             {
                                 "source_type": item.get("source_type"),
-                                "section": item.get("section") or item.get("section_path") or item.get("label"),
+                                "section": item.get("section")
+                                or item.get("section_path")
+                                or item.get("label"),
                                 "chunk_id": item.get("chunk_id") or item.get("fact_key"),
                             }
                             for item in context_items
                         ],
                         ensure_ascii=True,
                     ),
-                    "matched_expected": json.dumps(correctness["matched_expected"], ensure_ascii=True),
+                    "matched_expected": json.dumps(
+                        correctness["matched_expected"], ensure_ascii=True
+                    ),
                 }
             )
 
@@ -635,13 +670,21 @@ def run_evaluation_with_judge(
             query_class = str(prompt_record.get("query_class") or classify_query(query))
             incident_profile = incident_bundle["incident_profile"] if incident_bundle else None
             incident_chunks = incident_bundle["incident_chunks"] if incident_bundle else []
-            incident_embeddings = incident_bundle["incident_embeddings"] if incident_bundle else None
-            incident_keyword_index = incident_bundle["incident_keyword_index"] if incident_bundle else None
+            incident_embeddings = (
+                incident_bundle["incident_embeddings"] if incident_bundle else None
+            )
+            incident_keyword_index = (
+                incident_bundle["incident_keyword_index"] if incident_bundle else None
+            )
             incident_embedding_provider = (
-                str(incident_bundle["embedding_provider"]) if incident_bundle else settings.embedding_provider
+                str(incident_bundle["embedding_provider"])
+                if incident_bundle
+                else settings.embedding_provider
             )
             incident_embedding_model = (
-                str(incident_bundle["embedding_model"]) if incident_bundle else settings.embedding_model
+                str(incident_bundle["embedding_model"])
+                if incident_bundle
+                else settings.embedding_model
             )
             context_items = retrieve_firecast_context(
                 query,
@@ -711,12 +754,18 @@ def run_evaluation_with_judge(
                     rag_reply=reply,
                     retrieval_sources=retrieval_sources,
                 )
-                if fail_on_rate_limit and judge_result["judge_error"] and _is_rate_limit_error(judge_result["judge_error"]):
+                if (
+                    fail_on_rate_limit
+                    and judge_result["judge_error"]
+                    and _is_rate_limit_error(judge_result["judge_error"])
+                ):
                     raise RuntimeError(
                         f"Judge rate limit error for {judge_provider}:{judge_model} on prompt {prompt_record.get('id') or query[:40]}: {judge_result['judge_error']}"
                     )
 
-            matched_expected = judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+            matched_expected = (
+                judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+            )
             rag_prompt_text = "\n\n".join(message["content"] for message in messages)
             query_metrics = _text_metrics(query)
             reply_metrics = _text_metrics(reply)
@@ -725,7 +774,10 @@ def run_evaluation_with_judge(
                 {
                     "provider": effective_settings.llm_provider,
                     "model": effective_settings.llm_model,
-                    "label": str(model_record.get("label") or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"),
+                    "label": str(
+                        model_record.get("label")
+                        or f"{effective_settings.llm_provider}:{effective_settings.llm_model}"
+                    ),
                     "prompt_id": str(prompt_record.get("id") or query[:40]),
                     "query_class": query_class,
                     "latency_ms": latency_ms,

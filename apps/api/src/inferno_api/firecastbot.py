@@ -21,11 +21,11 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from firecastbot.config import get_settings
-from firecastbot.prompts import build_summary_prompt
-from firecastbot.services.llm_service import LLMService
-from firecastbot.services.speech_service import SpeechService
-from inferno_api.firecastbot_runtime import (
+from firecastbot.config import get_settings  # noqa: E402
+from firecastbot.prompts import build_summary_prompt  # noqa: E402
+from firecastbot.services.llm_service import LLMService  # noqa: E402
+from firecastbot.services.speech_service import SpeechService  # noqa: E402
+from inferno_api.firecastbot_runtime import (  # noqa: E402
     build_grounded_prompt,
     build_runtime_incident_report,
     classify_query,
@@ -58,15 +58,15 @@ SESSION_TTL_SECONDS = 4 * 3600  # 4 hours
 MAX_CONTINUATION_ATTEMPTS = 2
 
 # Per-endpoint upload size limits (Flask's MAX_CONTENT_LENGTH is the hard ceiling)
-MAX_PDF_BYTES = 20 * 1024 * 1024   # 20 MB
+MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
 
 # ---------------------------------------------------------------------------
 # Rate limiting — sliding-window, per-IP + per-session
 # ---------------------------------------------------------------------------
 
-RATE_LIMIT_REQUESTS = 3    # max requests allowed …
-RATE_LIMIT_WINDOW = 1.0    # … within this many seconds
+RATE_LIMIT_REQUESTS = 3  # max requests allowed …
+RATE_LIMIT_WINDOW = 1.0  # … within this many seconds
 
 
 class _SlidingWindowRateLimiter:
@@ -143,15 +143,18 @@ def rate_limit(f):
 
     Returns HTTP 429 with a ``Retry-After`` header and JSON body on violation.
     """
+
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         ip = _client_ip()
         ip_allowed, ip_retry = _ip_limiter.is_allowed(ip)
         if not ip_allowed:
-            resp = jsonify({
-                "error": "Rate limit exceeded. Please slow down.",
-                "retryAfter": round(ip_retry, 2),
-            })
+            resp = jsonify(
+                {
+                    "error": "Rate limit exceeded. Please slow down.",
+                    "retryAfter": round(ip_retry, 2),
+                }
+            )
             resp.headers["Retry-After"] = str(max(1, round(ip_retry)))
             return resp, 429
 
@@ -164,14 +167,17 @@ def rate_limit(f):
         if session_id:
             sess_allowed, sess_retry = _session_limiter.is_allowed(session_id)
             if not sess_allowed:
-                resp = jsonify({
-                    "error": "Rate limit exceeded for this session. Please slow down.",
-                    "retryAfter": round(sess_retry, 2),
-                })
+                resp = jsonify(
+                    {
+                        "error": "Rate limit exceeded for this session. Please slow down.",
+                        "retryAfter": round(sess_retry, 2),
+                    }
+                )
                 resp.headers["Retry-After"] = str(max(1, round(sess_retry)))
                 return resp, 429
 
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -213,7 +219,12 @@ class FireCastBotManager:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.llm_service = LLMService(self.settings)
-        doctrine_manifest = APPS_ROOT / "firecastbot" / "incident_response_docs" / "doctrine_retrieval_manifest.json"
+        doctrine_manifest = (
+            APPS_ROOT
+            / "firecastbot"
+            / "incident_response_docs"
+            / "doctrine_retrieval_manifest.json"
+        )
         self.doctrine_store = load_doctrine_assets(doctrine_manifest)
         self._sessions: dict[str, FireCastBotSession] = {}
         self._lock = threading.Lock()
@@ -315,7 +326,10 @@ class FireCastBotManager:
         finish_reason = (completion.finish_reason or "").strip().casefold()
 
         continuation_attempts = 0
-        while finish_reason in {"length", "max_tokens", "max_output_tokens"} and continuation_attempts < MAX_CONTINUATION_ATTEMPTS:
+        while (
+            finish_reason in {"length", "max_tokens", "max_output_tokens"}
+            and continuation_attempts < MAX_CONTINUATION_ATTEMPTS
+        ):
             continuation_messages = messages + [
                 {"role": "assistant", "content": reply},
                 {
@@ -372,7 +386,9 @@ class FireCastBotManager:
 
     def transcribe(self, session_id: str, uploaded_audio: Any, provider_id: str) -> str:
         session = self.get_session(session_id)
-        speech_service = self._get_speech_service(provider_id, self.settings.text_to_speech_provider)
+        speech_service = self._get_speech_service(
+            provider_id, self.settings.text_to_speech_provider
+        )
         if not speech_service.transcription_available:
             raise RuntimeError(
                 speech_service.transcription_unavailable_reason
@@ -466,7 +482,7 @@ class FireCastBotManager:
         ]
 
     def _recent_conversation(self, session: FireCastBotSession) -> list[dict[str, str]]:
-        return session.conversation[-self._recent_message_limit:]
+        return session.conversation[-self._recent_message_limit :]
 
     def _compact_conversation(self, session: FireCastBotSession) -> None:
         keep = self._recent_message_limit
@@ -669,7 +685,9 @@ def firecastbot_load_pdf():
         return jsonify({"error": "session_id and file are required."}), 400
     uploaded_file.seek(0, 2)
     if uploaded_file.tell() > MAX_PDF_BYTES:
-        return jsonify({"error": f"PDF exceeds the {MAX_PDF_BYTES // (1024 * 1024)} MB limit."}), 413
+        return jsonify(
+            {"error": f"PDF exceeds the {MAX_PDF_BYTES // (1024 * 1024)} MB limit."}
+        ), 413
     uploaded_file.seek(0)
     manager = get_manager()
     try:
@@ -740,13 +758,17 @@ def firecastbot_query():
 def firecastbot_transcribe():
     manager = get_manager()
     session_id = request.form.get("session_id", "")
-    provider_id = request.form.get("speech_to_text_provider_id", manager.settings.speech_to_text_provider)
+    provider_id = request.form.get(
+        "speech_to_text_provider_id", manager.settings.speech_to_text_provider
+    )
     uploaded_audio = request.files.get("file")
     if not session_id or uploaded_audio is None:
         return jsonify({"error": "session_id and file are required."}), 400
     uploaded_audio.seek(0, 2)
     if uploaded_audio.tell() > MAX_AUDIO_BYTES:
-        return jsonify({"error": f"Audio exceeds the {MAX_AUDIO_BYTES // (1024 * 1024)} MB limit."}), 413
+        return jsonify(
+            {"error": f"Audio exceeds the {MAX_AUDIO_BYTES // (1024 * 1024)} MB limit."}
+        ), 413
     uploaded_audio.seek(0)
     try:
         transcript = manager.transcribe(

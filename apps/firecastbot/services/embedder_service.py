@@ -42,7 +42,9 @@ class EmbedderService:
 
     def _embed_with_sentence_transformers(self, texts: list[str]) -> np.ndarray:
         model = _sentence_transformer_model(self.model)
-        prepared_texts = [_prepare_embedding_text(text, model_name=self.model, is_query=False) for text in texts]
+        prepared_texts = [
+            _prepare_embedding_text(text, model_name=self.model, is_query=False) for text in texts
+        ]
         vectors = model.encode(
             prepared_texts,
             convert_to_numpy=True,
@@ -63,7 +65,9 @@ class EmbedderService:
         try:
             import google.generativeai as genai
         except ImportError as exc:
-            raise RuntimeError("Install the google-generativeai package to enable Gemini embeddings.") from exc
+            raise RuntimeError(
+                "Install the google-generativeai package to enable Gemini embeddings."
+            ) from exc
         genai.configure(api_key=api_key)
         result = genai.embed_content(
             model=self.model,
@@ -87,7 +91,9 @@ class EmbedderService:
             or os.environ.get("OPENROUTER_API_KEY", "")
         )
         if not api_key:
-            raise ValueError("Missing OpenRouter API key. Set OPEN_ROUTER_API_KEY in your environment.")
+            raise ValueError(
+                "Missing OpenRouter API key. Set OPEN_ROUTER_API_KEY in your environment."
+            )
         base_url = (self.settings.openrouter_base_url or "https://openrouter.ai/api/v1").rstrip("/")
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         all_vectors: list[list[float]] = []

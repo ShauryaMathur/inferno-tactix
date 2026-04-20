@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-
 DOC_SPECS = {
     "RedBook_Final.pdf": {
         "doc_title": "Red Book",
@@ -76,13 +75,34 @@ SKIP_EXACT = {
 }
 
 DOMAIN_KEYWORDS = [
-    ("aviation", ("aviation", "helicopter", "airtanker", "retardant", "helispot", "aircraft", "uas")),
+    (
+        "aviation",
+        ("aviation", "helicopter", "airtanker", "retardant", "helispot", "aircraft", "uas"),
+    ),
     ("medical", ("medical", "triage", "burn injuries", "cpr", "fatality", "casualty")),
     ("safety", ("safety", "watch out", "lces", "hazard", "lookout", "survival", "stress", "risk")),
-    ("command", ("command", "planning", "logistics", "finance", "coordination", "communications", "leadership", "unified command")),
-    ("fire_behavior", ("fire behavior", "fire environment", "weather", "fuel", "smoke", "windspeed")),
+    (
+        "command",
+        (
+            "command",
+            "planning",
+            "logistics",
+            "finance",
+            "coordination",
+            "communications",
+            "leadership",
+            "unified command",
+        ),
+    ),
+    (
+        "fire_behavior",
+        ("fire behavior", "fire environment", "weather", "fuel", "smoke", "windspeed"),
+    ),
     ("wui", ("wildland urban interface", "wui", "structure protection")),
-    ("doctrine", ("policy", "doctrine", "standards", "organization", "responsibilities", "program")),
+    (
+        "doctrine",
+        ("policy", "doctrine", "standards", "organization", "responsibilities", "program"),
+    ),
 ]
 
 TOPIC_TAG_RULES = [
@@ -198,10 +218,11 @@ def is_probably_heading(block_text: str) -> bool:
         return True
 
     title_case_words = [
-        word for word in re.split(r"[\s/]+", text)
-        if word and any(ch.isalpha() for ch in word)
+        word for word in re.split(r"[\s/]+", text) if word and any(ch.isalpha() for ch in word)
     ]
-    if title_case_words and all(word[:1].isupper() for word in title_case_words[: min(10, len(title_case_words))]):
+    if title_case_words and all(
+        word[:1].isupper() for word in title_case_words[: min(10, len(title_case_words))]
+    ):
         return True
 
     return False
@@ -256,7 +277,10 @@ def slugify(value: str) -> str:
 
 def page_is_toc(page_text: str) -> bool:
     normalized = page_text.lower()
-    return "table of contents" in normalized and normalized.count("chapter") + normalized.count("unit") >= 2
+    return (
+        "table of contents" in normalized
+        and normalized.count("chapter") + normalized.count("unit") >= 2
+    )
 
 
 def build_chunks_for_doc(pdf_path: Path) -> list[Chunk]:
@@ -331,7 +355,11 @@ def build_chunks_for_doc(pdf_path: Path) -> list[Chunk]:
             if is_probably_heading(block_text):
                 current_heading = semantic_heading(block_text)
 
-                if re.match(r"^(chapter|unit)\s+\d+\s*$", clean_heading_text(block_text), flags=re.IGNORECASE):
+                if re.match(
+                    r"^(chapter|unit)\s+\d+\s*$",
+                    clean_heading_text(block_text),
+                    flags=re.IGNORECASE,
+                ):
                     pending_chapter_label = current_heading
                     continue
 
@@ -389,7 +417,9 @@ def write_summary(chunks: list[Chunk], output_path: Path, docs_found: list[str])
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build an offline doctrine KB from incident response PDFs.")
+    parser = argparse.ArgumentParser(
+        description="Build an offline doctrine KB from incident response PDFs."
+    )
     parser.add_argument(
         "--docs-dir",
         default=str(Path("apps/firecastbot/incident_response_docs")),

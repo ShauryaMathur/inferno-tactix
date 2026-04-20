@@ -16,8 +16,8 @@ APPS_ROOT = PACKAGE_ROOT.parent
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from firecastbot.config import Settings
-from firecastbot.services.embedder_service import EmbedderService
+from firecastbot.config import Settings  # noqa: E402
+from firecastbot.services.embedder_service import EmbedderService  # noqa: E402
 
 os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 os.environ.setdefault("USE_TF", "0")
@@ -42,9 +42,7 @@ def normalize_token(token: str) -> str:
 
 def tokenize(text: str) -> list[str]:
     return [
-        normalized
-        for raw in TOKEN_PATTERN.findall(text)
-        if (normalized := normalize_token(raw))
+        normalized for raw in TOKEN_PATTERN.findall(text) if (normalized := normalize_token(raw))
     ]
 
 
@@ -65,11 +63,7 @@ def build_keyword_index(chunks: list[dict[str, object]]) -> dict[str, object]:
                 "doc_title": chunk["doc_title"],
                 "section_path": chunk["section_path"],
                 "text": text,
-                "metadata": {
-                    key: value
-                    for key, value in chunk.items()
-                    if key not in {"text"}
-                },
+                "metadata": {key: value for key, value in chunk.items() if key not in {"text"}},
                 "length": doc_length,
             }
         )
@@ -86,7 +80,11 @@ def build_keyword_index(chunks: list[dict[str, object]]) -> dict[str, object]:
     vocabulary = {
         term: {
             "df": len(term_postings),
-            "idf": math.log(1 + ((doc_count - len(term_postings) + 0.5) / (len(term_postings) + 0.5))) if doc_count else 0.0,
+            "idf": math.log(
+                1 + ((doc_count - len(term_postings) + 0.5) / (len(term_postings) + 0.5))
+            )
+            if doc_count
+            else 0.0,
             "postings": term_postings,
         }
         for term, term_postings in postings.items()
@@ -128,9 +126,7 @@ def build_embeddings(
                 "chunk_id": chunk["chunk_id"],
                 "text": chunk["text"],
                 "metadata": {
-                    key: value
-                    for key, value in chunk.items()
-                    if key not in {"text", "chunk_id"}
+                    key: value for key, value in chunk.items() if key not in {"text", "chunk_id"}
                 },
             }
             handle.write(json.dumps(record, ensure_ascii=True) + "\n")
@@ -152,7 +148,9 @@ def write_json(data: dict[str, object], path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build offline dense and keyword retrieval artifacts for doctrine chunks.")
+    parser = argparse.ArgumentParser(
+        description="Build offline dense and keyword retrieval artifacts for doctrine chunks."
+    )
     parser.add_argument(
         "--input",
         default="apps/firecastbot/incident_response_docs/doctrine_kb.jsonl",

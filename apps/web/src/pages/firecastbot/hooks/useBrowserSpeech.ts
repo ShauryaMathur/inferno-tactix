@@ -24,7 +24,9 @@ export function useBrowserSpeech(onError: (msg: string) => void) {
     }
     suppressSpeechErrorRef.current = true;
     synth.cancel();
-    window.setTimeout(() => suppressSpeechErrorRef.current = false, 0);
+    window.setTimeout(() => {
+      suppressSpeechErrorRef.current = false;
+    }, 0);
   };
 
   const startBrowserSpeech = (text: string, messageKey: string) => {
@@ -51,7 +53,12 @@ export function useBrowserSpeech(onError: (msg: string) => void) {
     };
     utterance.onerror = (event: any) => {
       const errorType = String(event?.error || "").toLowerCase();
-      if (suppressSpeechErrorRef.current || errorType === "interrupted" || errorType === "canceled" || errorType === "cancelled") {
+      if (
+        suppressSpeechErrorRef.current ||
+        errorType === "interrupted" ||
+        errorType === "canceled" ||
+        errorType === "cancelled"
+      ) {
         suppressSpeechErrorRef.current = false;
         utteranceRef.current = null;
         setSpeechPlaybackState("", false, false);

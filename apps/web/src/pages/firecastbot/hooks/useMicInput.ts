@@ -8,8 +8,6 @@ const getSpeechRecognition = () =>
 
 export function useMicInput({
   speechToTextProviderId,
-  isBotReady,
-  isBusy,
   getSelectedProvider,
   onError,
   setQueryInput,
@@ -18,8 +16,6 @@ export function useMicInput({
   applySnapshot,
 }: {
   speechToTextProviderId: string;
-  isBotReady: boolean;
-  isBusy: boolean;
   getSelectedProvider: (id: string) => Provider | null;
   onError: (msg: string) => void;
   setQueryInput: (v: string) => void;

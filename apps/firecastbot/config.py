@@ -90,23 +90,14 @@ def get_settings() -> Settings:
             else:
                 _load_dotenv_fallback(env_path)
 
-    groq_api_key = (
-        os.getenv("FIRECASTBOT_GROQ_API_KEY")
-        or os.getenv("GROQ_API_KEY")
-    )
-    openai_api_key = (
-        os.getenv("FIRECASTBOT_OPENAI_API_KEY")
-        or os.getenv("OPENAI_API_KEY")
-    )
+    groq_api_key = os.getenv("FIRECASTBOT_GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
+    openai_api_key = os.getenv("FIRECASTBOT_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     openrouter_api_key = (
         os.getenv("FIRECASTBOT_OPENROUTER_API_KEY")
         or os.getenv("OPEN_ROUTER_API_KEY")
         or os.getenv("OPENROUTER_API_KEY")
     )
-    anthropic_api_key = (
-        os.getenv("FIRECASTBOT_ANTHROPIC_API_KEY")
-        or os.getenv("ANTHROPIC_API_KEY")
-    )
+    anthropic_api_key = os.getenv("FIRECASTBOT_ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
     gemini_api_key = (
         os.getenv("FIRECASTBOT_GEMINI_API_KEY")
         or os.getenv("GEMINI_API_KEY")
@@ -121,7 +112,10 @@ def get_settings() -> Settings:
     llm_model = os.getenv("LLM_MODEL", "x-ai/grok-4.1-fast")
     llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "2048")))
     llm_temperature = float(os.getenv("LLM_TEMPERATURE", os.getenv("GROQ_TEMPERATURE", "1.3")))
-    groq_model = os.getenv("GROQ_MODEL", llm_model if llm_provider.strip().casefold() == "groq" else "llama-3.3-70b-versatile")
+    groq_model = os.getenv(
+        "GROQ_MODEL",
+        llm_model if llm_provider.strip().casefold() == "groq" else "llama-3.3-70b-versatile",
+    )
     groq_max_tokens = int(os.getenv("GROQ_MAX_TOKENS", str(llm_max_tokens)))
     groq_temperature = float(os.getenv("GROQ_TEMPERATURE", str(llm_temperature)))
     embedding_provider = os.getenv("EMBEDDING_PROVIDER", "openrouter")

@@ -9,9 +9,7 @@ _WILDFIRE_SYSTEM_CONTEXT = (
 
 
 def build_rag_prompt(*, context: object, conversation: list[dict[str, str]], query: str) -> str:
-    history_text = "\n".join(
-        f"{entry['role']}: {entry['content']}" for entry in conversation
-    )
+    history_text = "\n".join(f"{entry['role']}: {entry['content']}" for entry in conversation)
     return (
         f"{_WILDFIRE_SYSTEM_CONTEXT}\n\n"
         "Answer the user's question using only the provided reference context. "
@@ -32,9 +30,7 @@ def build_rag_prompt(*, context: object, conversation: list[dict[str, str]], que
 
 
 def build_general_prompt(*, conversation: list[dict[str, str]], query: str) -> str:
-    history_text = "\n".join(
-        f"{entry['role']}: {entry['content']}" for entry in conversation
-    )
+    history_text = "\n".join(f"{entry['role']}: {entry['content']}" for entry in conversation)
     return (
         f"{_WILDFIRE_SYSTEM_CONTEXT}\n\n"
         "Answer based on the latest input. Ignore previous chat unless directly relevant. "
@@ -54,9 +50,7 @@ def build_summary_prompt(
     *,
     existing_summary: str = "",
 ) -> str:
-    history_text = " ".join(
-        f"{entry['role']}: {entry['content']}" for entry in conversation
-    )
+    history_text = " ".join(f"{entry['role']}: {entry['content']}" for entry in conversation)
     prior_summary = existing_summary.strip() or "None."
     return (
         "Create a concise rolling summary of the conversation.\n"

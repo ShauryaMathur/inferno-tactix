@@ -13,6 +13,7 @@ from typing import Any
 
 import numpy as np
 from pypdf import PdfReader
+
 from firecastbot.config import Settings
 from firecastbot.services.embedder_service import EmbedderService, prepare_query_texts
 
@@ -62,7 +63,12 @@ SECTION_ALIASES = {
         "rl agent recommendation",
         "operational implications",
     ),
-    "Command Structure": ("command structure", "command", "organization assignment", "ics organization"),
+    "Command Structure": (
+        "command structure",
+        "command",
+        "organization assignment",
+        "ics organization",
+    ),
     "Values at Risk": ("values at risk", "values threatened", "exposures", "assets at risk"),
     "Terrain": ("terrain",),
     "Fuels": ("fuels", "fuel conditions"),
@@ -72,17 +78,44 @@ FACT_FIELD_ALIASES = {
     "incident_name": ("incident name", "fire name", "incident"),
     "operational_period": ("operational period", "op period", "shift", "period"),
     "location": ("location", "region", "jurisdiction", "unit", "division", "branch"),
-    "overall_risk_level": ("overall risk level", "overall_risk_level", "risk level", "incident risk level"),
-    "current_fire_behavior": ("current fire behavior", "fire behavior", "situation", "current situation"),
+    "overall_risk_level": (
+        "overall risk level",
+        "overall_risk_level",
+        "risk level",
+        "incident risk level",
+    ),
+    "current_fire_behavior": (
+        "current fire behavior",
+        "fire behavior",
+        "situation",
+        "current situation",
+    ),
     "containment": ("containment", "percent contained", "% contained"),
     "weather": ("weather", "forecast", "wind", "relative humidity", "humidity"),
     "fuels": ("fuels", "fuel conditions"),
     "terrain": ("terrain", "slope", "aspect", "drainage"),
-    "values_at_risk": ("values at risk", "values threatened", "structures threatened", "critical infrastructure"),
+    "values_at_risk": (
+        "values at risk",
+        "values threatened",
+        "structures threatened",
+        "critical infrastructure",
+    ),
     "strategy_tactics": ("strategy", "tactics", "planned actions", "operations plan"),
-    "assigned_resources": ("resources", "assigned resources", "personnel", "engines", "crews", "aircraft"),
+    "assigned_resources": (
+        "resources",
+        "assigned resources",
+        "personnel",
+        "engines",
+        "crews",
+        "aircraft",
+    ),
     "safety_concerns": ("safety concerns", "hazards", "critical safety", "watch out"),
-    "command_structure": ("command structure", "incident commander", "operations section chief", "command"),
+    "command_structure": (
+        "command structure",
+        "incident commander",
+        "operations section chief",
+        "command",
+    ),
     "unresolved_risks": ("unresolved risks", "outstanding concerns", "issues", "constraints"),
 }
 
@@ -228,7 +261,11 @@ def detect_section_heading(line: str) -> str | None:
 
 
 def split_into_semantic_blocks(text: str, max_chars: int = 1800) -> list[str]:
-    paragraphs = [normalize_whitespace(part) for part in re.split(r"\n\s*\n", text) if normalize_whitespace(part)]
+    paragraphs = [
+        normalize_whitespace(part)
+        for part in re.split(r"\n\s*\n", text)
+        if normalize_whitespace(part)
+    ]
     if not paragraphs:
         paragraphs = [normalize_whitespace(text)] if normalize_whitespace(text) else []
     chunks: list[str] = []
@@ -253,7 +290,9 @@ def split_into_semantic_blocks(text: str, max_chars: int = 1800) -> list[str]:
 
 
 def _split_oversized_block(text: str, max_chars: int) -> list[str]:
-    raw_lines = [normalize_whitespace(line) for line in text.splitlines() if normalize_whitespace(line)]
+    raw_lines = [
+        normalize_whitespace(line) for line in text.splitlines() if normalize_whitespace(line)
+    ]
     if len(raw_lines) > 1:
         return _pack_segments(raw_lines, max_chars=max_chars)
 
@@ -364,7 +403,11 @@ def _search_adjacent_label_value(text: str, labels: tuple[str, ...]) -> str:
     for index, line in enumerate(lines[:-1]):
         lowered = line.casefold()
         for label in labels:
-            if lowered == label or lowered.startswith(f"{label}:") or lowered.startswith(f"{label} -"):
+            if (
+                lowered == label
+                or lowered.startswith(f"{label}:")
+                or lowered.startswith(f"{label} -")
+            ):
                 candidate = normalize_whitespace(lines[index + 1])
                 candidate_lower = candidate.casefold()
                 if candidate_lower not in {"value", "field", "parameter", "metric"}:
@@ -387,24 +430,48 @@ def build_incident_profile(
     section_map: dict[str, str],
     report_timestamp: str,
 ) -> dict[str, Any]:
-    incident_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or Path(filename).stem.replace("_", " ")
-    operational_period = _search_label_value(full_text, FACT_FIELD_ALIASES["operational_period"]) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["operational_period"])
+    incident_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or Path(
+        filename
+    ).stem.replace("_", " ")
+    operational_period = _search_label_value(
+        full_text, FACT_FIELD_ALIASES["operational_period"]
+    ) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["operational_period"])
     location = (
         _search_label_value(full_text, FACT_FIELD_ALIASES["location"])
         or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["location"])
         or _section_text(section_map, "Incident Overview")
     )
-    overall_risk_level = _search_label_value(full_text, FACT_FIELD_ALIASES["overall_risk_level"]) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["overall_risk_level"])
+    overall_risk_level = _search_label_value(
+        full_text, FACT_FIELD_ALIASES["overall_risk_level"]
+    ) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["overall_risk_level"])
     containment = _search_label_value(full_text, FACT_FIELD_ALIASES["containment"])
-    weather = _section_text(section_map, "Weather") or _search_label_value(full_text, FACT_FIELD_ALIASES["weather"])
-    current_fire_behavior = _section_text(section_map, "Current Situation") or _search_label_value(full_text, FACT_FIELD_ALIASES["current_fire_behavior"])
-    values_at_risk = _section_text(section_map, "Values at Risk") or _search_label_value(full_text, FACT_FIELD_ALIASES["values_at_risk"])
-    resources = _section_text(section_map, "Resources") or _search_label_value(full_text, FACT_FIELD_ALIASES["assigned_resources"])
-    safety = _section_text(section_map, "Safety Concerns") or _search_label_value(full_text, FACT_FIELD_ALIASES["safety_concerns"])
-    operations = _section_text(section_map, "Operations Plan", "Objectives") or _search_label_value(full_text, FACT_FIELD_ALIASES["strategy_tactics"])
-    command = _section_text(section_map, "Command Structure") or _search_label_value(full_text, FACT_FIELD_ALIASES["command_structure"])
-    fuels = _section_text(section_map, "Fuels") or _search_label_value(full_text, FACT_FIELD_ALIASES["fuels"])
-    terrain = _section_text(section_map, "Terrain") or _search_label_value(full_text, FACT_FIELD_ALIASES["terrain"])
+    weather = _section_text(section_map, "Weather") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["weather"]
+    )
+    current_fire_behavior = _section_text(section_map, "Current Situation") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["current_fire_behavior"]
+    )
+    values_at_risk = _section_text(section_map, "Values at Risk") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["values_at_risk"]
+    )
+    resources = _section_text(section_map, "Resources") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["assigned_resources"]
+    )
+    safety = _section_text(section_map, "Safety Concerns") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["safety_concerns"]
+    )
+    operations = _section_text(section_map, "Operations Plan", "Objectives") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["strategy_tactics"]
+    )
+    command = _section_text(section_map, "Command Structure") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["command_structure"]
+    )
+    fuels = _section_text(section_map, "Fuels") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["fuels"]
+    )
+    terrain = _section_text(section_map, "Terrain") or _search_label_value(
+        full_text, FACT_FIELD_ALIASES["terrain"]
+    )
 
     unresolved_risks = ""
     if safety:
@@ -471,7 +538,9 @@ def build_keyword_index(chunks: list[dict[str, Any]]) -> dict[str, Any]:
     vocabulary = {
         term: {
             "df": len(entries),
-            "idf": math.log(1 + ((doc_count - len(entries) + 0.5) / (len(entries) + 0.5))) if doc_count else 0.0,
+            "idf": math.log(1 + ((doc_count - len(entries) + 0.5) / (len(entries) + 0.5)))
+            if doc_count
+            else 0.0,
             "postings": entries,
         }
         for term, entries in postings.items()
@@ -497,7 +566,9 @@ def keyword_scores(query: str, keyword_index: dict[str, Any]) -> dict[str, float
             chunk_id = str(posting["chunk_id"])
             doc_length = float(keyword_index["documents"][chunk_id]["length"] or 1)
             tf = float(posting["tf"])
-            denom = tf + bm25["k1"] * (1 - bm25["b"] + bm25["b"] * (doc_length / max(bm25["avgdl"], 1)))
+            denom = tf + bm25["k1"] * (
+                1 - bm25["b"] + bm25["b"] * (doc_length / max(bm25["avgdl"], 1))
+            )
             scores[chunk_id] += idf * ((tf * (bm25["k1"] + 1)) / denom)
     return dict(scores)
 
@@ -514,7 +585,10 @@ def semantic_scores(
     query_text = prepare_query_texts([query], model_name)[0]
     query_embedding = embed_texts([query_text], embedding_provider, model_name)
     similarities = embeddings @ query_embedding[0]
-    return {str(chunk["chunk_id"]): float(score) for chunk, score in zip(chunks, similarities, strict=False)}
+    return {
+        str(chunk["chunk_id"]): float(score)
+        for chunk, score in zip(chunks, similarities, strict=False)
+    }
 
 
 def classify_query(query: str) -> str:
@@ -575,7 +649,9 @@ def retrieve_chunks(
     return [chunk | {"retrieval_score": round(score, 4)} for score, chunk in ranked[:limit]]
 
 
-def retrieve_fact_records(query: str, incident_profile: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
+def retrieve_fact_records(
+    query: str, incident_profile: dict[str, Any], limit: int = 5
+) -> list[dict[str, Any]]:
     facts = incident_profile.get("facts", {})
     query_terms = set(tokenize(query))
     ranked: list[tuple[int, dict[str, Any]]] = []
@@ -629,7 +705,9 @@ def load_doctrine_assets(manifest_path: Path) -> dict[str, Any]:
         }
     dense = manifest.get("dense_index") or {}
     vectors_path = base / Path(dense.get("vectors_path", "")).name
-    embeddings = np.load(vectors_path) if vectors_path.exists() else np.zeros((0, 0), dtype=np.float32)
+    embeddings = (
+        np.load(vectors_path) if vectors_path.exists() else np.zeros((0, 0), dtype=np.float32)
+    )
     return {
         "chunks": chunks,
         "keyword_index": keyword_index,
@@ -651,10 +729,15 @@ def build_runtime_incident_report(
     sections = sectionize_incident_report(pages)
     full_text = "\n".join(page for page in pages if page.strip())
     fallback_incident_name = Path(filename).stem.replace("_", " ")
-    inferred_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or fallback_incident_name
+    inferred_name = (
+        _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"])
+        or fallback_incident_name
+    )
     incident_id = f"{slugify(inferred_name)}_{datetime.now(timezone.utc).strftime('%Y_%m_%d')}"
     section_map = {section["section"]: section["text"] for section in sections}
-    profile = build_incident_profile(incident_id, filename, full_text, section_map, report_timestamp)
+    profile = build_incident_profile(
+        incident_id, filename, full_text, section_map, report_timestamp
+    )
 
     chunks: list[dict[str, Any]] = []
     chunk_counter = 1
@@ -676,7 +759,9 @@ def build_runtime_incident_report(
             )
             chunk_counter += 1
 
-    embeddings = embed_texts([str(chunk["text"]) for chunk in chunks], embedding_provider, model_name)
+    embeddings = embed_texts(
+        [str(chunk["text"]) for chunk in chunks], embedding_provider, model_name
+    )
     keyword_index = build_keyword_index(chunks)
     return {
         "incident_profile": profile,
@@ -758,7 +843,9 @@ def render_context_items(items: list[dict[str, Any]]) -> str:
     for item in items:
         source_type = str(item.get("source_type", "unknown"))
         if source_type == "incident_fact":
-            lines.append(f"[Incident Report] {item['label']}: {item['text'].split(':', 1)[-1].strip()}")
+            lines.append(
+                f"[Incident Report] {item['label']}: {item['text'].split(':', 1)[-1].strip()}"
+            )
             continue
         section = str(item.get("section") or item.get("section_path") or "")
         text = normalize_whitespace(str(item.get("text", "")))
@@ -783,11 +870,14 @@ def build_grounded_prompt(
     overall_risk_level = str(incident_facts.get("overall_risk_level") or "").strip()
     weather = str(incident_facts.get("weather") or "").strip()
     terrain = str(incident_facts.get("terrain") or "").strip()
-    facts_block = "\n".join(
-        f"- {FACT_OUTPUT_LABELS[key]}: {value}"
-        for key, value in incident_facts.items()
-        if value
-    ) or "No incident facts are loaded."
+    facts_block = (
+        "\n".join(
+            f"- {FACT_OUTPUT_LABELS[key]}: {value}"
+            for key, value in incident_facts.items()
+            if value
+        )
+        or "No incident facts are loaded."
+    )
     structure = ""
     if query_class in {"incident+doctrine synthesis", "safety-critical"}:
         structure = (

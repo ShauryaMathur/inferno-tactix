@@ -7,10 +7,15 @@ from typing import Any
 
 from firecastbot.config import get_settings
 from firecastbot.services.llm_service import LLMService
-from inferno_api.rag_model_compare import _result_metrics
-from inferno_api.rag_model_compare import write_csv
-from inferno_api.rag_quality_eval import build_quality_judge_messages, evaluate_with_groq_quality_judge, _extract_json_object
-from inferno_api.rag_model_compare import evaluate_with_gemini_judge_rest
+from inferno_api.rag_model_compare import (
+    _result_metrics,
+    evaluate_with_gemini_judge_rest,
+    write_csv,
+)
+from inferno_api.rag_quality_eval import (
+    build_quality_judge_messages,
+    evaluate_with_groq_quality_judge,
+)
 
 
 def _load_report(path: Path) -> dict[str, Any]:
@@ -85,10 +90,18 @@ def _rejudge_rows(
                     "judge_reply": completion.content,
                     "judge_error": str(parsed.get("error") or ""),
                     "judge_latency_ms": None,
-                    "correctness_score": float(parsed.get("correctness_score")) if parsed.get("correctness_score") is not None else None,
-                    "faithfulness_score": float(parsed.get("faithfulness_score")) if parsed.get("faithfulness_score") is not None else None,
-                    "refusal_compliance_score": float(parsed.get("refusal_compliance_score")) if parsed.get("refusal_compliance_score") is not None else None,
-                    "multi_step_reasoning_score": float(parsed.get("multi_step_reasoning_score")) if parsed.get("multi_step_reasoning_score") is not None else None,
+                    "correctness_score": float(parsed.get("correctness_score"))
+                    if parsed.get("correctness_score") is not None
+                    else None,
+                    "faithfulness_score": float(parsed.get("faithfulness_score"))
+                    if parsed.get("faithfulness_score") is not None
+                    else None,
+                    "refusal_compliance_score": float(parsed.get("refusal_compliance_score"))
+                    if parsed.get("refusal_compliance_score") is not None
+                    else None,
+                    "multi_step_reasoning_score": float(parsed.get("multi_step_reasoning_score"))
+                    if parsed.get("multi_step_reasoning_score") is not None
+                    else None,
                     "judge_rationale": str(parsed.get("rationale") or ""),
                     **_result_metrics("judge", completion),
                 }
@@ -140,7 +153,9 @@ def _rejudge_rows(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Rejudge only failed rows in the strict quality eval artifacts.")
+    parser = argparse.ArgumentParser(
+        description="Rejudge only failed rows in the strict quality eval artifacts."
+    )
     parser.add_argument(
         "--report-json",
         default="apps/api/evals/rag_quality_eval_top4_groq_judge.json",

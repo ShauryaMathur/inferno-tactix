@@ -133,6 +133,7 @@ class GroqSpeechProvider(SpeechProvider):
 
         try:
             from openai import OpenAI
+
             self._client = OpenAI(api_key=api_key, base_url=self.GROQ_BASE_URL)
         except ImportError:
             self._init_error = "Install the openai package to enable Groq Whisper."
@@ -148,7 +149,11 @@ class GroqSpeechProvider(SpeechProvider):
     def transcribe(self, uploaded_audio: Any) -> str:
         if self._client is None:
             raise RuntimeError(self._init_error or "Groq Whisper is not available.")
-        audio_bytes = uploaded_audio.getvalue() if hasattr(uploaded_audio, "getvalue") else uploaded_audio.getbuffer()
+        audio_bytes = (
+            uploaded_audio.getvalue()
+            if hasattr(uploaded_audio, "getvalue")
+            else uploaded_audio.getbuffer()
+        )
         mime_type = getattr(uploaded_audio, "type", "audio/webm")
         file_name = getattr(uploaded_audio, "name", "recording.webm")
         transcript = self._client.audio.transcriptions.create(
@@ -204,7 +209,9 @@ class SpeechService:
 
     @classmethod
     def provider_options(cls) -> dict[str, str]:
-        return {provider_id: cls._PROVIDER_LABELS[provider_id] for provider_id in cls._PROVIDER_ORDER}
+        return {
+            provider_id: cls._PROVIDER_LABELS[provider_id] for provider_id in cls._PROVIDER_ORDER
+        }
 
     @property
     def transcription_available(self) -> bool:

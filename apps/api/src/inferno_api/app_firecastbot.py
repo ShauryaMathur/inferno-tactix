@@ -1,6 +1,7 @@
+import os
+
 from flask import Flask, jsonify
 from flask_cors import CORS
-import os
 
 from .firecastbot import firecastbot_bp
 

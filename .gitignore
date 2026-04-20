@@ -32,9 +32,7 @@ apps/web/test-results/
 
 apps/api/backend/__pycache__/
 apps/api/config/ee-service-account.json
-apps/api/evals/rag_model_compare.json
-apps/api/evals/rag_model_compare.csv
-apps/api/evals/rag_model_compare.txt
+apps/api/evals/
 
 apps/simulator/simulator/__pycache__/
 apps/simulator/simulator/tb-env/
@@ -60,4 +58,3 @@ data/models/
 research/papers/
 research/reports/**/out/
 research/**/*.log
-/apps/api/evals

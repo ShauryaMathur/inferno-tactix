@@ -44,42 +44,52 @@ LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES       = 1
-BACKOFF           = 2       
-EARLIEST_DATE     = datetime(1980, 1, 1)
-FORECAST_LOOKAHEAD = 15      
+MAX_RETRIES = 1
+BACKOFF = 2
+EARLIEST_DATE = datetime(1980, 1, 1)
+FORECAST_LOOKAHEAD = 15
 
 FEATURES: Sequence[str] = [
-      "pr","tmmn", "tmmx","vs","sph", "srad", "bi","rmax", "rmin", "fm100", "fm1000", "erc",  "pet", "vpd",
+    "pr",
+    "tmmn",
+    "tmmx",
+    "vs",
+    "sph",
+    "srad",
+    "bi",
+    "rmax",
+    "rmin",
+    "fm100",
+    "fm1000",
+    "erc",
+    "pet",
+    "vpd",
 ]
-    
+
 _MEDIAN_ONLY = {"vpd"}
 FORECAST_DERIVED = {"rmax", "rmin"}
-    
-# "etr" dropped bcz extra feature not in forecast 
-    
+
+# "etr" dropped bcz extra feature not in forecast
+
 FEATURE_VAR_MAP: Dict[str, str] = {
-    "pr":    "precipitation_amount",
-    "rmax":  "relative_humidity",
-    "rmin":  "relative_humidity",
-    "sph":   "specific_humidity",
-    "srad":  "surface_downwelling_shortwave_flux_in_air",
-    "tmmn":  "air_temperature",
-    "tmmx":  "air_temperature",
-    "vs":    "wind_speed",
-    "bi":    "burning_index_g",
+    "pr": "precipitation_amount",
+    "rmax": "relative_humidity",
+    "rmin": "relative_humidity",
+    "sph": "specific_humidity",
+    "srad": "surface_downwelling_shortwave_flux_in_air",
+    "tmmn": "air_temperature",
+    "tmmx": "air_temperature",
+    "vs": "wind_speed",
+    "bi": "burning_index_g",
     "fm100": "dead_fuel_moisture_100hr",
-    "fm1000":"dead_fuel_moisture_1000hr",
-    "erc":   "energy_release_component-g",
-    "etr":   "potential_evapotranspiration",
-    "pet":   "potential_evapotranspiration",
-    "vpd":   "mean_vapor_pressure_deficit",
+    "fm1000": "dead_fuel_moisture_1000hr",
+    "erc": "energy_release_component-g",
+    "etr": "potential_evapotranspiration",
+    "pet": "potential_evapotranspiration",
+    "vpd": "mean_vapor_pressure_deficit",
 }
 
-GRIDMET_URL = (
-    "http://thredds.northwestknowledge.net:8080"
-    "/thredds/dodsC/MET/{feat}/{feat}_{year}.nc"
-)
+GRIDMET_URL = "http://thredds.northwestknowledge.net:8080/thredds/dodsC/MET/{feat}/{feat}_{year}.nc"
 
 _BASE_FCST = (
     "http://thredds.northwestknowledge.net:8080/"
@@ -108,24 +118,29 @@ def _sat_vp(temp_c: np.ndarray | float) -> np.ndarray | float:
 
     return 0.6108 * np.exp(17.2693882 * temp_c / (temp_c + 237.3))
 
+
 def _rh_from_vpd(tmin_k, tmax_k, vpd_kpa):
 
     tmin_c = tmin_k - 273.15
     tmax_c = tmax_k - 273.15
     tmean_c = 0.5 * (tmin_c + tmax_c)
 
-    ea      = _sat_vp(tmean_c) - vpd_kpa         
-    rh_max  = 100 * np.clip(ea / _sat_vp(tmin_c), 0, 1)
-    rh_min  = 100 * np.clip(ea / _sat_vp(tmax_c), 0, 1)
+    ea = _sat_vp(tmean_c) - vpd_kpa
+    rh_max = 100 * np.clip(ea / _sat_vp(tmin_c), 0, 1)
+    rh_min = 100 * np.clip(ea / _sat_vp(tmax_c), 0, 1)
     return rh_max, rh_min
 
 
 def _cftime_to_datetime(cftime_arr):
     return [
-        datetime(d.year, d.month, d.day,
-                 getattr(d, "hour", 0),
-                 getattr(d, "minute", 0),
-                 getattr(d, "second", 0))
+        datetime(
+            d.year,
+            d.month,
+            d.day,
+            getattr(d, "hour", 0),
+            getattr(d, "minute", 0),
+            getattr(d, "second", 0),
+        )
         for d in cftime_arr
     ]
 
@@ -145,14 +160,15 @@ def _get_session() -> requests.Session:
         _session.mount("https://", adapter)
     return _session
 
+
 def _open_dataset(url: str) -> Dataset:
 
     for attempt in range(MAX_RETRIES):
         try:
-            return Dataset(url, decode_times=False)  
+            return Dataset(url, decode_times=False)
         except Exception as ex:
             logger.warning("%s → open attempt %d failed: %s", url, attempt + 1, ex)
-            time.sleep(BACKOFF ** attempt)
+            time.sleep(BACKOFF**attempt)
     raise RuntimeError(f"Cannot open dataset after {MAX_RETRIES} attempts → {url}")
 
 
@@ -172,11 +188,7 @@ def _time_slice(ds: Dataset, start: datetime, end: datetime) -> Tuple[np.ndarray
 
 def _ascii_slice(url_base: str, var: str, t0: int, t1: int, lat_i: int, lon_i: int) -> np.ndarray:
 
-    slice_url = (
-        f"{url_base}.ascii?{var}[{t0}:1:{t1}]"
-        f"[{lat_i}:1:{lat_i}]"
-        f"[{lon_i}:1:{lon_i}]"
-    )
+    slice_url = f"{url_base}.ascii?{var}[{t0}:1:{t1}][{lat_i}:1:{lat_i}][{lon_i}:1:{lon_i}]"
     resp = _get_session().get(slice_url, timeout=60)
     resp.raise_for_status()
 
@@ -190,24 +202,18 @@ def _ascii_slice(url_base: str, var: str, t0: int, t1: int, lat_i: int, lon_i: i
     return np.asarray(vals, dtype=float)
 
 
-def _find_forecast_file(
-    feature: str,
-    start:   datetime,
-    end:     datetime
-) -> Tuple[str, Dataset]:
+def _find_forecast_file(feature: str, start: datetime, end: datetime) -> Tuple[str, Dataset]:
 
     if feature in _MEDIAN_ONLY:
         url = _BASE_FCST + _FCST_PATTERNS[1].format(feat=feature)
-        ds  = _open_dataset(url)
+        ds = _open_dataset(url)
         if _time_slice(ds, start, end)[0].size:
             logger.info("%s selected (median‑only variable)", Path(url).name)
             return url, ds
         ds.close()
-        
+
     for hr, ens, day in _HOUR_ENS_DAY:
-        url = _BASE_FCST + _FCST_PATTERNS[0].format(
-            feat=feature, hr=hr, ens=ens, day=day
-        )
+        url = _BASE_FCST + _FCST_PATTERNS[0].format(feat=feature, hr=hr, ens=ens, day=day)
         try:
             ds = _open_dataset(url)
             if _time_slice(ds, start, end)[0].size:
@@ -215,7 +221,7 @@ def _find_forecast_file(
                 return url, ds
             ds.close()
         except Exception:
-            pass  
+            pass
 
     url = _BASE_FCST + _FCST_PATTERNS[1].format(feat=feature)
     try:
@@ -275,7 +281,7 @@ def _fetch_forecast_series(
 
 def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame:
 
-    date = datetime(date.year, date.month, date.day) 
+    date = datetime(date.year, date.month, date.day)
 
     window_start = max(date - timedelta(days=60), EARLIEST_DATE)
     window_end = date + timedelta(days=14)
@@ -323,16 +329,14 @@ def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame
                 name=feat,
             )
 
-
         if forecast_needed:
             if feat in FORECAST_DERIVED:
                 merged = h_ser
             else:
-                f_start = date                     
-                f_end   = window_end
+                f_start = date
+                f_end = window_end
                 try:
-                    f_ser  = _fetch_forecast_series(feat, varname, lat, lon,
-                                                   f_start, f_end)
+                    f_ser = _fetch_forecast_series(feat, varname, lat, lon, f_start, f_end)
                     merged = pd.concat([h_ser, f_ser]).sort_index()
                 except Exception as fx:
                     logger.warning("Forecast fetch failed for %s: %s", feat, fx)
@@ -344,7 +348,7 @@ def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame
 
     full_index = pd.date_range(window_start, window_end, freq="D")
     df = pd.concat(series, axis=1).reindex(full_index)
-    df["vpd"] = (df["vpd"].interpolate(method="time", limit_direction="both").ffill().bfill())
+    df["vpd"] = df["vpd"].interpolate(method="time", limit_direction="both").ffill().bfill()
     df = df.interpolate(method="time", limit_direction="both")
     df = df.ffill().bfill()
 
@@ -352,28 +356,25 @@ def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame
     if need_rh.any():
         tmin = df.loc[need_rh, "tmmn"]
         tmax = df.loc[need_rh, "tmmx"]
-        vpd  = df.loc[need_rh, "vpd"]
+        vpd = df.loc[need_rh, "vpd"]
 
         valid = ~(tmin.isna() | tmax.isna() | vpd.isna())
         if valid.any():
             rh_max, rh_min = _rh_from_vpd(tmin[valid], tmax[valid], vpd[valid])
             df.loc[need_rh[need_rh].index[valid], "rmax"] = rh_max
             df.loc[need_rh[need_rh].index[valid], "rmin"] = rh_min
-    
-    
+
     df["latitude"] = lat
     df["longitude"] = lon
     df["datetime"] = df.index
     return df.reset_index(drop=True)
 
 
-#CLI──────────────────────────────────────────
+# CLI──────────────────────────────────────────
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="GRIDMET + CFSv2 75‑day time‑series extractor"
-    )
+    parser = argparse.ArgumentParser(description="GRIDMET + CFSv2 75‑day time‑series extractor")
     parser.add_argument("lat", type=float, help="Latitude in decimal degrees")
     parser.add_argument("lon", type=float, help="Longitude in decimal degrees")
     parser.add_argument("date", type=str, help="Target date YYYY‑MM‑DD")

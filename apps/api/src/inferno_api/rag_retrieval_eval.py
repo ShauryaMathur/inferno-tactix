@@ -14,8 +14,12 @@ APPS_ROOT = REPO_ROOT / "apps"
 if str(APPS_ROOT) not in sys.path:
     sys.path.insert(0, str(APPS_ROOT))
 
-from inferno_api.firecastbot_runtime import classify_query, load_doctrine_assets, retrieve_chunks
-from inferno_api.rag_model_compare import load_json_records, write_csv
+from inferno_api.firecastbot_runtime import (  # noqa: E402
+    classify_query,
+    load_doctrine_assets,
+    retrieve_chunks,
+)
+from inferno_api.rag_model_compare import load_json_records, write_csv  # noqa: E402
 
 
 def _norm(text: str) -> str:
@@ -39,7 +43,9 @@ def _matches(chunk: dict[str, Any], matcher: dict[str, Any]) -> bool:
         str(chunk.get("section_path") or chunk.get("section") or "")
     ):
         return False
-    if matcher.get("text_contains") and _norm(str(matcher["text_contains"])) not in _norm(str(chunk.get("text") or "")):
+    if matcher.get("text_contains") and _norm(str(matcher["text_contains"])) not in _norm(
+        str(chunk.get("text") or "")
+    ):
         return False
     return True
 
@@ -54,13 +60,17 @@ def _relevant_chunk_ids(chunks: list[dict[str, Any]], matchers: list[dict[str, A
     return relevant
 
 
-def run_retrieval_eval(*, doctrine_manifest: Path, case_records: list[dict[str, Any]], k: int) -> dict[str, Any]:
+def run_retrieval_eval(
+    *, doctrine_manifest: Path, case_records: list[dict[str, Any]], k: int
+) -> dict[str, Any]:
     doctrine_store = load_doctrine_assets(doctrine_manifest)
     rows: list[dict[str, Any]] = []
     for case in case_records:
         query = str(case["query"]).strip()
         query_class = str(case.get("query_class") or classify_query(query))
-        relevant_ids = _relevant_chunk_ids(doctrine_store["chunks"], list(case["expected_matchers"]))
+        relevant_ids = _relevant_chunk_ids(
+            doctrine_store["chunks"], list(case["expected_matchers"])
+        )
         retrieved = retrieve_chunks(
             query,
             chunks=doctrine_store["chunks"],
@@ -112,8 +122,12 @@ def run_retrieval_eval(*, doctrine_manifest: Path, case_records: list[dict[str, 
         )
     summary = {
         "case_count": len(rows),
-        "precision_at_k_avg": round(sum(float(row["precision_at_k"]) for row in rows) / max(len(rows), 1), 4),
-        "recall_at_k_avg": round(sum(float(row["recall_at_k"]) for row in rows) / max(len(rows), 1), 4),
+        "precision_at_k_avg": round(
+            sum(float(row["precision_at_k"]) for row in rows) / max(len(rows), 1), 4
+        ),
+        "recall_at_k_avg": round(
+            sum(float(row["recall_at_k"]) for row in rows) / max(len(rows), 1), 4
+        ),
         "hit_at_k_avg": round(sum(int(row["hit_at_k"]) for row in rows) / max(len(rows), 1), 4),
         "mrr": round(sum(float(row["reciprocal_rank"]) for row in rows) / max(len(rows), 1), 4),
         "k": k,
@@ -123,21 +137,30 @@ def run_retrieval_eval(*, doctrine_manifest: Path, case_records: list[dict[str, 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate doctrine retrieval precision and recall against curated handbook targets.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate doctrine retrieval precision and recall against curated handbook targets."
+    )
     parser.add_argument("--cases", default="apps/api/evals/retrieval_cases.doctrine.json")
-    parser.add_argument("--doctrine-manifest", default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json")
+    parser.add_argument(
+        "--doctrine-manifest",
+        default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json",
+    )
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--output-json", default="apps/api/evals/retrieval_eval_bge_base.json")
     parser.add_argument("--output-csv", default="apps/api/evals/retrieval_eval_bge_base.csv")
     args = parser.parse_args()
 
     case_records = load_json_records(Path(args.cases))
-    report = run_retrieval_eval(doctrine_manifest=Path(args.doctrine_manifest), case_records=case_records, k=args.k)
+    report = run_retrieval_eval(
+        doctrine_manifest=Path(args.doctrine_manifest), case_records=case_records, k=args.k
+    )
     output_json = Path(args.output_json)
     output_json.parent.mkdir(parents=True, exist_ok=True)
     output_json.write_text(json.dumps(report, indent=2), encoding="utf-8")
     write_csv(report["rows"], Path(args.output_csv))
-    print(f"Wrote {len(report['rows'])} retrieval eval rows to {output_json} and {args.output_csv}.")
+    print(
+        f"Wrote {len(report['rows'])} retrieval eval rows to {output_json} and {args.output_csv}."
+    )
 
 
 if __name__ == "__main__":

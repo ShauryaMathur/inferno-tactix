@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from firecastbot.config import get_settings
+from firecastbot.services.llm_service import LLMService
 from inferno_api.rag_model_compare import (
     evaluate_correctness,
     evaluate_with_judge,
     load_json_records,
     write_csv,
 )
-from firecastbot.services.llm_service import LLMService
 
 
 def _load_report(path: Path) -> dict[str, Any]:
@@ -96,7 +96,9 @@ def _rejudge_rows(
         )
 
         keyword_correctness = evaluate_correctness(reply, prompt_record)
-        matched_expected = judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+        matched_expected = (
+            judge_result["matched_expected"] or keyword_correctness["matched_expected"]
+        )
 
         row["correctness_score"] = judge_result["correctness_score"]
         row["groundedness_score"] = judge_result["groundedness_score"]
