@@ -1,23 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Literal
 
 from firecastbot.config import Settings
 
 InputMode = Literal["upload", "browser", "none"]
 OutputMode = Literal["audio_bytes", "browser", "none"]
-
-
-@dataclass(frozen=True)
-class BrowserSpeechEvent:
-    event_id: str = ""
-    transcript: str = ""
-    status: str = ""
-    supports_recognition: bool = True
-    supports_synthesis: bool = True
-    error: str = ""
 
 
 class SpeechProvider(ABC):
@@ -41,16 +30,6 @@ class SpeechProvider(ABC):
 
     def synthesize(self, text: str) -> bytes | None:
         raise RuntimeError(f"{self.label} does not support server-side text-to-speech.")
-
-    def render_browser_widget(
-        self,
-        *,
-        enable_transcription: bool,
-        speak_text: str,
-        auto_speak: bool,
-        key: str,
-    ) -> BrowserSpeechEvent | None:
-        return None
 
 
 class OpenAISpeechProvider(SpeechProvider):
@@ -199,34 +178,6 @@ class BrowserSpeechProvider(SpeechProvider):
     def synthesize(self, text: str) -> bytes | None:
         return None
 
-    def render_browser_widget(
-        self,
-        *,
-        enable_transcription: bool,
-        speak_text: str,
-        auto_speak: bool,
-        key: str,
-    ) -> BrowserSpeechEvent | None:
-        from firecastbot.ui.components.browser_speech import render_browser_speech_component
-
-        payload = render_browser_speech_component(
-            enable_transcription=enable_transcription,
-            speak_text=speak_text,
-            auto_speak=auto_speak,
-            key=key,
-        )
-        if not isinstance(payload, dict):
-            return BrowserSpeechEvent()
-
-        return BrowserSpeechEvent(
-            event_id=str(payload.get("eventId", "")),
-            transcript=str(payload.get("transcript", "")).strip(),
-            status=str(payload.get("status", "")),
-            supports_recognition=bool(payload.get("supportsRecognition", True)),
-            supports_synthesis=bool(payload.get("supportsSynthesis", True)),
-            error=str(payload.get("error", "")).strip(),
-        )
-
 
 class SpeechService:
     _PROVIDER_ORDER = ("groq", "browser")
@@ -277,27 +228,6 @@ class SpeechService:
     def synthesize(self, text: str) -> bytes | None:
         return self.text_to_speech_provider.synthesize(text)
 
-    def render_browser_widget(
-        self,
-        *,
-        speak_text: str,
-        auto_speak: bool,
-        key: str = "browser_speech_widget",
-    ) -> BrowserSpeechEvent | None:
-        if (
-            self.speech_to_text_provider.input_mode != "browser"
-            and self.text_to_speech_provider.output_mode != "browser"
-        ):
-            return None
-
-        browser_provider = self._resolve_browser_provider()
-        return browser_provider.render_browser_widget(
-            enable_transcription=self.speech_to_text_provider.input_mode == "browser",
-            speak_text=speak_text if self.text_to_speech_provider.output_mode == "browser" else "",
-            auto_speak=auto_speak and self.text_to_speech_provider.output_mode == "browser",
-            key=key,
-        )
-
     def _get_provider(self, provider_id: str) -> SpeechProvider:
         normalized_provider_id = provider_id.lower()
         if normalized_provider_id not in self._provider_cache:
@@ -310,10 +240,3 @@ class SpeechService:
             else:
                 raise ValueError(f"Unsupported speech provider: {provider_id}")
         return self._provider_cache[normalized_provider_id]
-
-    def _resolve_browser_provider(self) -> BrowserSpeechProvider:
-        browser_provider = self._provider_cache.get("browser")
-        if browser_provider is None:
-            browser_provider = BrowserSpeechProvider()
-            self._provider_cache["browser"] = browser_provider
-        return browser_provider  # type: ignore[return-value]

@@ -79,9 +79,40 @@
   line-height: 1.6;
 }
 
-.error {
+.loadingText {
   margin-top: 14px;
+  color: rgba(25, 43, 28, 0.55);
+  font-size: 0.9rem;
+}
+
+.errorRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.error {
+  margin: 0;
   color: #b84c2e;
+}
+
+.retryButton {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 76, 46, 0.35);
+  background: rgba(184, 76, 46, 0.08);
+  color: #b84c2e;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(184, 76, 46, 0.16);
+  }
 }
 
 .layout {
@@ -398,11 +429,6 @@
   box-shadow: none;
 }
 
-.audio {
-  width: 100%;
-  margin-top: 12px;
-}
-
 .messages {
   display: flex;
   flex-direction: column;
@@ -542,7 +568,6 @@
 }
 
 .messageBody,
-.summary,
 .empty {
   margin: 0;
   font-size: 0.92rem;

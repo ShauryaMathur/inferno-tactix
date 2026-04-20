@@ -8,7 +8,7 @@ import Inferno from "../pages/inferno/Inferno";
 import { SimulationPage } from "../pages/SimulationPage";
 import styles from "./app.module.scss";
 import About from "../pages/About";
-import FireCastBot from "../pages/FireCastBot";
+import FireCastBot from "../pages/firecastbot";
 import { createStores } from "../models/stores";
 
 const SimulationRoute = () => {
