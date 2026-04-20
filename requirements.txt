@@ -61,11 +61,7 @@ Jinja2==3.1.6
 joblib==1.4.2
 jupyter_client==8.6.3
 jupyter_core==5.7.2
-keras==2.13.1
-keras-tuner==1.4.7
 kiwisolver==1.4.7
-kt-legacy==1.0.5
-libclang==18.1.1
 Markdown==3.7
 MarkupSafe==2.1.5
 matplotlib==3.7.5
@@ -122,14 +118,6 @@ stable_baselines3==2.4.1
 stack-data==0.6.3
 swig==4.3.0
 sympy==1.13.3
-tensorboard==2.13.0
-tensorboard-data-server==0.7.2
-tensorflow-addons==0.21.0
-tensorflow-datasets==4.9.2
-tensorflow-estimator==2.13.0
-tensorflow-macos==2.13.0
-tensorflow-metadata==1.14.0
-tensorflow-metal==1.0.1
 termcolor==2.4.0
 threadpoolctl==3.5.0
 tokenizers==0.20.3
