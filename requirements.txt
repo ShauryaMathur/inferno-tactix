@@ -134,7 +134,7 @@ urllib3==2.2.3
 watchdog==4.0.2
 wcwidth==0.2.13
 websockets==13.1
-Werkzeug==3.0.6
+Werkzeug==3.1.6
 wrapt==1.17.2
 xxhash==3.5.0
 yarl==1.15.2
