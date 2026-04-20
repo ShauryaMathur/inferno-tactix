@@ -1,0 +1,24 @@
+[MASTER]
+init-hook='import sys; sys.path.extend(["apps", "apps/api/src", "apps/headless-client/src"])'
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    wrong-import-position,
+    duplicate-code,
+    too-many-instance-attributes,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-locals,
+    too-many-statements,
+    too-many-positional-arguments,
+    too-many-public-methods,
+    protected-access,
+    global-statement,
+    broad-exception-caught,
+    line-too-long
+
+[FORMAT]
+max-line-length=100

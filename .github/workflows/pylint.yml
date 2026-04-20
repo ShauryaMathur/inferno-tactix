@@ -5,6 +5,8 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: apps:apps/api/src:apps/headless-client/src
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
@@ -17,6 +19,7 @@ jobs:
           pip install pylint
           pip install -r apps/api/requirements.txt
           pip install -r apps/requirements.txt
+          pip install -r apps/headless-client/requirements.txt
       - name: Analysing the code with pylint
         run: |
           pylint \
