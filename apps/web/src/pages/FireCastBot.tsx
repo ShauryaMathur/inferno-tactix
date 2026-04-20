@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowUp, Settings } from "lucide-react";
+import { ArrowUp, Settings, Play, Pause, Mic, MicOff } from "lucide-react";
 import { API_BASE_URL } from "../env";
 import styles from "./firecastbot.module.scss";
 
@@ -19,6 +19,14 @@ type FireCastBotConfig = {
   defaultSpeechToTextProvider: string;
   defaultTextToSpeechProvider: string;
   providers: Provider[];
+  presets: Preset[];
+};
+
+type Preset = {
+  id: string;
+  label: string;
+  available: boolean;
+  previewUrl?: string;
 };
 
 type ConversationEntry = {
@@ -180,20 +188,22 @@ export default function FireCastBot() {
   const [latestQueryClassification, setLatestQueryClassification] = useState("");
   const [queryInput, setQueryInput] = useState("");
   const [speechToTextProviderId, setSpeechToTextProviderId] = useState("");
-  const [textToSpeechProviderId, setTextToSpeechProviderId] = useState("");
   const [speakResponses, setSpeakResponses] = useState(false);
   const [selectedPdfName, setSelectedPdfName] = useState("");
-  const [selectedAudioName, setSelectedAudioName] = useState("");
-  const [audioSrc, setAudioSrc] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSpeechPaused, setIsSpeechPaused] = useState(false);
   const [activeSpeechMessageKey, setActiveSpeechMessageKey] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Connecting FireCastBot...");
   const [isBusy, setIsBusy] = useState(false);
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const [showSpeechSettings, setShowSpeechSettings] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
-  const audioInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsPanelRef = useRef<HTMLDivElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const suppressSpeechErrorRef = useRef(false);
   const activeSpeechMessageKeyRef = useRef("");
@@ -205,10 +215,8 @@ export default function FireCastBot() {
           axios.get<FireCastBotConfig>(`${API_BASE_URL}/api/firecastbot/config`),
           createOrResumeSession(),
         ]);
-        const browserProviderId = botConfig.providers.find(provider => provider.id === "browser")?.id;
         setConfig(botConfig);
-        setSpeechToTextProviderId(browserProviderId || botConfig.defaultSpeechToTextProvider);
-        setTextToSpeechProviderId(browserProviderId || botConfig.defaultTextToSpeechProvider);
+        setSpeechToTextProviderId(botConfig.defaultSpeechToTextProvider || "browser");
         applySnapshot(sessionResponse.data);
         setStatus("FireCastBot ready.");
       } catch (exc: any) {
@@ -235,6 +243,16 @@ export default function FireCastBot() {
       cancelSpeech();
     };
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSpeechSettings && settingsPanelRef.current && !settingsPanelRef.current.contains(event.target as Node)) {
+        setShowSpeechSettings(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSpeechSettings]);
 
   const createOrResumeSession = async () => {
     const existingId = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -395,8 +413,23 @@ export default function FireCastBot() {
     });
   };
 
+  const ingestPreset = async (presetId: string, presetLabel: string) => {
+    if (!sessionId) return;
+    await runTask(async () => {
+      setStatus(`Loading ${presetLabel}...`);
+      const { data } = await withSessionRetry(activeSessionId => axios.post(`${API_BASE_URL}/api/firecastbot/documents/preset`, {
+        session_id: activeSessionId,
+        preset_id: presetId,
+      }));
+      applySnapshot(data);
+      setSelectedPdfName(presetLabel);
+      setStatus(`Incident report parsed into ${data.documentsCount} runtime chunks.`);
+    });
+  };
+
   const submitQuery = async () => {
     if (!queryInput.trim() || !sessionId) return;
+    setIsQuerying(true);
     await runTask(async () => {
       setStatus("Generating response...");
       const query = queryInput.trim();
@@ -404,41 +437,18 @@ export default function FireCastBot() {
       const { data } = await withSessionRetry(activeSessionId => axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
         session_id: activeSessionId,
         query,
-        speak_responses: speakResponses,
-        text_to_speech_provider_id: textToSpeechProviderId,
+        speak_responses: false,
+        text_to_speech_provider_id: "browser",
       }));
       applySnapshot(data);
       const reply = data.reply as string;
       const latestAssistantIndex = Array.isArray(data.conversation) ? data.conversation.length - 1 : conversation.length + 1;
-      if (data.audioBase64 && data.audioMimeType) {
-        setAudioSrc(`data:${data.audioMimeType};base64,${data.audioBase64}`);
-      } else {
-        setAudioSrc("");
-        const provider = getSelectedProvider(textToSpeechProviderId);
-        if (provider?.outputMode === "browser" && speakResponses) {
-          startBrowserSpeech(reply, `assistant-${latestAssistantIndex}`);
-        }
+      if (speakResponses) {
+        startBrowserSpeech(reply, `assistant-${latestAssistantIndex}`);
       }
       setStatus("Response ready.");
     });
-  };
-
-  const transcribeAudio = async () => {
-    const file = audioInputRef.current?.files?.[0];
-    if (!file || !sessionId) return;
-    await runTask(async () => {
-      setStatus("Transcribing audio...");
-      const { data } = await withSessionRetry(activeSessionId => {
-        const formData = new FormData();
-        formData.append("session_id", activeSessionId);
-        formData.append("speech_to_text_provider_id", speechToTextProviderId);
-        formData.append("file", file);
-        return axios.post(`${API_BASE_URL}/api/firecastbot/transcribe`, formData);
-      });
-      applySnapshot(data);
-      setQueryInput(data.transcript || "");
-      setStatus("Transcript added to the question box.");
-    });
+    setIsQuerying(false);
   };
 
   const startBrowserListening = () => {
@@ -449,6 +459,7 @@ export default function FireCastBot() {
     }
     setError("");
     setStatus("Listening...");
+    setIsListening(true);
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = false;
@@ -464,22 +475,95 @@ export default function FireCastBot() {
       setStatus("Speech recognition failed.");
     };
     recognition.onend = () => {
+      setIsListening(false);
       setStatus(prev => (prev === "Listening..." ? "FireCastBot ready." : prev));
     };
     recognition.start();
   };
 
+  const startServerListening = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Microphone access is not supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setIsRecording(false);
+        await runTask(async () => {
+          setStatus("Transcribing with Groq Whisper...");
+          const { data } = await withSessionRetry((activeSessionId) => {
+            const formData = new FormData();
+            formData.append("session_id", activeSessionId);
+            formData.append("speech_to_text_provider_id", speechToTextProviderId);
+            formData.append("file", blob, "recording.webm");
+            return axios.post(`${API_BASE_URL}/api/firecastbot/transcribe`, formData);
+          });
+          applySnapshot(data);
+          setQueryInput(data.transcript || "");
+          setStatus("Transcript added to the question box.");
+        });
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setStatus("Recording… click mic again to stop.");
+    } catch (err: any) {
+      setError(err?.message || "Could not access microphone.");
+    }
+  };
+
+  const stopServerListening = () => {
+    mediaRecorderRef.current?.stop();
+  };
+
+  const handleMicClick = () => {
+    const provider = getSelectedProvider(speechToTextProviderId);
+    if (provider?.inputMode === "browser") {
+      startBrowserListening();
+    } else if (isRecording) {
+      stopServerListening();
+    } else {
+      void startServerListening();
+    }
+  };
+
+  const startNewSession = async () => {
+    await runTask(async () => {
+      cancelBrowserSpeechInternal();
+      setShowSpeechSettings(false);
+      setSelectedPdfName("");
+      setLatestTranscript("");
+      setLatestQueryClassification("");
+      setQueryInput("");
+      await createFreshSession();
+      if (pdfInputRef.current) {
+        pdfInputRef.current.value = "";
+      }
+      setStatus("New FireCastBot session ready.");
+    });
+  };
+
   const selectedSttProvider = getSelectedProvider(speechToTextProviderId);
-  const selectedTtsProvider = getSelectedProvider(textToSpeechProviderId);
-  const showBrowserSpeechControls = selectedTtsProvider?.outputMode === "browser";
-  const canSubmitQuery = !isBusy && !!queryInput.trim();
   const isBotReady = !error && documentsCount > 0;
+  const canSubmitQuery = !isBusy && !!queryInput.trim() && isBotReady;
+  const isIncidentSourceLocked = documentsCount > 0;
 
   return (
     <div className={styles.container}>
       <section className={styles.hero}>
         <div className={styles.heroSettings}>
-          <div className={styles.settingsPanel}>
+          <div className={styles.settingsPanel} ref={settingsPanelRef}>
             <button
               type="button"
               className={styles.settingsButton}
@@ -496,21 +580,16 @@ export default function FireCastBot() {
                 <select
                   value={speechToTextProviderId}
                   onChange={(event) => setSpeechToTextProviderId(event.target.value)}
+                  disabled={!isBotReady}
                 >
                   {config?.providers.map(provider => (
                     <option key={provider.id} value={provider.id}>{provider.label}</option>
                   ))}
                 </select>
 
-                <label className={styles.fieldLabel}>Text to speech</label>
-                <select
-                  value={textToSpeechProviderId}
-                  onChange={(event) => setTextToSpeechProviderId(event.target.value)}
-                >
-                  {config?.providers.map(provider => (
-                    <option key={provider.id} value={provider.id}>{provider.label}</option>
-                  ))}
-                </select>
+                {selectedSttProvider?.transcriptionUnavailableReason && !selectedSttProvider.transcriptionAvailable && (
+                  <p className={styles.note}>{selectedSttProvider.transcriptionUnavailableReason}</p>
+                )}
 
                 <label className={styles.checkbox}>
                   <input
@@ -518,49 +597,8 @@ export default function FireCastBot() {
                     checked={speakResponses}
                     onChange={(event) => setSpeakResponses(event.target.checked)}
                   />
-                  Read responses aloud
+                  Read responses aloud (browser)
                 </label>
-
-                {selectedSttProvider?.inputMode === "upload" && (
-                  <>
-                    <input
-                      ref={audioInputRef}
-                      className={styles.hiddenInput}
-                      type="file"
-                      accept="audio/*"
-                      onChange={(event) => setSelectedAudioName(event.target.files?.[0]?.name || "")}
-                    />
-                    <div className={styles.filePicker}>
-                      <button
-                        type="button"
-                        className={styles.fileTrigger}
-                        onClick={() => audioInputRef.current?.click()}
-                      >
-                        Choose Audio
-                      </button>
-                      <div className={styles.fileName}>
-                        {selectedAudioName || "No audio selected"}
-                      </div>
-                    </div>
-                    <button onClick={transcribeAudio} disabled={isBusy || !sessionId}>
-                      Transcribe Audio
-                    </button>
-                  </>
-                )}
-
-                {selectedSttProvider?.inputMode === "browser" && (
-                  <button onClick={startBrowserListening} disabled={isBusy}>
-                    Start Browser Listening
-                  </button>
-                )}
-
-                {selectedSttProvider?.transcriptionUnavailableReason && !selectedSttProvider.transcriptionAvailable && (
-                  <p className={styles.note}>{selectedSttProvider.transcriptionUnavailableReason}</p>
-                )}
-                {selectedTtsProvider?.synthesisUnavailableReason && !selectedTtsProvider.synthesisAvailable && (
-                  <p className={styles.note}>{selectedTtsProvider.synthesisUnavailableReason}</p>
-                )}
-                {latestTranscript && <p className={styles.note}>Latest transcript: {latestTranscript}</p>}
               </div>
             )}
           </div>
@@ -580,18 +618,27 @@ export default function FireCastBot() {
         <aside className={styles.sidebar}>
           <div className={styles.panel}>
             <h2>Incident Report</h2>
-            
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={startNewSession}
+              disabled={isBusy}
+            >
+              Start New Session
+            </button>
             <input
               ref={pdfInputRef}
               className={styles.hiddenInput}
               type="file"
               accept="application/pdf"
+              disabled={isIncidentSourceLocked}
               onChange={(event) => setSelectedPdfName(event.target.files?.[0]?.name || "")}
             />
-            <div className={styles.filePicker}>
+            <div className={`${styles.filePicker} ${isIncidentSourceLocked ? styles.lockedSection : ""}`}>
               <button
                 type="button"
                 className={styles.fileTrigger}
+                disabled={isIncidentSourceLocked}
                 onClick={() => pdfInputRef.current?.click()}
               >
                 Upload Incident PDF
@@ -600,7 +647,48 @@ export default function FireCastBot() {
                 {selectedPdfName || "No file selected"}
               </div>
             </div>
-            <button onClick={uploadPdf} disabled={isBusy || !sessionId}>Ingest Report</button>
+            <button onClick={uploadPdf} disabled={isBusy || !sessionId || isIncidentSourceLocked}>Load Report</button>
+
+            <div className={`${styles.presetSection} ${isIncidentSourceLocked ? styles.lockedSection : ""}`}>
+              <p className={styles.fieldLabel}>Quick presets</p>
+              <div className={styles.presetGrid}>
+                {config?.presets.map((preset) => (
+                  <div key={preset.id} className={styles.presetRow}>
+                    <button
+                      type="button"
+                      className={styles.presetButton}
+                      onClick={() => ingestPreset(preset.id, preset.label)}
+                      disabled={isBusy || !sessionId || !preset.available || isIncidentSourceLocked}
+                      title={
+                        isIncidentSourceLocked
+                          ? "This session already has an incident report loaded."
+                          : preset.available
+                            ? `Load ${preset.label}`
+                            : `${preset.label} is not available in incident_reports`
+                      }
+                    >
+                      {preset.label}
+                    </button>
+                    {preset.previewUrl && preset.available && (
+                      <a
+                        href={`${API_BASE_URL}${preset.previewUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.presetPreviewLink}
+                        title={`Preview ${preset.label} PDF`}
+                      >
+                        Preview
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {isIncidentSourceLocked && (
+              <p className={styles.note}>
+                Incident source is locked for this chat session. Start a new session to load a different report.
+              </p>
+            )}
           </div>
 
         </aside>
@@ -609,7 +697,7 @@ export default function FireCastBot() {
           <div className={styles.panel}>
             <h2>Conversation</h2>
             <div className={styles.messages}>
-              {conversation.length === 0 && <p className={styles.empty}>No messages yet.</p>}
+              {conversation.length === 0 && !isQuerying && <p className={styles.empty}>No messages yet.</p>}
               {conversation.map((entry, index) => (
                 <div
                   key={`${entry.role}-${index}`}
@@ -619,11 +707,11 @@ export default function FireCastBot() {
                   <div className={styles.messageBody}>
                     {entry.role === "assistant" ? renderMarkdown(entry.content) : entry.content}
                   </div>
-                  {entry.role === "assistant" && showBrowserSpeechControls && (
+                  {entry.role === "assistant" && (
                     <div className={styles.messageControls}>
                       <button
                         type="button"
-                        className={styles.messageControlButton}
+                        className={`${styles.messageControlButton} ${styles.playButton}`}
                         onClick={() => {
                           const messageKey = `${entry.role}-${index}`;
                           if (activeSpeechMessageKey === messageKey && isSpeaking && isSpeechPaused) {
@@ -632,21 +720,30 @@ export default function FireCastBot() {
                           }
                           startBrowserSpeech(entry.content, messageKey);
                         }}
+                        aria-label={activeSpeechMessageKey === `${entry.role}-${index}` && isSpeechPaused ? "Resume" : "Play"}
+                        data-tooltip={activeSpeechMessageKey === `${entry.role}-${index}` && isSpeechPaused ? "Resume" : "Play"}
                       >
-                        {activeSpeechMessageKey === `${entry.role}-${index}` && isSpeechPaused ? "Resume" : "Play"}
+                        <Play size={14} />
                       </button>
                       <button
                         type="button"
-                        className={styles.messageControlButton}
+                        className={`${styles.messageControlButton} ${styles.pauseButton}`}
                         onClick={() => pauseBrowserSpeech(`${entry.role}-${index}`)}
                         disabled={activeSpeechMessageKey !== `${entry.role}-${index}` || !isSpeaking || isSpeechPaused}
+                        aria-label="Pause"
+                        data-tooltip="Pause"
                       >
-                        Pause
+                        <Pause size={14} />
                       </button>
                     </div>
                   )}
                 </div>
               ))}
+              {isQuerying && (
+                <div className={styles.typingIndicator}>
+                  <span /><span /><span />
+                </div>
+              )}
             </div>
           </div>
 
@@ -664,9 +761,20 @@ export default function FireCastBot() {
                     }
                   }
                 }}
-                placeholder="Ask about incident facts, doctrine, or strategy grounded in both..."
+                placeholder={isBotReady ? "Ask a question about this wildfire situation..." : "Load an incident report to start chatting..."}
+                disabled={!isBotReady}
                 rows={5}
               />
+              <button
+                type="button"
+                className={`${styles.micButton} ${(isListening || isRecording) ? styles.micButtonActive : ""}`}
+                onClick={handleMicClick}
+                disabled={!isBotReady || (isBusy && !isRecording)}
+                aria-label={isRecording ? "Stop recording" : isListening ? "Listening..." : "Speak your question"}
+                title={isRecording ? "Stop recording" : isListening ? "Listening…" : "Speak your question"}
+              >
+                {isListening || isRecording ? <MicOff size={15} /> : <Mic size={15} />}
+              </button>
               <button
                 type="button"
                 className={styles.sendButton}
@@ -677,10 +785,6 @@ export default function FireCastBot() {
                 <ArrowUp size={16} />
               </button>
             </div>
-            {latestQueryClassification && (
-              <p className={styles.note}>Latest query class: {latestQueryClassification}</p>
-            )}
-            {audioSrc && <audio className={styles.audio} controls src={audioSrc} />}
           </div>
         </section>
       </div>

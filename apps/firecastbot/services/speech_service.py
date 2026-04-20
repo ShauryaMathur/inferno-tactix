@@ -133,6 +133,55 @@ class OpenAISpeechProvider(SpeechProvider):
         return self._client
 
 
+class GroqSpeechProvider(SpeechProvider):
+    provider_id = "groq"
+    label = "Groq Whisper"
+    input_mode: InputMode = "upload"
+    output_mode: OutputMode = "none"
+
+    GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+    WHISPER_MODEL = "whisper-large-v3-turbo"
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self._client: Any | None = None
+        self._init_error: str | None = None
+
+        api_key = (settings.groq_api_key or "").strip()
+        if not api_key:
+            self._init_error = "Add GROQ_API_KEY to enable Groq Whisper transcription."
+            return
+
+        try:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=api_key, base_url=self.GROQ_BASE_URL)
+        except ImportError:
+            self._init_error = "Install the openai package to enable Groq Whisper."
+
+    @property
+    def available(self) -> bool:
+        return self._client is not None
+
+    @property
+    def unavailable_reason(self) -> str | None:
+        return self._init_error
+
+    def transcribe(self, uploaded_audio: Any) -> str:
+        if self._client is None:
+            raise RuntimeError(self._init_error or "Groq Whisper is not available.")
+        audio_bytes = uploaded_audio.getvalue() if hasattr(uploaded_audio, "getvalue") else uploaded_audio.getbuffer()
+        mime_type = getattr(uploaded_audio, "type", "audio/webm")
+        file_name = getattr(uploaded_audio, "name", "recording.webm")
+        transcript = self._client.audio.transcriptions.create(
+            model=self.WHISPER_MODEL,
+            file=(file_name, audio_bytes, mime_type),
+        )
+        text = getattr(transcript, "text", "").strip()
+        if not text:
+            raise RuntimeError("No speech was detected in the audio input.")
+        return text
+
+
 class BrowserSpeechProvider(SpeechProvider):
     provider_id = "browser"
     label = "Browser Web Speech API"
@@ -180,10 +229,10 @@ class BrowserSpeechProvider(SpeechProvider):
 
 
 class SpeechService:
-    _PROVIDER_ORDER = ("openai", "browser")
+    _PROVIDER_ORDER = ("groq", "browser")
     _PROVIDER_LABELS = {
-        "openai": "OpenAI",
-        "browser": "Browser Web Speech API",
+        "groq": "Groq Whisper",
+        "browser": "Browser",
     }
 
     def __init__(
@@ -252,7 +301,9 @@ class SpeechService:
     def _get_provider(self, provider_id: str) -> SpeechProvider:
         normalized_provider_id = provider_id.lower()
         if normalized_provider_id not in self._provider_cache:
-            if normalized_provider_id == "openai":
+            if normalized_provider_id == "groq":
+                self._provider_cache[normalized_provider_id] = GroqSpeechProvider(self.settings)
+            elif normalized_provider_id == "openai":
                 self._provider_cache[normalized_provider_id] = OpenAISpeechProvider(self.settings)
             elif normalized_provider_id == "browser":
                 self._provider_cache[normalized_provider_id] = BrowserSpeechProvider()

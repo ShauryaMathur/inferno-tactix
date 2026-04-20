@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 import numpy as np
@@ -33,6 +34,10 @@ class EmbedderService:
             return self._embed_with_sentence_transformers(texts)
         if self.provider == "openai":
             return self._embed_with_openai(texts)
+        if self.provider == "gemini":
+            return self._embed_with_gemini(texts)
+        if self.provider == "openrouter":
+            return self._embed_with_openrouter(texts)
         raise ValueError(f"Unsupported embedding provider: {self.provider}")
 
     def _embed_with_sentence_transformers(self, texts: list[str]) -> np.ndarray:
@@ -45,6 +50,64 @@ class EmbedderService:
             show_progress_bar=False,
         )
         return vectors.astype(np.float32)
+
+    def _embed_with_gemini(self, texts: list[str]) -> np.ndarray:
+        api_key = (
+            (self.settings.gemini_api_key or "").strip()
+            or os.environ.get("GEMINI_API_KEY", "")
+            or os.environ.get("GOOGLE_API_KEY", "")
+            or os.environ.get("FIRECASTBOT_GEMINI_API_KEY", "")
+        )
+        if not api_key:
+            raise ValueError("Missing Gemini API key. Set GEMINI_API_KEY in your environment.")
+        try:
+            import google.generativeai as genai
+        except ImportError as exc:
+            raise RuntimeError("Install the google-generativeai package to enable Gemini embeddings.") from exc
+        genai.configure(api_key=api_key)
+        result = genai.embed_content(
+            model=self.model,
+            content=texts,
+            task_type="retrieval_document",
+        )
+        vectors = np.asarray(result["embedding"], dtype=np.float32)
+        if vectors.ndim == 1:
+            vectors = vectors[np.newaxis, :]
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return vectors / norms
+
+    def _embed_with_openrouter(self, texts: list[str]) -> np.ndarray:
+        import requests as _requests
+
+        api_key = (
+            (self.settings.openrouter_api_key or "").strip()
+            or os.environ.get("FIRECASTBOT_OPENROUTER_API_KEY", "")
+            or os.environ.get("OPEN_ROUTER_API_KEY", "").strip()
+            or os.environ.get("OPENROUTER_API_KEY", "")
+        )
+        if not api_key:
+            raise ValueError("Missing OpenRouter API key. Set OPEN_ROUTER_API_KEY in your environment.")
+        base_url = (self.settings.openrouter_base_url or "https://openrouter.ai/api/v1").rstrip("/")
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        all_vectors: list[list[float]] = []
+        batch_size = 100
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            response = _requests.post(
+                f"{base_url}/embeddings",
+                headers=headers,
+                json={"model": self.model, "input": batch},
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            items = sorted(payload["data"], key=lambda x: x["index"])
+            all_vectors.extend(item["embedding"] for item in items)
+        vectors = np.asarray(all_vectors, dtype=np.float32)
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return vectors / norms
 
     def _embed_with_openai(self, texts: list[str]) -> np.ndarray:
         api_key = self.settings.require_api_key("openai")

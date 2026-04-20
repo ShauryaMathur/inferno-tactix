@@ -3,11 +3,11 @@
   "chunk_count": 1432,
   "keyword_index": "apps/firecastbot/incident_response_docs/doctrine_keyword_index.json",
   "dense_index": {
-    "embedding_provider": "sentence-transformers",
-    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_provider": "openrouter",
+    "embedding_model": "openai/text-embedding-3-small",
     "embedding_dtype": "float32",
     "vector_count": 1432,
-    "vector_dim": 384,
+    "vector_dim": 1536,
     "vectors_path": "apps/firecastbot/incident_response_docs/doctrine_embeddings.npy",
     "metadata_path": "apps/firecastbot/incident_response_docs/doctrine_embeddings.meta.jsonl"
   }

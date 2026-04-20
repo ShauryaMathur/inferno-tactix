@@ -12,7 +12,7 @@ const webpack = require("webpack");
 // See the following documentation for more detail:
 //   https://github.com/concord-consortium/s3-deploy-action/blob/main/README.md#top-branch-example
 const DEPLOY_PATH = process.env.DEPLOY_PATH;
-const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:6969";
+const API_BASE_URL = process.env.API_BASE_URL || "";
 const WS_URL = process.env.WS_URL || "ws://localhost:8765";
 const GENERATED_ASSETS_BASE_URL = process.env.GENERATED_ASSETS_BASE_URL || "/generated";
 const GENERATED_ASSETS_DIR = path.resolve(__dirname, "../../data/generated/terrain");
@@ -35,6 +35,13 @@ module.exports = (env, argv) => {
       host: '0.0.0.0',
       port: 8080,
       historyApiFallback: true,
+      proxy: [
+        {
+          context: ['/api'],
+          target: 'http://localhost:6969',
+          changeOrigin: true
+        }
+      ],
       static: [
         {
           directory: path.resolve(__dirname, "src/public"),

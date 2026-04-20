@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 APP_ROOT = PACKAGE_ROOT.parent.parent
@@ -31,6 +31,21 @@ from inferno_api.firecastbot_runtime import (
 )
 
 firecastbot_bp = Blueprint("firecastbot", __name__, url_prefix="/api/firecastbot")
+PRESET_REPORTS = {
+    "low": {
+        "label": "Routine Monitoring",
+        "filename": "incident_report_low.pdf",
+    },
+    "medium": {
+        "label": "Elevated Uncertainity",
+        "filename": "incident_report_boulder.pdf",
+    },
+    "high": {
+        "label": "Critical fire",
+        "filename": "incident_report_high.pdf",
+    },
+}
+PRESET_REPORTS_DIR = APPS_ROOT / "firecastbot" / "incident_reports"
 
 
 class UploadedFileAdapter:
@@ -103,6 +118,21 @@ class FireCastBotManager:
             "documentsCount": len(session.incident_chunks),
             "incidentProfile": session.incident_profile,
         }
+
+    def load_preset(self, session_id: str, preset_id: str) -> dict[str, Any]:
+        preset = PRESET_REPORTS.get(preset_id)
+        if preset is None:
+            raise ValueError(f"Unknown preset: {preset_id}")
+        report_path = PRESET_REPORTS_DIR / str(preset["filename"])
+        if not report_path.exists():
+            raise FileNotFoundError(f"Preset report is unavailable: {preset_id}")
+        return self.load_pdf(
+            session_id,
+            UploadedFileAdapter(
+                _DiskFileAdapter(report_path),
+                default_name=report_path.name,
+            ),
+        )
 
     def load_url(self, session_id: str, url: str) -> dict[str, Any]:
         raise ValueError("URL ingestion is no longer supported for FireCastBot incident sessions.")
@@ -324,6 +354,16 @@ def _provider_status(provider_id: str) -> dict[str, Any]:
     }
 
 
+class _DiskFileAdapter:
+    def __init__(self, path: Path) -> None:
+        self._bytes = path.read_bytes()
+        self.filename = path.name
+        self.mimetype = "application/pdf"
+
+    def read(self) -> bytes:
+        return self._bytes
+
+
 @firecastbot_bp.get("/config")
 def firecastbot_config():
     settings = get_manager().settings
@@ -337,7 +377,32 @@ def firecastbot_config():
             "defaultSpeechToTextProvider": settings.speech_to_text_provider,
             "defaultTextToSpeechProvider": settings.text_to_speech_provider,
             "providers": [_provider_status(provider_id) for provider_id in provider_ids],
+            "presets": [
+                {
+                    "id": preset_id,
+                    "label": str(preset["label"]),
+                    "available": (PRESET_REPORTS_DIR / str(preset["filename"])).exists(),
+                    "previewUrl": f"/api/firecastbot/presets/{preset_id}/pdf",
+                }
+                for preset_id, preset in PRESET_REPORTS.items()
+            ],
         }
+    )
+
+
+@firecastbot_bp.get("/presets/<preset_id>/pdf")
+def firecastbot_preset_pdf(preset_id: str):
+    preset = PRESET_REPORTS.get(preset_id.strip().casefold())
+    if preset is None:
+        return jsonify({"error": f"Unknown preset: {preset_id}"}), 404
+    report_path = PRESET_REPORTS_DIR / str(preset["filename"])
+    if not report_path.exists():
+        return jsonify({"error": "Preset report file not found."}), 404
+    return send_file(
+        report_path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=str(preset["filename"]),
     )
 
 
@@ -385,6 +450,26 @@ def firecastbot_load_pdf():
         return jsonify({**get_manager().session_snapshot(session_id), **payload})
     except KeyError as exc:
         return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@firecastbot_bp.post("/documents/preset")
+def firecastbot_load_preset():
+    data = request.get_json(silent=True) or {}
+    session_id = str(data.get("session_id", ""))
+    preset_id = str(data.get("preset_id", "")).strip().casefold()
+    if not session_id or not preset_id:
+        return jsonify({"error": "session_id and preset_id are required."}), 400
+    try:
+        payload = get_manager().load_preset(session_id, preset_id)
+        return jsonify({**get_manager().session_snapshot(session_id), **payload})
+    except KeyError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

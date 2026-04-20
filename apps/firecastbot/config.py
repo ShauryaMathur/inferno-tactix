@@ -28,8 +28,8 @@ class Settings:
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     xai_api_key: Optional[str] = None
-    llm_provider: str = "groq"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_provider: str = "openrouter"
+    llm_model: str = "x-ai/grok-4.1-fast"
     llm_max_tokens: int = 2048
     llm_temperature: float = 1.3
     groq_model: str = "llama-3.3-70b-versatile"
@@ -42,8 +42,8 @@ class Settings:
     pdf_chunk_overlap: int = 100
     web_chunk_size: int = 200
     web_chunk_overlap: int = 20
-    embedding_provider: str = "sentence-transformers"
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_provider: str = "openrouter"
+    embedding_model: str = "openai/text-embedding-3-small"
     speech_to_text_provider: str = "browser"
     text_to_speech_provider: str = "browser"
     speech_to_text_model: str = "gpt-4o-mini-transcribe"
@@ -117,15 +117,15 @@ def get_settings() -> Settings:
         or os.getenv("XAI_API_KEY")
         or os.getenv("GROK_API_KEY")
     )
-    llm_provider = os.getenv("LLM_PROVIDER", "groq")
-    llm_model = os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"))
+    llm_provider = os.getenv("LLM_PROVIDER", "openrouter")
+    llm_model = os.getenv("LLM_MODEL", "x-ai/grok-4.1-fast")
     llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "2048")))
     llm_temperature = float(os.getenv("LLM_TEMPERATURE", os.getenv("GROQ_TEMPERATURE", "1.3")))
     groq_model = os.getenv("GROQ_MODEL", llm_model if llm_provider.strip().casefold() == "groq" else "llama-3.3-70b-versatile")
     groq_max_tokens = int(os.getenv("GROQ_MAX_TOKENS", str(llm_max_tokens)))
     groq_temperature = float(os.getenv("GROQ_TEMPERATURE", str(llm_temperature)))
-    embedding_provider = os.getenv("EMBEDDING_PROVIDER", "sentence-transformers")
-    embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    embedding_provider = os.getenv("EMBEDDING_PROVIDER", "openrouter")
+    embedding_model = os.getenv("EMBEDDING_MODEL", "openai/text-embedding-3-small")
     chat_recent_turn_limit = int(os.getenv("CHAT_RECENT_TURN_LIMIT", "6"))
     chat_summarize_after_turns = int(os.getenv("CHAT_SUMMARIZE_AFTER_TURNS", "8"))
     speech_to_text_provider = os.getenv("SPEECH_TO_TEXT_PROVIDER", "browser")

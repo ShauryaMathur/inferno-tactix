@@ -4,17 +4,20 @@
   display: flex;
   justify-content: center;
   gap: 3rem;
-  padding: 1rem 0;
+  padding: 0.85rem 0;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(46, 125, 82, 0.14);
 
   a {
     position: relative;
-    color: #fff;
+    color: #2e7d52;
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-decoration: none;
     padding: 0.25rem 0;
-    transition: color 0.3s ease;
+    transition: color 0.2s ease;
 
     &::after {
       content: '';
@@ -23,17 +26,16 @@
       bottom: -4px;
       width: 0;
       height: 2px;
-      background: #ff6600;
-      transition: width 0.3s ease, left 0.3s ease;
+      background: #2e7d52;
+      transition: width 0.25s ease, left 0.25s ease;
     }
 
     &:hover {
-      color: #ff6600;
+      color: #1a5c36;
       &::after {
         left: 10%;
         width: 80%;
       }
-      text-shadow: 0 0 6px rgba(255,102,0,0.7);
     }
   }
 }
@@ -127,40 +129,9 @@
   padding: 0;
   width: 100%;
   height: 100%;
-  /* background: #000; */
-  /* background: url("/bg.png") ;
-    background-size: contain;
-    background-blend-mode: lighten; */
-  background-image:
-    /* orange blob */
-    radial-gradient(circle at 30% 75%,
-      rgba(255, 102, 0, 0.9) 0%,
-      rgba(255, 102, 0, 0.7) 25%,
-      rgba(255, 102, 0, 0) 60%),
-    /* black blob */
-    radial-gradient(circle at 75% 25%,
-      rgba(0, 0, 0, 1) 0%,
-      rgba(0, 0, 0, 0.8) 30%,
-      rgba(0, 0, 0, 0) 70%);
-  background-size: 200% 200%;
-  animation: gradientShift 20s ease infinite;
-  color: #e81515;
-  font-family: 'Inter', sans-serif;
-  min-height: 100vh;
+  background: #f2f5f0;
+  color: #192b1c;
   font-family: 'Lato', sans-serif;
+  min-height: 100vh;
   user-select: none;
-
-  @keyframes gradientShift {
-    0% {
-      background-position: 0% 0%;
-    }
-  
-    50% {
-      background-position: 100% 100%;
-    }
-  
-    100% {
-      background-position: 0% 0%;
-    }
-  }
 }
