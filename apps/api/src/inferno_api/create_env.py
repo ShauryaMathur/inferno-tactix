@@ -8,6 +8,7 @@ This script automates the process of:
 """
 
 import os
+import sys
 import time
 from io import BytesIO
 from pathlib import Path
@@ -19,6 +20,9 @@ import numpy as np
 import rasterio
 import requests
 from PIL import Image
+
+LANCZOS_RESAMPLING = Image.Resampling.LANCZOS
+NEAREST_RESAMPLING = Image.Resampling.NEAREST
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 APP_ROOT = PACKAGE_ROOT.parent.parent
@@ -41,7 +45,7 @@ def initialize_earth_engine():
         print("Earth Engine initialized successfully")
     except Exception as e:
         print(f"Error initializing Earth Engine: {e}")
-        exit(1)
+        sys.exit(1)
 
 
 def download_image(image: ee.Image, region, scale, output_dir, prefix: str) -> str:
@@ -65,9 +69,9 @@ def download_image(image: ee.Image, region, scale, output_dir, prefix: str) -> s
     print(f"Download URL ({prefix}): {download_url}")
     os.makedirs(output_dir, exist_ok=True)
 
-    response = requests.get(download_url)
+    response = requests.get(download_url, timeout=120)
     if response.status_code != 200:
-        raise Exception(f"Failed to download {prefix}: {response.status_code}")
+        raise RuntimeError(f"Failed to download {prefix}: {response.status_code}")
 
     tif_path = None
     with ZipFile(BytesIO(response.content)) as zip_file:
@@ -78,7 +82,7 @@ def download_image(image: ee.Image, region, scale, output_dir, prefix: str) -> s
                 break
 
     if not tif_path:
-        raise Exception(f"No TIF file found in {prefix} ZIP")
+        raise RuntimeError(f"No TIF file found in {prefix} ZIP")
 
     print(f"{prefix.capitalize()} GeoTIFF downloaded to: {tif_path}")
     return tif_path
@@ -132,7 +136,7 @@ def convert_to_heightmap(tif_path, output_width=1200, output_height=800, output_
     rgba[..., 3] = 255
 
     img = Image.fromarray(rgba, mode="RGBA")
-    img = img.resize((output_width, output_height), Image.LANCZOS)
+    img = img.resize((output_width, output_height), LANCZOS_RESAMPLING)
     img.save(output_path)
 
     print(f"Heightmap generated at: {output_path}")
@@ -173,14 +177,14 @@ def convert_landcover_to_image(
         img_rgb[data == i] = color
 
     img = Image.fromarray(img_rgb, mode="RGB")
-    img = img.resize((output_width, output_height), Image.NEAREST)
+    img = img.resize((output_width, output_height), NEAREST_RESAMPLING)
     img.save(output_path)
 
     print(f"Land cover image generated at: {output_path}")
     return output_path
 
 
-def generate_data_and_heightmap(coords: str, date) -> Tuple[str, str, str]:
+def generate_data_and_heightmap(coords: str, date: str | None = None) -> Tuple[str, str, str]:
     width_km = 36.576
     height_km = 24.384
     scale_elev = 152.4
@@ -202,17 +206,18 @@ def generate_data_and_heightmap(coords: str, date) -> Tuple[str, str, str]:
     ]
 
     print(region)
+    target_date = date or time.strftime("%Y-%m-%d")
     try:
         initialize_earth_engine()
         elev_tif = get_elevation_data(region, scale_elev, output_dir)
-        land_tif = get_landcover_data(date, region, scale_land, output_dir)
+        land_tif = get_landcover_data(target_date, region, scale_land, output_dir)
         heightmap = convert_to_heightmap(elev_tif, output_width, output_height, output_dir)
         landcover_img = convert_landcover_to_image(
             land_tif, output_width, output_height, output_dir
         )
     except Exception as e:
         print(f"Error generating images: {e}")
-        exit(1)
+        sys.exit(1)
 
     return heightmap, land_tif, landcover_img
 

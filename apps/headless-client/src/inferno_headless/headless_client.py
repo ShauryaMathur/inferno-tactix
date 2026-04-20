@@ -31,14 +31,14 @@ async def take_screenshot(page, name_prefix="screenshot"):
     filename = f"{name_prefix}_{timestamp}.png"
     filepath = os.path.join(SCREENSHOT_DIR, filename)
     await page.screenshot(path=filepath)
-    logger.info(f"Screenshot saved to {filepath}")
+    logger.info("Screenshot saved to %s", filepath)
     return filepath
 
 
 async def main():
     """Main function to run the headless browser client"""
     logger.info("Starting headless browser client")
-    logger.info(f"Target React app: {REACT_APP_URL}/#/tactics")
+    logger.info("Target React app: %s/#/tactics", REACT_APP_URL)
 
     # Single connection attempt with proper error handling
     try:
@@ -60,11 +60,11 @@ async def main():
             page = await browser.new_page()
 
             # Set up console log forwarding
-            page.on("console", lambda msg: logger.info(f"BROWSER: {msg.text}"))
-            page.on("pageerror", lambda err: logger.error(f"PAGE ERROR: {err}"))
+            page.on("console", lambda msg: logger.info("BROWSER: %s", msg.text))
+            page.on("pageerror", lambda err: logger.error("PAGE ERROR: %s", err))
 
             # Navigate to the React app
-            logger.info(f"Navigating to {REACT_APP_URL}/#/tactics")
+            logger.info("Navigating to %s/#/tactics", REACT_APP_URL)
 
             try:
                 response = await page.goto(
@@ -72,16 +72,17 @@ async def main():
                 )
 
                 if response and response.ok:
-                    logger.info(f"Page loaded successfully: {response.status}")
+                    logger.info("Page loaded successfully: %s", response.status)
                 else:
                     logger.error(
-                        f"Failed to load page: {response.status if response else 'No response'}"
+                        "Failed to load page: %s",
+                        response.status if response else "No response",
                     )
                     await take_screenshot(page, "load_error")
-                    raise Exception("Failed to load page")
+                    raise RuntimeError("Failed to load page")
 
             except Exception as e:
-                logger.error(f"Navigation error: {e}")
+                logger.error("Navigation error: %s", e)
                 await take_screenshot(page, "navigation_error")
                 raise
 
@@ -103,7 +104,7 @@ async def main():
                     }
                 }
             """)
-            logger.info(f"WebSocket status: {websocket_status}")
+            logger.info("WebSocket status: %s", websocket_status)
 
             # Keep the browser open indefinitely - maintain a single session
             logger.info("Headless browser running - maintaining session")
@@ -134,17 +135,17 @@ async def main():
                                 }
                             }
                         """)
-                        logger.info(f"Periodic check - WebSocket status: {websocket_status}")
+                        logger.info("Periodic check - WebSocket status: %s", websocket_status)
 
                 except Exception as e:
-                    logger.error(f"Page health check failed: {e}")
+                    logger.error("Page health check failed: %s", e)
                     await take_screenshot(page, "error_state")
                     # Don't exit the loop, just log the error and continue
 
                 await asyncio.sleep(30)  # Check every 30 seconds
 
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error("Fatal error: %s", e)
         sys.exit(1)
 
 
@@ -154,5 +155,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Process interrupted by user")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error("Fatal error: %s", e)
         sys.exit(1)

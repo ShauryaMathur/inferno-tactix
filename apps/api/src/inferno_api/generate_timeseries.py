@@ -34,9 +34,9 @@ from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
+import netCDF4
 import pandas as pd
 import requests
-from netCDF4 import Dataset, num2date
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -111,7 +111,7 @@ _HOUR_ENS_DAY = [
     for d in ("1", "2", "0")
 ]
 
-_session: requests.Session | None = None
+_http_session: requests.Session | None = None
 
 
 def _sat_vp(temp_c: np.ndarray | float) -> np.ndarray | float:
@@ -146,9 +146,9 @@ def _cftime_to_datetime(cftime_arr):
 
 
 def _get_session() -> requests.Session:
-    global _session
-    if _session is None:
-        _session = requests.Session()
+    global _http_session
+    if _http_session is None:
+        _http_session = requests.Session()
         retries = Retry(
             total=MAX_RETRIES,
             backoff_factor=BACKOFF,
@@ -156,32 +156,34 @@ def _get_session() -> requests.Session:
             allowed_methods=["GET"],
         )
         adapter = HTTPAdapter(max_retries=retries)
-        _session.mount("http://", adapter)
-        _session.mount("https://", adapter)
-    return _session
+        _http_session.mount("http://", adapter)
+        _http_session.mount("https://", adapter)
+    return _http_session
 
 
-def _open_dataset(url: str) -> Dataset:
+def _open_dataset(url: str) -> netCDF4.Dataset:
 
     for attempt in range(MAX_RETRIES):
         try:
-            return Dataset(url, decode_times=False)
+            return netCDF4.Dataset(url, decode_times=False)
         except Exception as ex:
             logger.warning("%s → open attempt %d failed: %s", url, attempt + 1, ex)
             time.sleep(BACKOFF**attempt)
     raise RuntimeError(f"Cannot open dataset after {MAX_RETRIES} attempts → {url}")
 
 
-def _nearest_grid_indices(ds: Dataset, lat: float, lon: float) -> Tuple[int, int]:
+def _nearest_grid_indices(ds: netCDF4.Dataset, lat: float, lon: float) -> Tuple[int, int]:
     lats = ds.variables["lat"][:]
     lons = ds.variables["lon"][:]
     return np.abs(lats - lat).argmin(), np.abs(lons - lon).argmin()
 
 
-def _time_slice(ds: Dataset, start: datetime, end: datetime) -> Tuple[np.ndarray, np.ndarray]:
+def _time_slice(
+    ds: netCDF4.Dataset, start: datetime, end: datetime
+) -> Tuple[np.ndarray, np.ndarray]:
     time_var = next(v for v in ds.variables if v.lower().startswith("day") or v == "time")
     raw = ds.variables[time_var][:]
-    dates = num2date(raw, ds.variables[time_var].units)
+    dates = netCDF4.num2date(raw, ds.variables[time_var].units)
     mask = (dates >= start) & (dates <= end)
     return np.where(mask)[0], dates[mask]
 
@@ -202,7 +204,9 @@ def _ascii_slice(url_base: str, var: str, t0: int, t1: int, lat_i: int, lon_i: i
     return np.asarray(vals, dtype=float)
 
 
-def _find_forecast_file(feature: str, start: datetime, end: datetime) -> Tuple[str, Dataset]:
+def _find_forecast_file(
+    feature: str, start: datetime, end: datetime
+) -> Tuple[str, netCDF4.Dataset]:
 
     if feature in _MEDIAN_ONLY:
         url = _BASE_FCST + _FCST_PATTERNS[1].format(feat=feature)
