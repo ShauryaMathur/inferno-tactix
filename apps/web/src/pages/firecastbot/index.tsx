@@ -91,6 +91,7 @@ export default function FireCastBot() {
         isLoading={session.isLoading}
         error={session.error}
         retryBootstrap={session.retryBootstrap}
+        sessionReadyAt={session.sessionReadyAt}
         showSpeechSettings={showSpeechSettings}
         setShowSpeechSettings={setShowSpeechSettings}
         settingsPanelRef={settingsPanelRef}
@@ -115,6 +116,8 @@ export default function FireCastBot() {
             uploadPdf={session.uploadPdf}
             ingestPreset={session.ingestPreset}
             startNewSession={session.startNewSession}
+            conversation={session.conversation}
+            sessionReadyAt={session.sessionReadyAt}
           />
         </aside>
 

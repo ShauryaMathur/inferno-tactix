@@ -8,6 +8,7 @@ type Props = {
   isLoading: boolean;
   error: string;
   retryBootstrap: () => void;
+  sessionReadyAt: Date | null;
   showSpeechSettings: boolean;
   setShowSpeechSettings: (v: boolean | ((prev: boolean) => boolean)) => void;
   settingsPanelRef: React.RefObject<HTMLDivElement | null>;
@@ -24,6 +25,7 @@ export function HeroSection({
   isLoading,
   error,
   retryBootstrap,
+  sessionReadyAt,
   showSpeechSettings,
   setShowSpeechSettings,
   settingsPanelRef,
@@ -80,6 +82,11 @@ export function HeroSection({
       <div className={styles.badge}>
         <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ""}`} />
         <span>FIRECASTBOT</span>
+        {sessionReadyAt && (
+          <span className={styles.sessionTime}>
+            · {sessionReadyAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
       </div>
       <h2 className={styles.title}>Ask FireCastBot</h2>
       <p className={styles.subtitle}>

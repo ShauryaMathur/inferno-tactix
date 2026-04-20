@@ -36,6 +36,7 @@ export function useFireCastBotSession({
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [sessionReadyAt, setSessionReadyAt] = useState<Date | null>(null);
 
   const isBotReady = !error && documentsCount > 0;
   const isIncidentSourceLocked = documentsCount > 0;
@@ -43,7 +44,12 @@ export function useFireCastBotSession({
   const applySnapshot = (snapshot: SessionSnapshot) => {
     setSessionId(snapshot.sessionId);
     setConversation(snapshot.conversation);
-    setDocumentsCount(snapshot.documentsCount);
+    setDocumentsCount((prev) => {
+      if (prev === 0 && snapshot.documentsCount > 0) {
+        setSessionReadyAt(new Date());
+      }
+      return snapshot.documentsCount;
+    });
     setLatestTranscript(snapshot.latestTranscript);
   };
 
@@ -172,6 +178,7 @@ export function useFireCastBotSession({
       setSelectedPdfName("");
       setLatestTranscript("");
       setQueryInput("");
+      setSessionReadyAt(null);
       await createFreshSession();
       if (pdfInputRef.current) pdfInputRef.current.value = "";
     });
@@ -194,6 +201,7 @@ export function useFireCastBotSession({
     retryBootstrap,
     isBotReady,
     isIncidentSourceLocked,
+    sessionReadyAt,
     getSelectedProvider,
     runTask,
     withSessionRetry,
