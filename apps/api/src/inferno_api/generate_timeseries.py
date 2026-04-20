@@ -178,6 +178,16 @@ def _nearest_grid_indices(ds: netCDF4.Dataset, lat: float, lon: float) -> Tuple[
     return np.abs(lats - lat).argmin(), np.abs(lons - lon).argmin()
 
 
+def _variable_scaling(
+    ds: netCDF4.Dataset, varname: str
+) -> Tuple[float, float, float | None]:
+    variable = ds.variables[varname]  # pylint: disable=unsubscriptable-object
+    scale = getattr(variable, "scale_factor", 1.0)
+    offset = getattr(variable, "add_offset", 0.0)
+    fill_value = getattr(variable, "_FillValue", None)
+    return scale, offset, fill_value
+
+
 def _time_slice(
     ds: netCDF4.Dataset, start: datetime, end: datetime
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -271,9 +281,7 @@ def _fetch_forecast_series(
     t0, t1 = idxs.min(), idxs.max()
     raw = _ascii_slice(url, varname, t0, t1, lat_i, lon_i)
 
-    scale = getattr(ds.variables[varname], "scale_factor", 1.0)
-    offset = getattr(ds.variables[varname], "add_offset", 0.0)
-    fillv = getattr(ds.variables[varname], "_FillValue", None)
+    scale, offset, fillv = _variable_scaling(ds, varname)
     ds.close()
 
     if fillv is not None:
@@ -315,9 +323,7 @@ def get_75day_timeseries(lat: float, lon: float, date: datetime) -> pd.DataFrame
             if idxs.size:
                 t0, t1 = idxs.min(), idxs.max()
                 raw = _ascii_slice(url, varname, t0, t1, lat_i, lon_i)
-                scale = getattr(ds.variables[varname], "scale_factor", 1.0)
-                offset = getattr(ds.variables[varname], "add_offset", 0.0)
-                fillv = getattr(ds.variables[varname], "_FillValue", None)
+                scale, offset, fillv = _variable_scaling(ds, varname)
                 if fillv is not None:
                     raw = np.where(raw == fillv, np.nan, raw)
                 hist_vals.append(raw * scale + offset)
