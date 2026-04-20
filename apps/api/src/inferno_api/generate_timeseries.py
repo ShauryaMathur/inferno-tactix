@@ -178,9 +178,7 @@ def _nearest_grid_indices(ds: netCDF4.Dataset, lat: float, lon: float) -> Tuple[
     return np.abs(lats - lat).argmin(), np.abs(lons - lon).argmin()
 
 
-def _variable_scaling(
-    ds: netCDF4.Dataset, varname: str
-) -> Tuple[float, float, float | None]:
+def _variable_scaling(ds: netCDF4.Dataset, varname: str) -> Tuple[float, float, float | None]:
     variable = ds.variables[varname]  # pylint: disable=unsubscriptable-object
     scale = getattr(variable, "scale_factor", 1.0)
     offset = getattr(variable, "add_offset", 0.0)
