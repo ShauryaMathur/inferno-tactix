@@ -57,6 +57,7 @@ data/runs/
 data/screenshots/
 data/models/
 
-research/papers/out/
+research/papers/
 research/reports/**/out/
 research/**/*.log
+/apps/api/evals
