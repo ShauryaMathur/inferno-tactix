@@ -24,14 +24,18 @@ export function useBrowserSpeech(onError: (msg: string) => void) {
     }
     suppressSpeechErrorRef.current = true;
     synth.cancel();
-    window.setTimeout(() => { suppressSpeechErrorRef.current = false; }, 0);
+    window.setTimeout(() => suppressSpeechErrorRef.current = false, 0);
   };
 
   const startBrowserSpeech = (text: string, messageKey: string) => {
     if (!("speechSynthesis" in window) || !text.trim()) return;
     const synth = window.speechSynthesis;
     if (activeSpeechMessageKeyRef.current === messageKey) {
-      if (synth.paused) { synth.resume(); setSpeechPlaybackState(messageKey, true, false); return; }
+      if (synth.paused) {
+        synth.resume();
+        setSpeechPlaybackState(messageKey, true, false);
+        return;
+      }
       if (synth.speaking) return;
     }
     cancelBrowserSpeechInternal();
@@ -41,7 +45,10 @@ export function useBrowserSpeech(onError: (msg: string) => void) {
     utterance.onstart = () => setSpeechPlaybackState(messageKey, true, false);
     utterance.onpause = () => setSpeechPlaybackState(messageKey, true, true);
     utterance.onresume = () => setSpeechPlaybackState(messageKey, true, false);
-    utterance.onend = () => { utteranceRef.current = null; setSpeechPlaybackState("", false, false); };
+    utterance.onend = () => {
+      utteranceRef.current = null;
+      setSpeechPlaybackState("", false, false);
+    };
     utterance.onerror = (event: any) => {
       const errorType = String(event?.error || "").toLowerCase();
       if (suppressSpeechErrorRef.current || errorType === "interrupted" || errorType === "canceled" || errorType === "cancelled") {

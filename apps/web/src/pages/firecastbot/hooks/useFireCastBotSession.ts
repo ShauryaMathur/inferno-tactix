@@ -29,7 +29,6 @@ export function useFireCastBotSession({
   const [sessionId, setSessionId] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [documentsCount, setDocumentsCount] = useState(0);
-  const [latestTranscript, setLatestTranscript] = useState("");
   const [selectedPdfName, setSelectedPdfName] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [isQuerying, setIsQuerying] = useState(false);
@@ -50,7 +49,6 @@ export function useFireCastBotSession({
       }
       return snapshot.documentsCount;
     });
-    setLatestTranscript(snapshot.latestTranscript);
   };
 
   const getSelectedProvider = (providerId: string): Provider | null =>
@@ -176,7 +174,6 @@ export function useFireCastBotSession({
       cancelBrowserSpeech();
       closeSettings();
       setSelectedPdfName("");
-      setLatestTranscript("");
       setQueryInput("");
       setSessionReadyAt(null);
       await createFreshSession();
@@ -188,9 +185,6 @@ export function useFireCastBotSession({
     config,
     sessionId,
     conversation,
-    documentsCount,
-    latestTranscript,
-    setLatestTranscript,
     selectedPdfName,
     setSelectedPdfName,
     isBusy,

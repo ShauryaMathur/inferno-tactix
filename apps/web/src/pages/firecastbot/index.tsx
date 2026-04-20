@@ -41,7 +41,6 @@ export default function FireCastBot() {
     getSelectedProvider: session.getSelectedProvider,
     onError: session.setError,
     setQueryInput,
-    setLatestTranscript: session.setLatestTranscript,
     runTask: session.runTask,
     withSessionRetry: session.withSessionRetry,
     applySnapshot: session.applySnapshot,

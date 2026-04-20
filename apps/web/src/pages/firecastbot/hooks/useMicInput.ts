@@ -13,7 +13,6 @@ export function useMicInput({
   getSelectedProvider,
   onError,
   setQueryInput,
-  setLatestTranscript,
   runTask,
   withSessionRetry,
   applySnapshot,
@@ -24,7 +23,6 @@ export function useMicInput({
   getSelectedProvider: (id: string) => Provider | null;
   onError: (msg: string) => void;
   setQueryInput: (v: string) => void;
-  setLatestTranscript: (v: string) => void;
   runTask: (task: () => Promise<void>) => Promise<void>;
   withSessionRetry: <T>(task: (id: string) => Promise<T>) => Promise<T>;
   applySnapshot: (snapshot: SessionSnapshot) => void;
@@ -54,7 +52,6 @@ export function useMicInput({
     recognition.maxAlternatives = 1;
     recognition.onresult = (event: any) => {
       const transcript = event.results?.[0]?.[0]?.transcript || "";
-      setLatestTranscript(transcript);
       setQueryInput(transcript);
     };
     recognition.onerror = (event: any) => onError(event?.error || "Speech recognition failed.");

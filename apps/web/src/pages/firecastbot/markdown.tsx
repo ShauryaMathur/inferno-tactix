@@ -34,7 +34,10 @@ export const renderMarkdown = (text: string): React.ReactNode[] => {
     const line = lines[index];
     const trimmed = line.trim();
 
-    if (!trimmed) { index += 1; continue; }
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
 
     if (trimmed.startsWith("```")) {
       const codeLines: string[] = [];
