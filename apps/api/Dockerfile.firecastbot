@@ -1,0 +1,20 @@
+FROM --platform=linux/amd64 python:3.10-slim
+
+WORKDIR /app
+
+# Install lean deps only (no torch model, no geo libs)
+COPY apps/api/requirements_firecastbot.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy only what FireCastBot needs
+COPY apps/api/src ./apps/api/src
+COPY apps/firecastbot ./apps/firecastbot
+
+ENV PYTHONPATH=/app/apps/api/src:/app/apps
+ENV API_HOST=0.0.0.0
+ENV API_PORT=6969
+
+EXPOSE 6969
+
+CMD ["python", "-m", "flask", "--app", "inferno_api.app_firecastbot", "run", "--host", "0.0.0.0", "--port", "6969"]

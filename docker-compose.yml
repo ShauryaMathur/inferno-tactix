@@ -1,0 +1,20 @@
+services:
+  web:
+    extends:
+      file: ./ops/docker/compose.dev.yml
+      service: web
+
+  api:
+    extends:
+      file: ./ops/docker/compose.dev.yml
+      service: api
+
+  simulator:
+    extends:
+      file: ./ops/docker/compose.dev.yml
+      service: simulator
+
+  headless-client:
+    extends:
+      file: ./ops/docker/compose.dev.yml
+      service: headless-client

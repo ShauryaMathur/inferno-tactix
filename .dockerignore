@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Python caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/*.egg-info
+
+# Node
+apps/web/node_modules
+apps/web/dist
+
+# Services not being deployed
+apps/simulator
+apps/headless-client
+
+# Streamlit UI (not needed in Flask API)
+apps/firecastbot/ui
+
+# Data (not needed for FireCastBot)
+data
+
+# Research / notebooks
+research
+
+# Virtual envs
+tb-env
+.venv
+venv
+
+# Unused API files (wildfire prediction model, not FireCastBot)
+apps/api/models
+apps/api/evals
+apps/api/backend
+
+# Misc
+**/.DS_Store
+*.md
+ruff.toml
+docker-compose.yml
+ops
+
+# Env files (secrets passed via Cloud Run env vars)
+**/.env
+**/.env.local

@@ -1,0 +1,1 @@
+"""FireCastBot application package."""

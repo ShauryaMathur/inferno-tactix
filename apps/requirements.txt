@@ -1,0 +1,7 @@
+anthropic==0.46.0
+google-generativeai==0.8.4
+groq==0.13.1
+openai==1.57.0
+pypdf==5.1.0
+python-dotenv==1.0.1
+sentence-transformers==3.3.1
