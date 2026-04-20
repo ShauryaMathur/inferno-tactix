@@ -58,3 +58,4 @@ data/models/
 research/papers/
 research/reports/**/out/
 research/**/*.log
+/ops
