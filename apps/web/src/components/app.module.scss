@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 .links {
   display: flex;
@@ -27,7 +27,9 @@
       width: 0;
       height: 2px;
       background: #2e7d52;
-      transition: width 0.25s ease, left 0.25s ease;
+      transition:
+        width 0.25s ease,
+        left 0.25s ease;
     }
 
     &:hover {
@@ -40,7 +42,6 @@
   }
 }
 
-
 // .app {
 //   width: 100%;
 //   // background: linear-gradient(28deg, #F0F0F0 0%, #FF6600 100%);
@@ -50,8 +51,7 @@
 //   // background-color: #c8c8c8;
 // }
 
-
-.mainContent{
+.mainContent {
   overflow: hidden;
   width: 100%;
   height: calc(100% - #{$bottomBarHeight + $bottomBarBorderWidth});
@@ -59,13 +59,13 @@
   // top: $topBarHeight;
   left: 0;
   transition: 1s;
-  &.shrink{
+  &.shrink {
     width: calc(100% - #{$rightPanelContainerWidth});
     left: 0;
   }
 }
 
-.rightContent{
+.rightContent {
   pointer-events: none;
   overflow-x: hidden;
   width: $rightPanelContainerWidth + $tabWidth;
@@ -75,7 +75,7 @@
   top: $topBarHeight;
   right: 0;
   transition: 1s;
-  &.grow{
+  &.grow {
     right: 0;
   }
 }
@@ -91,7 +91,7 @@
   font-weight: bold;
 }
 
-.timeDisplay{
+.timeDisplay {
   width: 82px;
   height: 34px;
   position: fixed;
@@ -110,14 +110,14 @@
   padding-top: 8px;
 }
 
-.homePage::before{
+.homePage::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image: repeating-linear-gradient(
     135deg,
-    rgba(0,0,0,0.02) 0,
-    rgba(0,0,0,0.02) 1px,
+    rgba(0, 0, 0, 0.02) 0,
+    rgba(0, 0, 0, 0.02) 1px,
     transparent 1px,
     transparent 4px
   );

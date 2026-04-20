@@ -1,6 +1,6 @@
-import { downsample } from "../downsample-data";
-import { observable, computed, makeObservable } from "mobx";
-import css from "../chart-colors.scss";
+import { downsample } from '../downsample-data';
+import { observable, computed, makeObservable } from 'mobx';
+import css from '../chart-colors.scss';
 
 export interface Color {
   name: string;
@@ -33,29 +33,29 @@ export const baseColors = {
   colorChartRed: css.chartRed,
   colorChartYellow: css.chartYellow,
 
-  controlGray: css.controlGray
+  controlGray: css.controlGray,
 };
 
 export const ChartColors: Color[] = [
   // bars
-  { name: "blue", hex: baseColors.chartDataColor1},
-  { name: "orange", hex: baseColors.chartDataColor2},
-  { name: "purple", hex: baseColors.chartDataColor3},
-  { name: "green", hex: baseColors.chartDataColor4},
-  { name: "sage", hex: baseColors.chartDataColor5},
-  { name: "rust", hex: baseColors.chartDataColor6},
-  { name: "cloud", hex: baseColors.chartDataColor7},
-  { name: "gold", hex: baseColors.chartDataColor8},
-  { name: "terra", hex: baseColors.chartDataColor9},
-  { name: "sky", hex: baseColors.chartDataColor10},
+  { name: 'blue', hex: baseColors.chartDataColor1 },
+  { name: 'orange', hex: baseColors.chartDataColor2 },
+  { name: 'purple', hex: baseColors.chartDataColor3 },
+  { name: 'green', hex: baseColors.chartDataColor4 },
+  { name: 'sage', hex: baseColors.chartDataColor5 },
+  { name: 'rust', hex: baseColors.chartDataColor6 },
+  { name: 'cloud', hex: baseColors.chartDataColor7 },
+  { name: 'gold', hex: baseColors.chartDataColor8 },
+  { name: 'terra', hex: baseColors.chartDataColor9 },
+  { name: 'sky', hex: baseColors.chartDataColor10 },
 
   // backgrounds
-  { name: "sage", hex: baseColors.chartColor5},
-  { name: "rust", hex: baseColors.chartColor6},
-  { name: "cloud", hex: baseColors.chartColor7},
-  { name: "gold", hex: baseColors.chartColor8},
-  { name: "terra", hex: baseColors.chartColor9},
-  { name: "sky", hex: baseColors.chartColor10}
+  { name: 'sage', hex: baseColors.chartColor5 },
+  { name: 'rust', hex: baseColors.chartColor6 },
+  { name: 'cloud', hex: baseColors.chartColor7 },
+  { name: 'gold', hex: baseColors.chartColor8 },
+  { name: 'terra', hex: baseColors.chartColor9 },
+  { name: 'sky', hex: baseColors.chartColor10 },
 ];
 
 const timeSeriesSort = (a: XYPoint, b: XYPoint) => {
@@ -71,12 +71,12 @@ const timeSeriesSort = (a: XYPoint, b: XYPoint) => {
 const defaultMax = 100;
 const defaultMin = 0;
 
-export interface IDataPoint{
+export interface IDataPoint {
   label: string;
   a1: number;
   a2: number;
 }
-export class DataPoint implements IDataPoint{
+export class DataPoint implements IDataPoint {
   public label: string;
   public a1: number;
   public a2: number;
@@ -85,7 +85,7 @@ export class DataPoint implements IDataPoint{
     Object.assign(this, props);
   }
 }
-export interface IChartDataSet{
+export interface IChartDataSet {
   name: string;
   dataPoints: IDataPoint[];
   display: boolean;
@@ -114,7 +114,7 @@ export interface IChartDataSet{
   axisRoundValueA2?: number;
 }
 
-export type GraphPatternType = "diagonal" | "diagonal-right-left";
+export type GraphPatternType = 'diagonal' | 'diagonal-right-left';
 
 export class ChartDataSet implements IChartDataSet {
   @observable public name: string;
@@ -135,8 +135,8 @@ export class ChartDataSet implements IChartDataSet {
   public fixedLabelRotation?: number;
   @observable public dataStartIdx?: number;
   public stack?: string;
-  public axisLabelA1?: string = "";
-  public axisLabelA2?: string = "";
+  public axisLabelA1?: string = '';
+  public axisLabelA2?: string = '';
   @observable public allowExpandA2?: boolean = true;
   @observable public display = true;
   public dashStyle?: number[];
@@ -150,10 +150,9 @@ export class ChartDataSet implements IChartDataSet {
     Object.assign(this, props);
   }
 
-  @computed public get visibleDataPoints(): IDataPoint[]{
+  @computed public get visibleDataPoints(): IDataPoint[] {
     let points: IDataPoint[];
-    if (this.maxPoints && this.maxPoints > 0 &&
-      this.dataPoints.length >= this.maxPoints) {
+    if (this.maxPoints && this.maxPoints > 0 && this.dataPoints.length >= this.maxPoints) {
       if (this.dataStartIdx !== undefined && this.dataStartIdx > -1) {
         points = this.dataPoints.slice(this.dataStartIdx, this.dataStartIdx + this.maxPoints);
       } else {
@@ -170,30 +169,30 @@ export class ChartDataSet implements IChartDataSet {
     // tick, which is visually annoying, so instead we downsample up to MAX_TOTAL_POINTS - GROW_WINDOW, and
     // then add on the remainder as-is, and then downsample again when we grow past our window
     const { downsampleMaxLength: max, downsampleGrowWindow: growWindow } = this;
-    if (this.downsample && points.length > (max! - growWindow!)) {
+    if (this.downsample && points.length > max! - growWindow!) {
       const tailLength = points.length % growWindow!;
       const dataToSample = this.dataPoints.slice(0, points.length - tailLength);
-      const sampledData = downsample(dataToSample, (max! - growWindow!));
+      const sampledData = downsample(dataToSample, max! - growWindow!);
       points = tailLength ? sampledData.concat(points.slice(-tailLength)) : sampledData;
     }
     return points;
   }
 
   public get dataLabels() {
-    return this.visibleDataPoints.map(p => p.label);
+    return this.visibleDataPoints.map((p) => p.label);
   }
 
   // Axis 1 data, for a line will be point x value, for bar will be quantity
   @computed public get dataA1() {
-    return this.visibleDataPoints.map(p => p.a1);
+    return this.visibleDataPoints.map((p) => p.a1);
   }
   // Axis 2 data for a line will be y value, for a bar will be label
   @computed public get dataA2() {
     const visiblePoints = this.visibleDataPoints;
     if (visiblePoints.length > 0 && visiblePoints[0].a2) {
-      return visiblePoints.map(p => p.a2);
+      return visiblePoints.map((p) => p.a2);
     } else {
-      return visiblePoints.map(p => p.label);
+      return visiblePoints.map((p) => p.label);
     }
   }
 
@@ -203,22 +202,26 @@ export class ChartDataSet implements IChartDataSet {
     if (this.fixedMaxA1 !== undefined && this.dataPoints.length <= this.fixedMaxA1) {
       return this.fixedMaxA1;
     } else if (!visiblePoints || visiblePoints.length === 0) {
-      if (this.initialMaxA1){
+      if (this.initialMaxA1) {
         return this.initialMaxA1;
       } else if (this.maxPoints) {
         return this.maxPoints;
       } else {
         return defaultMax;
       }
-    } else if (visiblePoints && visiblePoints.length > 0 &&
-      this.maxPoints && visiblePoints.length < this.maxPoints) {
-        if (this.initialMaxA1){
-          return this.initialMaxA1;
-        } else {
-          return this.maxPoints;
-        }
+    } else if (
+      visiblePoints &&
+      visiblePoints.length > 0 &&
+      this.maxPoints &&
+      visiblePoints.length < this.maxPoints
+    ) {
+      if (this.initialMaxA1) {
+        return this.initialMaxA1;
+      } else {
+        return this.maxPoints;
+      }
     } else {
-      return Math.max(...visiblePoints.map(p => p.a1));
+      return Math.max(...visiblePoints.map((p) => p.a1));
     }
   }
 
@@ -230,25 +233,26 @@ export class ChartDataSet implements IChartDataSet {
     const visiblePoints: IDataPoint[] = this.visibleDataPoints;
     if (this.fixedMaxA2 !== undefined && this.allowExpandA2 === false) {
       return this.fixedMaxA2;
-    } else
-    if (!visiblePoints || visiblePoints.length === 0) {
+    } else if (!visiblePoints || visiblePoints.length === 0) {
       return defaultMax;
     } else if (this.allowExpandA2) {
       // always return max from all points so y axis only scales up, never down
       if (this.fixedMaxA2) {
         // use fixedMax as a minimum value for max
-        let dataMax = Math.max(...this.dataPoints.map(p => p.a2));
+        let dataMax = Math.max(...this.dataPoints.map((p) => p.a2));
         // if we want the axis value to round up to nearest 10, or 100, use the axisRoundValueA2
         if (this.axisRoundValueA2) {
-          dataMax = (Math.ceil(dataMax / this.axisRoundValueA2) * this.axisRoundValueA2) + this.axisRoundValueA2;
+          dataMax =
+            Math.ceil(dataMax / this.axisRoundValueA2) * this.axisRoundValueA2 +
+            this.axisRoundValueA2;
         }
         return this.fixedMaxA2 > dataMax ? this.fixedMaxA2 : dataMax;
       } else {
-        return Math.max(...this.dataPoints.map(p => p.a2));
+        return Math.max(...this.dataPoints.map((p) => p.a2));
       }
     } else {
       // only return max of visible subset of data
-      return Math.max(...visiblePoints.map(p => p.a2));
+      return Math.max(...visiblePoints.map((p) => p.a2));
     }
   }
   @computed public get minA1(): number | undefined {
@@ -257,7 +261,7 @@ export class ChartDataSet implements IChartDataSet {
     } else if (!this.visibleDataPoints || this.visibleDataPoints.length === 0) {
       return defaultMin;
     } else {
-      return Math.min(...this.visibleDataPoints.map(p => p.a1));
+      return Math.min(...this.visibleDataPoints.map((p) => p.a1));
     }
   }
   @computed public get minA2(): number | undefined {
@@ -266,16 +270,16 @@ export class ChartDataSet implements IChartDataSet {
     } else if (!this.visibleDataPoints || this.visibleDataPoints.length === 0) {
       return defaultMin;
     } else {
-      return Math.min(...this.visibleDataPoints.map(p => p.a2));
+      return Math.min(...this.visibleDataPoints.map((p) => p.a2));
     }
   }
   // Lines and scatter plots require X and Y coordinates
   public get dataAsXY() {
-    return this.visibleDataPoints.map(d => ({x: d.a1, y: d.a2}));
+    return this.visibleDataPoints.map((d) => ({ x: d.a1, y: d.a2 }));
   }
   // Sort lines in increasing order of X for time-based plots
   public get timeSeriesXY() {
-    const xyData = this.visibleDataPoints.map(d => ({ x: d.a1, y: d.a2 }));
+    const xyData = this.visibleDataPoints.map((d) => ({ x: d.a1, y: d.a2 }));
     xyData.sort(timeSeriesSort);
     return xyData;
   }
@@ -291,7 +295,12 @@ export class ChartDataSet implements IChartDataSet {
     this.dataPoints.push({ a1, a2, label });
   };
 
-  public updateDataPoint = (pointIdx: number, newValA1: number, newValA2: number, newLabel?: string) => {
+  public updateDataPoint = (
+    pointIdx: number,
+    newValA1: number,
+    newValA2: number,
+    newLabel?: string
+  ) => {
     if (this.dataPoints[pointIdx]) {
       this.dataPoints[pointIdx].a1 = newValA1;
       this.dataPoints[pointIdx].a2 = newValA2;
@@ -299,11 +308,11 @@ export class ChartDataSet implements IChartDataSet {
     }
   };
   public addOrUpdateDataPoint = (newValA1: number, newValA2: number, label?: string) => {
-    const pointIdx = this.dataPoints.findIndex(p => p.a1 === newValA1);
+    const pointIdx = this.dataPoints.findIndex((p) => p.a1 === newValA1);
     if (pointIdx > -1 && this.dataPoints[pointIdx]) {
       this.updateDataPoint(pointIdx, newValA1, newValA2, label);
     } else {
-      this.addDataPoint(newValA1, newValA2, label ? label : "");
+      this.addDataPoint(newValA1, newValA2, label ? label : '');
     }
   };
 

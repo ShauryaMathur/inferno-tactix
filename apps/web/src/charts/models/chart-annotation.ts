@@ -1,4 +1,4 @@
-import { observable, makeObservable } from "mobx";
+import { observable, makeObservable } from 'mobx';
 
 /**
  * This model tries to reduce the number of options that need to be specified when defining an
@@ -9,7 +9,7 @@ import { observable, makeObservable } from "mobx";
  *
  * See https://github.com/chartjs/chartjs-plugin-annotation
  */
-export interface IChartAnnotation{
+export interface IChartAnnotation {
   type: string;
   // x value for vertical line, y value for horizontal
   value?: number;
@@ -39,15 +39,15 @@ export interface IChartAnnotation{
 export class Annotation implements IChartAnnotation {
   public type: string;
   @observable public value?: number;
-  @observable public color?: string = "#797979";
+  @observable public color?: string = '#797979';
   public thickness?: number = 2;
   public dashArray?: number[] = [5, 5];
   @observable public label?: string;
-  public labelColor?: string = "black";
+  public labelColor?: string = 'black';
   public labelBackgroundColor?: string;
   public labelXOffset?: number = 0;
   public labelYOffset?: number = 0;
-  public labelPosition?: string = "top";
+  public labelPosition?: string = 'top';
   public expandLabel?: string;
   public expandOffset?: number = 0;
   public xMin?: number;
@@ -70,51 +70,54 @@ export class Annotation implements IChartAnnotation {
   public get formatted() {
     let formatted: any = {
       borderColor: this.color,
-      borderWidth: this.thickness
+      borderWidth: this.thickness,
     };
 
-    if (this.type === "horizontalLine") {
+    if (this.type === 'horizontalLine') {
       formatted = {
-        type: "line",
-        mode: "horizontal",
-        scaleID: "y-axis-0",
+        type: 'line',
+        mode: 'horizontal',
+        scaleID: 'y-axis-0',
         value: this.value,
         label: {
-          position: "right"
+          position: 'right',
         },
-        ...formatted
+        ...formatted,
       };
-    } else if (this.type === "verticalLine") {
+    } else if (this.type === 'verticalLine') {
       formatted = {
-        type: "line",
-        mode: "vertical",
-        scaleID: "x-axis-0",
+        type: 'line',
+        mode: 'vertical',
+        scaleID: 'x-axis-0',
         value: this.value,
         label: {
-          position: this.labelPosition ? this.labelPosition : "top",
+          position: this.labelPosition ? this.labelPosition : 'top',
           fontFamily: this.fontFamily ? this.fontFamily : undefined,
           fontSize: this.fontSize ? this.fontSize : 20,
           cornerRadius: 20,
           labelHeight: 16,
           yPadding: 2,
           xPadding: 2,
-          content: this.value
+          content: this.value,
           // Future release of chartjs-plugin-annotation will support rotating labels
           // - the code is in their master branch, not yet released.
           // rotation: 90
         },
-        ...formatted
+        ...formatted,
       };
-    } else if (this.type === "box") {
+    } else if (this.type === 'box') {
       const { xMin, xMax, yMin, yMax } = this;
       formatted = {
-        type: "box",
-        drawTime: "beforeDatasetsDraw",
-        xScaleID: "x-axis-0",
-        yScaleID: "y-axis-0",
+        type: 'box',
+        drawTime: 'beforeDatasetsDraw',
+        xScaleID: 'x-axis-0',
+        yScaleID: 'y-axis-0',
         backgroundColor: this.color,
-        xMin, xMax, yMin, yMax,
-        ...formatted
+        xMin,
+        xMax,
+        yMin,
+        yMax,
+        ...formatted,
       };
     }
 
@@ -129,7 +132,7 @@ export class Annotation implements IChartAnnotation {
         xAdjust,
         yAdjust: this.labelYOffset,
         fontColor: this.labelColor,
-        backgroundColor: this.labelBackgroundColor
+        backgroundColor: this.labelBackgroundColor,
       };
     }
 
@@ -153,7 +156,7 @@ export class Annotation implements IChartAnnotation {
     this.value = value;
   }
 
-  public setBounds(bounds: { xMin?: number, xMax?: number, yMin?: number, yMax?: number }) {
+  public setBounds(bounds: { xMin?: number; xMax?: number; yMin?: number; yMax?: number }) {
     if (bounds.xMin) this.xMin = bounds.xMin;
     if (bounds.xMax) this.xMax = bounds.xMax;
     if (bounds.yMin) this.yMin = bounds.yMin;

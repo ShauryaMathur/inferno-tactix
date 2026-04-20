@@ -21,7 +21,7 @@ Negative samples ('No')  → three flavours:
 
 Author:  Shreyas Bellary Manjunath <> Shaurya Mathur
 Date:    2025-05-01
-              
+
 """
 
 from __future__ import annotations
@@ -47,35 +47,36 @@ import config as C
 random.seed(C.SEED)
 np.random.seed(C.SEED)
 
-#Logging ───────────────────────────────────────────────────────────────
+# Logging ───────────────────────────────────────────────────────────────
 
 logging.basicConfig(
-    level=logging.INFO,           
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(message)s",
     datefmt="%H:%M:%S",
-    filename="make_coords.log",       
+    filename="make_coords.log",
     filemode="w",
 )
 log = logging.getLogger("builder")
 
-#Country polygon & bbox check ──────────────────────────────────────────
+# Country polygon & bbox check ──────────────────────────────────────────
 world = gpd.read_file(
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "master/geojson/ne_110m_admin_0_countries.geojson"
 )
-usa_poly = (world.loc[world["NAME"] == "United States of America", "geometry"].union_all())
+usa_poly = world.loc[world["NAME"] == "United States of America", "geometry"].union_all()
+
 
 def in_usa(lat: float, lon: float) -> bool:
     return usa_poly.contains(Point(lon, lat))
 
-def in_bbox(lat: float, lon: float) -> bool:
-    return (
-        C.MIN_LAT <= lat <= C.MAX_LAT
-        and C.MIN_LON <= lon <= C.MAX_LON
-    )
 
-#Fast haversine helpers ────────────────────────────────────────────────
+def in_bbox(lat: float, lon: float) -> bool:
+    return C.MIN_LAT <= lat <= C.MAX_LAT and C.MIN_LON <= lon <= C.MAX_LON
+
+
+# Fast haversine helpers ────────────────────────────────────────────────
 EARTH_KM = 6371.0088
+
 
 def haversine_km(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
@@ -84,12 +85,14 @@ def haversine_km(lat1, lon1, lat2, lon2):
     a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
     return 2 * EARTH_KM * np.arcsin(np.sqrt(a))
 
-#Helpers to shift coordinates by bearing & distance ────────────────────
+
+# Helpers to shift coordinates by bearing & distance ────────────────────
 def offset_coord(lat: float, lon: float, dist_km: float, bearing_deg: float):
     origin = geod.distance(kilometers=dist_km).destination((lat, lon), bearing_deg)
     return origin.latitude, origin.longitude
 
-#Positive-set builder ──────────────────────────────────────────────────
+
+# Positive-set builder ──────────────────────────────────────────────────
 def build_positive(df_raw: pd.DataFrame) -> pd.DataFrame:
     df = df_raw.copy()
     df["datetime"] = pd.to_datetime(df["Fire Discovery Date Time"])
@@ -125,17 +128,20 @@ def build_positive(df_raw: pd.DataFrame) -> pd.DataFrame:
     log.info("Positive rows kept: %d (from %d)", len(yes), len(df))
     return yes
 
-#BallTree for distance queries ─────────────────────────────────────────
+
+# BallTree for distance queries ─────────────────────────────────────────
 def make_balltree(df: pd.DataFrame) -> BallTree:
     radians = np.radians(df[["latitude", "longitude"]].values)
     return BallTree(radians, metric="haversine")
 
-#FAR negatives (>=100 km) ───────────────────────────────────────────────
-def far_negative_worker(seed: int, yes_tree: BallTree, result: list, dts: list,
-                        lock: threading.Lock):
+
+# FAR negatives (>=100 km) ───────────────────────────────────────────────
+def far_negative_worker(
+    seed: int, yes_tree: BallTree, result: list, dts: list, lock: threading.Lock
+):
     rng = random.Random(seed)
     radius_rad_yes = C.FAR_NEGATIVE_MIN_KM / EARTH_KM
-    radius_rad_no  = C.MIN_NO_SPATIAL_KM / EARTH_KM   
+    radius_rad_no = C.MIN_NO_SPATIAL_KM / EARTH_KM
 
     while True:
         with lock:
@@ -147,9 +153,7 @@ def far_negative_worker(seed: int, yes_tree: BallTree, result: list, dts: list,
         if not in_usa(lat, lon):
             continue
 
-        dist_yes, _ = yes_tree.query(
-            np.radians([[lat, lon]]), k=1, return_distance=True
-        )
+        dist_yes, _ = yes_tree.query(np.radians([[lat, lon]]), k=1, return_distance=True)
         if dist_yes[0][0] < radius_rad_yes:
             continue
 
@@ -172,16 +176,15 @@ def far_negative_worker(seed: int, yes_tree: BallTree, result: list, dts: list,
                 for j in idxs:
                     if abs((dts[j] - rand_ts).days) < C.MIN_NO_TEMPORAL_DAYS:
                         break
-                else:  
+                else:
                     result.append(
                         dict(latitude=lat, longitude=lon, datetime=rand_ts, Wildfire="No")
                     )
                     dts.append(rand_ts)
             else:
-                result.append(
-                    dict(latitude=lat, longitude=lon, datetime=rand_ts, Wildfire="No")
-                )
+                result.append(dict(latitude=lat, longitude=lon, datetime=rand_ts, Wildfire="No"))
                 dts.append(rand_ts)
+
 
 def build_far_negatives(yes_tree: BallTree) -> pd.DataFrame:
     shared, shared_ts, lock = [], [], threading.Lock()
@@ -194,14 +197,15 @@ def build_far_negatives(yes_tree: BallTree) -> pd.DataFrame:
     )
     return pd.DataFrame(shared)
 
-#NEAR negatives (≤100 km, ≥90d apart) ──────────────────────────────────
+
+# NEAR negatives (≤100 km, ≥90d apart) ──────────────────────────────────
 def build_near_negatives(yes_df: pd.DataFrame, yes_tree: BallTree) -> pd.DataFrame:
     records = []
     radius_rad_yes = C.NEAR_NEGATIVE_MAX_KM / EARTH_KM
-    radius_rad_no  = C.MIN_NO_SPATIAL_KM / EARTH_KM
+    radius_rad_no = C.MIN_NO_SPATIAL_KM / EARTH_KM
 
     no_coords = []
-    no_times  = []
+    no_times = []
 
     for idx, row in tqdm(yes_df.iterrows(), total=len(yes_df), desc="near-neg"):
         lat0, lon0, ts0 = row["latitude"], row["longitude"], row["datetime"]
@@ -234,45 +238,41 @@ def build_near_negatives(yes_df: pd.DataFrame, yes_tree: BallTree) -> pd.DataFra
                 if any(abs((no_times[j] - ts0).days) < C.MIN_NO_TEMPORAL_DAYS for j in close):
                     continue
 
-            delta_days = random.randint(
-                C.NEAR_NEGATIVE_MIN_DAYS, C.NEAR_NEGATIVE_MAX_DAYS
-            )
+            delta_days = random.randint(C.NEAR_NEGATIVE_MIN_DAYS, C.NEAR_NEGATIVE_MAX_DAYS)
             sign = random.choice([-1, 1])
             ts = ts0 + timedelta(days=sign * delta_days)
 
             if not (pd.Timestamp(C.DATE_START) <= ts <= pd.Timestamp(C.DATE_END)):
                 continue
 
-            records.append(
-                dict(latitude=lat, longitude=lon, datetime=ts, Wildfire="No")
-            )
+            records.append(dict(latitude=lat, longitude=lon, datetime=ts, Wildfire="No"))
             no_coords.append([lat, lon])
             no_times.append(ts)
     return pd.DataFrame(records)
 
-#1 Year negatives ───────────────────────────────────────────────────
+
+# 1 Year negatives ───────────────────────────────────────────────────
 def build_year_negatives(yes_df: pd.DataFrame) -> pd.DataFrame:
     recs = []
     yes_triplets = set(zip(yes_df.latitude, yes_df.longitude, yes_df.datetime))
 
-    radius_rad_no = C.MIN_NO_SPATIAL_KM / EARTH_KM   
-    no_coords, no_times = [], []                   
+    radius_rad_no = C.MIN_NO_SPATIAL_KM / EARTH_KM
+    no_coords, no_times = [], []
 
     for _, row in tqdm(yes_df.iterrows(), total=len(yes_df), desc="year-neg"):
         lat0, lon0, ts0 = row["latitude"], row["longitude"], row["datetime"]
-
 
         max_years_back = int((ts0 - pd.Timestamp(C.DATE_START)).days // 365)
 
         for yr in range(1, max_years_back + 1):
             new_ts = ts0 - timedelta(days=365 * yr)
-            
+
             if not (in_bbox(lat0, lon0) and in_usa(lat0, lon0)):
                 continue
-            
+
             if (lat0, lon0, new_ts) in yes_triplets:
                 continue
-                
+
             if no_coords:
                 tmp_tree = BallTree(np.radians(no_coords), metric="haversine")
                 close = tmp_tree.query_radius(
@@ -281,16 +281,14 @@ def build_year_negatives(yes_df: pd.DataFrame) -> pd.DataFrame:
                 if any(abs((no_times[j] - new_ts).days) < C.MIN_NO_TEMPORAL_DAYS for j in close):
                     continue
 
-            recs.append(
-                dict(latitude=lat0, longitude=lon0, datetime=new_ts, Wildfire="No")
-            )
+            recs.append(dict(latitude=lat0, longitude=lon0, datetime=new_ts, Wildfire="No"))
             no_coords.append([lat0, lon0])
             no_times.append(new_ts)
 
     return pd.DataFrame(recs)
 
 
-#Main pipeline ─────────────────────────────────────────────────────────
+# Main pipeline ─────────────────────────────────────────────────────────
 def main(incidents_csv: str, out_csv: str):
     raw = pd.read_csv(incidents_csv)
 
@@ -299,14 +297,13 @@ def main(incidents_csv: str, out_csv: str):
 
     tree = make_balltree(yes_df)
 
-    far_df   = build_far_negatives(tree)
-    near_df  = build_near_negatives(yes_df, tree)
-    year_df  = build_year_negatives(yes_df)
-
+    far_df = build_far_negatives(tree)
+    near_df = build_near_negatives(yes_df, tree)
+    year_df = build_year_negatives(yes_df)
 
     neg_df = pd.concat([far_df, near_df, year_df], ignore_index=True)
 
-    #remove duplicate rows
+    # remove duplicate rows
     neg_df = neg_df.drop_duplicates(subset=["latitude", "longitude", "datetime"])
 
     final = (
@@ -326,6 +323,7 @@ def main(incidents_csv: str, out_csv: str):
         len(final),
     )
 
-#CLI ───────────────────────────────────────────────────────────────────
+
+# CLI ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     main(C.INCIDENTS, C.OUT)

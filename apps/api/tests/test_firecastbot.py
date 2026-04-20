@@ -2,6 +2,7 @@
 Tests for inferno_api.firecastbot — session lifecycle, route validation,
 size limits, and thread-safety primitives.
 """
+
 from __future__ import annotations
 
 import io
@@ -18,9 +19,11 @@ import pytest
 # FireCastBotSession — pure dataclass tests (no mocking needed)
 # ---------------------------------------------------------------------------
 
+
 class TestFireCastBotSession:
     def _make_session(self):
         from inferno_api.firecastbot import FireCastBotSession
+
         return FireCastBotSession()
 
     def test_lock_is_rlock(self):
@@ -44,11 +47,13 @@ class TestFireCastBotSession:
 
     def test_two_sessions_have_independent_locks(self):
         from inferno_api.firecastbot import FireCastBotSession
+
         s1, s2 = FireCastBotSession(), FireCastBotSession()
         assert s1._lock is not s2._lock
 
     def test_two_sessions_have_independent_conversations(self):
         from inferno_api.firecastbot import FireCastBotSession
+
         s1, s2 = FireCastBotSession(), FireCastBotSession()
         s1.conversation.append({"role": "user", "content": "hello"})
         assert s2.conversation == []
@@ -58,21 +63,28 @@ class TestFireCastBotSession:
 # FireCastBotManager — session lifecycle (heavy deps mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestFireCastBotManager:
     @pytest.fixture(autouse=True)
     def _patch_heavy(self):
-        with patch("inferno_api.firecastbot.get_settings", return_value=MagicMock(
-            chat_recent_turn_limit=6,
-            chat_summarize_after_turns=8,
-            speech_to_text_provider="browser",
-            text_to_speech_provider="browser",
-        )), \
-        patch("inferno_api.firecastbot.LLMService", return_value=MagicMock()), \
-        patch("inferno_api.firecastbot.load_doctrine_assets", return_value={}):
+        with (
+            patch(
+                "inferno_api.firecastbot.get_settings",
+                return_value=MagicMock(
+                    chat_recent_turn_limit=6,
+                    chat_summarize_after_turns=8,
+                    speech_to_text_provider="browser",
+                    text_to_speech_provider="browser",
+                ),
+            ),
+            patch("inferno_api.firecastbot.LLMService", return_value=MagicMock()),
+            patch("inferno_api.firecastbot.load_doctrine_assets", return_value={}),
+        ):
             yield
 
     def _make_manager(self):
         from inferno_api.firecastbot import FireCastBotManager
+
         return FireCastBotManager()
 
     def test_create_session_returns_id_and_session(self):
@@ -80,6 +92,7 @@ class TestFireCastBotManager:
         session_id, session = manager.create_session()
         assert isinstance(session_id, str) and len(session_id) == 32  # uuid4().hex
         from inferno_api.firecastbot import FireCastBotSession
+
         assert isinstance(session, FireCastBotSession)
 
     def test_get_session_returns_correct_session(self):
@@ -102,6 +115,7 @@ class TestFireCastBotManager:
 
     def test_evict_expired_sessions(self):
         from inferno_api.firecastbot import SESSION_TTL_SECONDS
+
         manager = self._make_manager()
         session_id, session = manager.create_session()
         # Backdate last_accessed beyond the TTL
@@ -179,6 +193,7 @@ class TestFireCastBotManager:
 # Route validation — uses Flask test client (manager fully mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestRouteInputValidation:
     def test_create_session_returns_200(self, client, mock_manager):
         mock_manager.create_session.return_value = ("abc123", MagicMock())
@@ -195,15 +210,18 @@ class TestRouteInputValidation:
 
     def test_load_pdf_missing_session_id_returns_400(self, client):
         data = {"file": (io.BytesIO(b"%PDF-1.4 stub"), "test.pdf")}
-        resp = client.post("/api/firecastbot/documents/pdf",
-                           data=data, content_type="multipart/form-data")
+        resp = client.post(
+            "/api/firecastbot/documents/pdf", data=data, content_type="multipart/form-data"
+        )
         assert resp.status_code == 400
         assert "session_id" in json.loads(resp.data)["error"]
 
     def test_load_pdf_missing_file_returns_400(self, client):
-        resp = client.post("/api/firecastbot/documents/pdf",
-                           data={"session_id": "sess1"},
-                           content_type="multipart/form-data")
+        resp = client.post(
+            "/api/firecastbot/documents/pdf",
+            data={"session_id": "sess1"},
+            content_type="multipart/form-data",
+        )
         assert resp.status_code == 400
 
     def test_load_pdf_oversized_returns_413(self, client):
@@ -216,30 +234,30 @@ class TestRouteInputValidation:
         assert resp.status_code == 413
 
     def test_load_preset_missing_fields_returns_400(self, client):
-        resp = client.post("/api/firecastbot/documents/preset",
-                           json={})
+        resp = client.post("/api/firecastbot/documents/preset", json={})
         assert resp.status_code == 400
 
     def test_load_preset_unknown_preset_returns_400(self, client, mock_manager):
         mock_manager.load_preset.side_effect = ValueError("Unknown preset: bogus")
-        resp = client.post("/api/firecastbot/documents/preset",
-                           json={"session_id": "s1", "preset_id": "bogus"})
+        resp = client.post(
+            "/api/firecastbot/documents/preset", json={"session_id": "s1", "preset_id": "bogus"}
+        )
         assert resp.status_code == 400
 
     def test_query_missing_query_returns_400(self, client):
-        resp = client.post("/api/firecastbot/query",
-                           json={"session_id": "s1"})
+        resp = client.post("/api/firecastbot/query", json={"session_id": "s1"})
         assert resp.status_code == 400
 
     def test_query_missing_session_id_returns_400(self, client):
-        resp = client.post("/api/firecastbot/query",
-                           json={"query": "what is the wind speed?"})
+        resp = client.post("/api/firecastbot/query", json={"query": "what is the wind speed?"})
         assert resp.status_code == 400
 
     def test_transcribe_missing_file_returns_400(self, client):
-        resp = client.post("/api/firecastbot/transcribe",
-                           data={"session_id": "s1"},
-                           content_type="multipart/form-data")
+        resp = client.post(
+            "/api/firecastbot/transcribe",
+            data={"session_id": "s1"},
+            content_type="multipart/form-data",
+        )
         assert resp.status_code == 400
 
     def test_transcribe_oversized_audio_returns_413(self, client):
@@ -276,6 +294,7 @@ class TestRouteInputValidation:
 # ---------------------------------------------------------------------------
 # get_manager singleton — thread-safety test
 # ---------------------------------------------------------------------------
+
 
 class TestGetManagerSingleton:
     def test_concurrent_calls_return_same_instance(self):
@@ -340,9 +359,11 @@ class TestGetManagerSingleton:
 # _SlidingWindowRateLimiter — unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestSlidingWindowRateLimiter:
     def _make(self, max_requests=3, window=1.0):
         from inferno_api.firecastbot import _SlidingWindowRateLimiter
+
         return _SlidingWindowRateLimiter(max_requests, window)
 
     def test_allows_up_to_limit(self):
@@ -417,6 +438,7 @@ class TestSlidingWindowRateLimiter:
 # Rate limiting — HTTP integration tests
 # ---------------------------------------------------------------------------
 
+
 class TestRateLimitingRoutes:
     """Verify that rate-limited endpoints return 429 once the limit is hit."""
 
@@ -451,11 +473,9 @@ class TestRateLimitingRoutes:
         mock_manager.create_session.return_value = ("s1", MagicMock())
         # Exhaust the limit for ip-a
         for _ in range(3):
-            client.post("/api/firecastbot/sessions",
-                        headers={"X-Forwarded-For": "1.2.3.4"})
+            client.post("/api/firecastbot/sessions", headers={"X-Forwarded-For": "1.2.3.4"})
         # ip-b should still be allowed
-        resp = client.post("/api/firecastbot/sessions",
-                           headers={"X-Forwarded-For": "9.8.7.6"})
+        resp = client.post("/api/firecastbot/sessions", headers={"X-Forwarded-For": "9.8.7.6"})
         assert resp.status_code == 200
 
     def test_query_endpoint_is_rate_limited(self, client):
@@ -467,18 +487,23 @@ class TestRateLimitingRoutes:
     def test_transcribe_endpoint_is_rate_limited(self, client):
         audio = io.BytesIO(b"fake-audio")
         for _ in range(3):
-            client.post("/api/firecastbot/transcribe",
-                        data={"session_id": "s", "file": (io.BytesIO(b"a"), "r.webm")},
-                        content_type="multipart/form-data")
-        resp = client.post("/api/firecastbot/transcribe",
-                           data={"session_id": "s", "file": (audio, "r.webm")},
-                           content_type="multipart/form-data")
+            client.post(
+                "/api/firecastbot/transcribe",
+                data={"session_id": "s", "file": (io.BytesIO(b"a"), "r.webm")},
+                content_type="multipart/form-data",
+            )
+        resp = client.post(
+            "/api/firecastbot/transcribe",
+            data={"session_id": "s", "file": (audio, "r.webm")},
+            content_type="multipart/form-data",
+        )
         assert resp.status_code == 429
 
     def test_read_endpoints_are_not_rate_limited(self, client, mock_manager):
         """GET /config and GET /sessions/<id> are exempt — no @rate_limit applied."""
         from collections import deque
         from inferno_api import firecastbot as fb_module
+
         # Saturate the IP bucket so any rate-limited POST would return 429
         fb_module._ip_limiter._windows["127.0.0.1"] = deque([time.monotonic()] * 100)
         # GET /config should still work

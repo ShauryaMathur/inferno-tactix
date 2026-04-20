@@ -1,28 +1,16 @@
-
 # FireCastRL
 
- 
 FireCastRL is a wildfire decision-support app.
-  
-## Forecasting Pipeline
 
-  
+## Forecasting Pipeline
 
 Inferno-Tactix is built on the FireCastRL research pipeline described in the accompanying paper. The wildfire-forecasting stack combines historical ignition records from IRWIN with gridded meteorological sequences from GRIDMET to predict where wildfire ignition is likely to occur.
 
-  
-
 ## Dataset Preparation
-
-  
 
 The first stage of the FireCastRL pipeline is dataset preparation. Following the methodology described in the paper, we built a spatiotemporal wildfire dataset by combining IRWIN wildfire incident records with GRIDMET meteorological sequences across the continental United States.
 
-  
-
 The dataset-preparation workflow:
-
-  
 
 - starts from raw IRWIN wildfire reports and filters them to isolate independent ignition events,
 
@@ -36,19 +24,11 @@ The dataset-preparation workflow:
 
 - joins each sample with GRIDMET weather and fire-weather variables for forecasting.
 
-  
-
 The resulting public dataset used in this work is available on Kaggle:
 
-  
-
--  `US Wildfire Dataset`: `https://www.kaggle.com/datasets/firecastrl/us-wildfire-dataset`
-
-  
+- `US Wildfire Dataset`: `https://www.kaggle.com/datasets/firecastrl/us-wildfire-dataset`
 
 At a high level, the pipeline:
-
-  
 
 - Starts from IRWIN incident records across the continental United States and filters them to isolate spatiotemporally independent ignition events.
 
@@ -60,23 +40,13 @@ At a high level, the pipeline:
 
 - Trains a deep spatiotemporal forecasting model based on a CNN + Bi-LSTM architecture for wildfire-ignition prediction.
 
-  
-
 As described in the FireCastRL paper, the resulting dataset contains 126,800 labeled sequences, including 50,720 positive ignition events and 76,080 negative samples, and expands to more than 9.5 million daily labeled data points across the 75-day windows. In the full FireCastRL pipeline, high-risk forecasts can then trigger downstream simulation, reporting, and decision-support workflows.
-
-  
 
 ## RL Wildfire Environment
 
-  
-
 For suppression training, we built a separate Gymnasium-compatible wildfire environment package that models fire spread over real terrain and supports reinforcement-learning research for helitack response. That environment is maintained in a separate repository: [FireCastRL environment](https://github.com/aisystems-lab/firecast-rl).
 
-  
-
 The environment package is designed to render a wildfire scenario from real geographic inputs rather than a synthetic grid alone. It incorporates:
-
-  
 
 - terrain elevation derived from real-world elevation maps,
 
@@ -86,22 +56,13 @@ The environment package is designed to render a wildfire scenario from real geog
 
 - a physics-informed fire-spread engine with helicopter-based suppression actions.
 
-  
-
 Within that environment, the controllable agent is a helitack firefighting helicopter that learns to contain fire growth, reduce burned area, and use suppressant drops effectively. In the FireCastRL pipeline, we trained a PPO policy on this environment for suppression decision-making after a high-risk ignition forecast is produced.
-
 
 ## FireCastBot
 
-  
-
 FireCastBot is a wildfire-focused assistant for firefighters, emergency responders, non-firefighters, and members of the public. It helps users understand incident reports, doctrine, and practical wildfire-preparedness actions while staying within the wildfire domain.
 
-  
-
 Key features:
-
-  
 
 - Incident-report-grounded chat using uploaded PDFs or built-in low-, medium-, and high-risk incident presets.
 
@@ -119,15 +80,9 @@ Key features:
 
 - PDF export / briefing workflow support for concise wildfire reports and summaries.
 
-  
-
 ## Local Development
 
-  
-
 Bootstrap dependencies:
-
-  
 
 ```bash
 
@@ -135,11 +90,7 @@ Bootstrap dependencies:
 
 ```
 
-  
-
 Run the API and web app in separate terminals:
-
-  
 
 ```bash
 
@@ -149,21 +100,13 @@ cd  apps/web && npm  start
 
 ```
 
-  
-
 Local URLs:
-
-  
 
 - Web: `http://localhost:8080`
 
 - API: `http://localhost:6969`
 
-  
-
 ## Docker Development
-
-  
 
 ```bash
 
@@ -190,7 +133,6 @@ If you use FirecastRL in your research, please cite:
 Paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 
 ---
-
 
 ## Contact
 

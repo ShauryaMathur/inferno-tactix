@@ -1,15 +1,15 @@
-import { observer, Provider } from "mobx-react";
-import React, { useState } from "react";
+import { observer, Provider } from 'mobx-react';
+import React, { useState } from 'react';
 
 import 'leaflet/dist/leaflet.css';
-import { HashRouter, Link, Route, Routes, Navigate  } from "react-router-dom";
+import { HashRouter, Link, Route, Routes, Navigate } from 'react-router-dom';
 // import Home from "../pages/Home";
-import Inferno from "../pages/inferno/Inferno";
-import { SimulationPage } from "../pages/SimulationPage";
-import styles from "./app.module.scss";
-import About from "../pages/About";
-import FireCastBot from "../pages/firecastbot";
-import { createStores } from "../models/stores";
+import Inferno from '../pages/inferno/Inferno';
+import { SimulationPage } from '../pages/SimulationPage';
+import styles from './app.module.scss';
+import About from '../pages/About';
+import FireCastBot from '../pages/firecastbot';
+import { createStores } from '../models/stores';
 
 const SimulationRoute = () => {
   const [stores] = useState(() => createStores());
@@ -22,17 +22,14 @@ const SimulationRoute = () => {
 };
 
 export const AppComponent = observer(function WrappedComponent() {
-
   return (
     <HashRouter>
       <div id={styles.app}>
-
         <div className={styles.links}>
           {/* <Link to="/">Home</Link> */}
           <Link to="/about">Home</Link>
           <Link to="/firecastbot">FireCastBot</Link>
         </div>
-
 
         <Routes>
           <Route path="/" element={<Navigate replace to="/about" />} />
@@ -43,6 +40,7 @@ export const AppComponent = observer(function WrappedComponent() {
           <Route path="/about" element={<About />} />
           {/* add more routes as you like */}
         </Routes>
-      </div></HashRouter>
+      </div>
+    </HashRouter>
   );
 });

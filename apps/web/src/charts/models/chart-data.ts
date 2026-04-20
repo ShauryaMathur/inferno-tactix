@@ -1,8 +1,8 @@
-import { ChartDataSet, ChartColors } from "./chart-data-set";
-import { Annotation } from "./chart-annotation";
-import { observable, computed, makeObservable } from "mobx";
+import { ChartDataSet, ChartColors } from './chart-data-set';
+import { Annotation } from './chart-annotation';
+import { observable, computed, makeObservable } from 'mobx';
 
-export interface IChartDataModel{
+export interface IChartDataModel {
   name: string;
   dataSets: ChartDataSet[];
   labels?: string[];
@@ -32,21 +32,25 @@ export class ChartDataModel implements IChartDataModel {
 
   public get visibleDataSets() {
     if (this.dataSets && this.dataSets.length > 0) {
-      return this.dataSets.filter(d => d.display);
+      return this.dataSets.filter((d) => d.display);
     }
   }
 
   public get chartLabels() {
     if (this.labels && this.labels.length > 0) {
       return this.labels;
-    } else {return [];}
+    } else {
+      return [];
+    }
   }
 
   // labels for a data point - essential for a bar graph, optional for a line
   public get dataLabels() {
     if (this.visibleDataSets && this.visibleDataSets.length > 0) {
       return this.visibleDataSets[0].dataLabels;
-    } else {return [];}
+    } else {
+      return [];
+    }
   }
   public get dataLabelRotation() {
     if (this.visibleDataSets && this.visibleDataSets.length > 0) {
@@ -71,8 +75,7 @@ export class ChartDataModel implements IChartDataModel {
         minA1: Math.min(...minA1Values),
         minA2: Math.min(...minA2Values),
       };
-    }
-    else {
+    } else {
       return {
         maxA1: this.defaultMaxA1,
         maxA2: this.defaultMaxA2,
@@ -96,7 +99,7 @@ export class ChartDataModel implements IChartDataModel {
   public get pointCount() {
     if (this.visibleDataSets && this.visibleDataSets.length > 0) {
       return this.visibleDataSets[0].dataPoints.length;
-    }  else {
+    } else {
       return 0;
     }
   }
@@ -110,26 +113,28 @@ export class ChartDataModel implements IChartDataModel {
   }
 
   public get axisLabelA1() {
-    if (this.defaultAxisLabelA1) {return this.defaultAxisLabelA1;}
-    else if (this.visibleDataSets && this.visibleDataSets.length > 0) {
+    if (this.defaultAxisLabelA1) {
+      return this.defaultAxisLabelA1;
+    } else if (this.visibleDataSets && this.visibleDataSets.length > 0) {
       return this.visibleDataSets[0].axisLabelA1;
     } else {
-      return "";
+      return '';
     }
   }
 
   public get axisLabelA2() {
-    if (this.defaultAxisLabelA2) {return this.defaultAxisLabelA2;}
-    else if (this.visibleDataSets && this.visibleDataSets.length > 0) {
+    if (this.defaultAxisLabelA2) {
+      return this.defaultAxisLabelA2;
+    } else if (this.visibleDataSets && this.visibleDataSets.length > 0) {
       return this.visibleDataSets[0].axisLabelA2;
     } else {
-      return "";
+      return '';
     }
   }
 
   public get formattedAnnotations() {
     if (this.annotations && this.annotations.length > 0) {
-      return this.annotations.map(a => a.formatted);
+      return this.annotations.map((a) => a.formatted);
     } else {
       this.annotations = [];
       return this.annotations;
@@ -145,7 +150,7 @@ export class ChartDataModel implements IChartDataModel {
   // to limit our data point quantity for performance, pass a start index and
   // the number of required points to filter the data
   public setDataSetSubset = (idx: number, maxPoints: number) => {
-    this.dataSets.forEach(d => {
+    this.dataSets.forEach((d) => {
       d.subsetPoints(idx);
       if (this.maxPoints !== maxPoints) {
         d.setMaxDataPoints(maxPoints);
@@ -155,7 +160,7 @@ export class ChartDataModel implements IChartDataModel {
   // To fetch all data from all datasets, remove any subset index points and set the max number of points to -1
   // to ensure all data is returned unfiltered
   public allData = () => {
-    this.dataSets.forEach(d => {
+    this.dataSets.forEach((d) => {
       d.subsetPoints(-1);
       d.setMaxDataPoints(-1);
     });

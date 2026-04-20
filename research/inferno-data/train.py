@@ -1,8 +1,8 @@
 """
 Wildfire Prediction CNN-LSTM Model Trainer
 
-This script trains a Convolutional Neural Network (CNN) followed by a Bidirectional Long Short-Term 
-Memory (BiLSTM) network to predict the occurrence of wildfires based on time-series 
+This script trains a Convolutional Neural Network (CNN) followed by a Bidirectional Long Short-Term
+Memory (BiLSTM) network to predict the occurrence of wildfires based on time-series
 environmental data.
 
 Usage:
@@ -33,7 +33,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("trainer")
 
-#Data Preparation ─────────────────────────────────────────────────
+
+# Data Preparation ─────────────────────────────────────────────────
 def load_and_preprocess_data(csv_path: str, seq_len: int, features: list[str]) -> tuple:
     log.info(f"Loading data from '{csv_path}'...")
     try:
@@ -42,21 +43,23 @@ def load_and_preprocess_data(csv_path: str, seq_len: int, features: list[str]) -
         log.error(f"Error: The file '{csv_path}' was not found.")
         raise
 
-    #Removes rows with the placeholder fill value
+    # Removes rows with the placeholder fill value
     fill_value = 32767.0
     mask = ~(df == fill_value).any(axis=1)
     df = df.loc[mask].reset_index(drop=True)
 
     df = df.sort_values(["latitude", "longitude", "datetime"]).reset_index(drop=True)
     df["seq_id"] = np.arange(len(df)) // seq_len
-    
-    seq_counts = df['seq_id'].value_counts()
+
+    seq_counts = df["seq_id"].value_counts()
     complete_seq_ids = seq_counts[seq_counts == seq_len].index
-    df = df[df['seq_id'].isin(complete_seq_ids)]
+    df = df[df["seq_id"].isin(complete_seq_ids)]
 
     groups = list(df.groupby("seq_id"))
     if not groups:
-        log.error("No complete sequences of length %d found. Check SEQ_LEN or data integrity.", seq_len)
+        log.error(
+            "No complete sequences of length %d found. Check SEQ_LEN or data integrity.", seq_len
+        )
         raise ValueError("Could not create sequences from the data.")
 
     log.info(f"Created {len(groups)} sequences of length {seq_len}.")
@@ -67,26 +70,22 @@ def load_and_preprocess_data(csv_path: str, seq_len: int, features: list[str]) -
     X_temp, X_test, y_temp, y_test = train_test_split(
         seqs, labels, test_size=0.3, random_state=42, stratify=labels
     )
-    
+
     if np.unique(y_temp).size > 1:
         X_train, X_val, y_train, y_val = train_test_split(
             X_temp, y_temp, test_size=0.2, random_state=42, stratify=y_temp
         )
-    else: 
+    else:
         X_train, X_val, y_train, y_val = train_test_split(
             X_temp, y_temp, test_size=0.2, random_state=42
         )
 
-
-    log.info(
-        f"Data split: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}"
-    )
+    log.info(f"Data split: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}")
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
-#Dataset & DataLoader ──────────────────────────────────────────────
+# Dataset & DataLoader ──────────────────────────────────────────────
 class WildfireDataset(Dataset):
-
     def __init__(self, X: np.ndarray, y: np.ndarray):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32)
@@ -98,7 +97,7 @@ class WildfireDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
-#Model Architecture ───────────────────────────────────────────────
+# Model Architecture ───────────────────────────────────────────────
 class CNN_LSTM_Wildfire(nn.Module):
     def __init__(self, input_features: int, hidden_size: int, num_layers: int, dropout: float):
         super().__init__()
@@ -118,20 +117,20 @@ class CNN_LSTM_Wildfire(nn.Module):
             num_layers=num_layers,
             dropout=dropout,
             batch_first=True,
-            bidirectional=True,   
+            bidirectional=True,
         )
-        self.fc = nn.Linear(hidden_size * 2, 1) 
+        self.fc = nn.Linear(hidden_size * 2, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.permute(0, 2, 1)
         x = self.cnn(x)
         x = x.permute(0, 2, 1)
-        _, (hn, _) = self.lstm(x)                            
-        out = torch.cat((hn[-2], hn[-1]), dim=1)             
+        _, (hn, _) = self.lstm(x)
+        out = torch.cat((hn[-2], hn[-1]), dim=1)
         return self.fc(out).squeeze(1)
 
 
-#Train and Evaluate Functions ──────────────────────────────────────
+# Train and Evaluate Functions ──────────────────────────────────────
 def train_epoch(
     model: nn.Module,
     loader: DataLoader,
@@ -180,7 +179,7 @@ def eval_epoch(
     return total_loss / total, correct / total
 
 
-#Main Pipeline ──────────────────────────────────────────
+# Main Pipeline ──────────────────────────────────────────
 def main(args: argparse.Namespace):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     log.info(f"Using device: {device}")
@@ -192,12 +191,8 @@ def main(args: argparse.Namespace):
     train_loader = DataLoader(
         WildfireDataset(X_train, y_train), batch_size=args.batch_size, shuffle=True
     )
-    val_loader = DataLoader(
-        WildfireDataset(X_val, y_val), batch_size=args.batch_size
-    )
-    test_loader = DataLoader(
-        WildfireDataset(X_test, y_test), batch_size=args.batch_size
-    )
+    val_loader = DataLoader(WildfireDataset(X_val, y_val), batch_size=args.batch_size)
+    test_loader = DataLoader(WildfireDataset(X_test, y_test), batch_size=args.batch_size)
 
     model = CNN_LSTM_Wildfire(
         input_features=len(args.features),
@@ -209,9 +204,7 @@ def main(args: argparse.Namespace):
 
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.5, patience=5
-    )
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
 
     history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
     best_val_loss = float("inf")
@@ -220,9 +213,7 @@ def main(args: argparse.Namespace):
 
     log.info("Starting model training...")
     for epoch in range(args.epochs):
-        train_loss, train_acc = train_epoch(
-            model, train_loader, criterion, optimizer, device
-        )
+        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = eval_epoch(model, val_loader, criterion, device)
 
         scheduler.step(val_loss)
@@ -233,7 +224,7 @@ def main(args: argparse.Namespace):
         history["val_acc"].append(val_acc)
 
         log.info(
-            f"Epoch {epoch+1:03}/{args.epochs} | "
+            f"Epoch {epoch + 1:03}/{args.epochs} | "
             f"Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | "
             f"Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f}"
         )
@@ -249,7 +240,7 @@ def main(args: argparse.Namespace):
 
         if patience_counter >= args.patience:
             log.info(
-                f"Early stopping triggered at epoch {epoch+1} due to no improvement in validation loss."
+                f"Early stopping triggered at epoch {epoch + 1} due to no improvement in validation loss."
             )
             break
 
@@ -261,17 +252,13 @@ def main(args: argparse.Namespace):
         return
 
     final_test_loss, final_test_acc = eval_epoch(model, test_loader, criterion, device)
-    log.info(f"Best model was saved from epoch {best_epoch+1}.")
-    log.info(
-        f"Final Test Results -> Loss: {final_test_loss:.4f}, Accuracy: {final_test_acc:.4f}"
-    )
+    log.info(f"Best model was saved from epoch {best_epoch + 1}.")
+    log.info(f"Final Test Results -> Loss: {final_test_loss:.4f}, Accuracy: {final_test_acc:.4f}")
 
 
-#CLI Parser ──────────────────────────────────────────────
+# CLI Parser ──────────────────────────────────────────────
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Train a CNN-LSTM model for wildfire prediction."
-    )
+    parser = argparse.ArgumentParser(description="Train a CNN-LSTM model for wildfire prediction.")
 
     parser.add_argument(
         "--csv_path",
@@ -286,15 +273,11 @@ if __name__ == "__main__":
         help="Path to save the best model weights.",
     )
 
-    parser.add_argument(
-        "--seq_len", type=int, default=75, help="Length of input sequences."
-    )
-    parser.add_argument(
-        "--hidden_size", type=int, default=128, help="LSTM hidden size."
-    )
+    parser.add_argument("--seq_len", type=int, default=75, help="Length of input sequences.")
+    parser.add_argument("--hidden_size", type=int, default=128, help="LSTM hidden size.")
     parser.add_argument("--num_layers", type=int, default=3, help="Number of LSTM layers.")
     parser.add_argument("--dropout", type=float, default=0.25, help="Dropout rate.")
-    
+
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training.")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs.")
@@ -304,12 +287,27 @@ if __name__ == "__main__":
         default=15,
         help="Patience for early stopping.",
     )
-    
+
     parser.add_argument(
-        '--features',
-        nargs='+',
-        default=['pr','rmax','rmin','sph','srad','tmmn','tmmx','vs','bi','fm100','fm1000','erc','pet','vpd'],
-        help='List of feature columns to use from the CSV.'
+        "--features",
+        nargs="+",
+        default=[
+            "pr",
+            "rmax",
+            "rmin",
+            "sph",
+            "srad",
+            "tmmn",
+            "tmmx",
+            "vs",
+            "bi",
+            "fm100",
+            "fm1000",
+            "erc",
+            "pet",
+            "vpd",
+        ],
+        help="List of feature columns to use from the CSV.",
     )
 
     cli_args = parser.parse_args()

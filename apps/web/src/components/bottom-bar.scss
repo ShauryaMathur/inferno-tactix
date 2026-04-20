@@ -1,4 +1,4 @@
-@import "common.scss";
+@import 'common.scss';
 
 $overflowHeight: 11px;
 
@@ -31,7 +31,8 @@ $overflowHeight: 11px;
     position: relative;
     vertical-align: top;
     padding: 14px 10px 0 10px;
-    .logo, .logoSmall {
+    .logo,
+    .logoSmall {
       height: 38px;
     }
   }
@@ -87,7 +88,7 @@ $overflowHeight: 11px;
   .startStop {
     margin-left: -$bottomBarWidgetGroupSpacing;
   }
-  .helitack{
+  .helitack {
     margin-left: -$bottomBarWidgetGroupSpacing;
   }
 
@@ -97,7 +98,7 @@ $overflowHeight: 11px;
     padding: 4px 6px 3px 6px;
   }
 
-  .terrainButton{
+  .terrainButton {
     width: 100px;
     text-align: center;
   }
@@ -109,14 +110,14 @@ $overflowHeight: 11px;
     width: 50px;
     background-size: 100%;
     cursor: pointer;
-    background-image: url("../assets/fullscreen.svg");
+    background-image: url('../assets/fullscreen.svg');
     &:hover {
-      background-image: url("../assets/fullscreen-dark.svg");
+      background-image: url('../assets/fullscreen-dark.svg');
     }
     &.fullscreen {
-      background-image: url("../assets/fullscreen-exit.svg");
+      background-image: url('../assets/fullscreen-exit.svg');
       &:hover {
-        background-image: url("../assets/fullscreen-exit-dark.svg");
+        background-image: url('../assets/fullscreen-exit-dark.svg');
       }
     }
   }
@@ -131,10 +132,10 @@ $overflowHeight: 11px;
   border-bottom-right-radius: 0 !important;
 
   &:hover svg {
-    box-shadow: 0 0 0 4px rgba(255,255,255,0.5);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.5);
   }
   &:active svg {
-    box-shadow: 0 0 0 4px rgba(255,255,255,1);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 1);
   }
 
   &:first-child {
@@ -187,11 +188,12 @@ $overflowHeight: 11px;
     height: 20px;
     margin-left: -8.5px;
     margin-top: -8.5px;
-    &:hover, &:active {
-      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5)
+    &:hover,
+    &:active {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
     }
   }
-  span{
+  span {
     margin-top: 2px;
     font-size: 9px;
   }

@@ -4,6 +4,7 @@ Shared pytest fixtures for inferno_api tests.
 Heavy external dependencies (LLMService, load_doctrine_assets) are patched at
 the module level so tests run without model files or API keys.
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,6 +25,7 @@ for p in (str(API_SRC), str(APPS_ROOT)):
 def reset_rate_limiters():
     """Clear in-memory rate-limiter state before every test so tests are isolated."""
     from inferno_api import firecastbot as fb_module
+
     fb_module._ip_limiter._windows.clear()
     fb_module._session_limiter._windows.clear()
     yield
@@ -59,10 +61,13 @@ def mock_manager():
 @pytest.fixture()
 def app(mock_manager):
     """Flask test application with get_manager() stubbed out."""
-    with patch("inferno_api.firecastbot.get_manager", return_value=mock_manager), \
-         patch("inferno_api.firecastbot.load_doctrine_assets", return_value={}), \
-         patch("inferno_api.firecastbot.LLMService", return_value=MagicMock()):
+    with (
+        patch("inferno_api.firecastbot.get_manager", return_value=mock_manager),
+        patch("inferno_api.firecastbot.load_doctrine_assets", return_value={}),
+        patch("inferno_api.firecastbot.LLMService", return_value=MagicMock()),
+    ):
         from inferno_api.app_firecastbot import app as flask_app
+
         flask_app.config["TESTING"] = True
         yield flask_app
 
