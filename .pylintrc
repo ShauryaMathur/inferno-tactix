@@ -1,5 +1,6 @@
 [MASTER]
 init-hook='import sys; sys.path.extend(["apps", "apps/api/src", "apps/headless-client/src"])'
+extension-pkg-allow-list=netCDF4
 
 [MESSAGES CONTROL]
 disable=
