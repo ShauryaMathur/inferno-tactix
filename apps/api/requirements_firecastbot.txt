@@ -3,5 +3,5 @@ Flask-Cors==5.0.0
 numpy==1.24.3
 openai==1.57.0
 pypdf==5.1.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 requests==2.32.3
