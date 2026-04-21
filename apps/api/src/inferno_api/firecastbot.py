@@ -37,15 +37,15 @@ firecastbot_bp = Blueprint("firecastbot", __name__, url_prefix="/api/firecastbot
 
 PRESET_REPORTS = {
     "low": {
-        "label": "Routine Monitoring",
+        "label": "Scenario C: Low Risk",
         "filename": "incident_report_low.pdf",
     },
     "medium": {
-        "label": "Elevated Uncertainty",
+        "label": "Scenario B: Medium Risk",
         "filename": "incident_report_boulder.pdf",
     },
     "high": {
-        "label": "Critical fire",
+        "label": "Scenario A: Critical Threat",
         "filename": "incident_report_high.pdf",
     },
 }
@@ -65,8 +65,10 @@ MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
 # Rate limiting — sliding-window, per-IP + per-session
 # ---------------------------------------------------------------------------
 
-RATE_LIMIT_REQUESTS = 3  # max requests allowed …
-RATE_LIMIT_WINDOW = 1.0  # … within this many seconds
+IP_RATE_LIMIT_REQUESTS = 60   # shared IP (e.g. college NAT) — covers ~20 concurrent users
+IP_RATE_LIMIT_WINDOW = 1.0
+SESSION_RATE_LIMIT_REQUESTS = 3  # per individual session
+SESSION_RATE_LIMIT_WINDOW = 1.0
 
 
 class _SlidingWindowRateLimiter:
@@ -115,8 +117,8 @@ class _SlidingWindowRateLimiter:
 
 
 # One shared limiter instance for all rate-limited endpoints
-_ip_limiter = _SlidingWindowRateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW)
-_session_limiter = _SlidingWindowRateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW)
+_ip_limiter = _SlidingWindowRateLimiter(IP_RATE_LIMIT_REQUESTS, IP_RATE_LIMIT_WINDOW)
+_session_limiter = _SlidingWindowRateLimiter(SESSION_RATE_LIMIT_REQUESTS, SESSION_RATE_LIMIT_WINDOW)
 
 
 def _client_ip() -> str:
@@ -215,6 +217,28 @@ class FireCastBotSession:
         self._lock = threading.RLock()
 
 
+def _build_welcome_message(incident_profile: dict[str, Any]) -> str:
+    facts = incident_profile.get("facts", {})
+    name = facts.get("incident_name")
+    location = facts.get("location")
+    risk = facts.get("overall_risk_level")
+    behavior = facts.get("current_fire_behavior")
+
+    label = f"**{name}**" if name else f"**{location}**" if location else "this incident"
+    parts = [f"FireCastBot is ready! I've loaded the incident report for {label}."]
+    if location and name:
+        parts.append(f"The incident is located at **{location}**.")
+    if risk:
+        parts.append(f"Overall risk level: **{risk}**.")
+    if behavior:
+        # Keep it brief — one sentence max, framed as a prediction
+        sentence = behavior.split(".")[0].strip()
+        if sentence:
+            parts.append(f"The fire is predicted to: {sentence.lower()}.")
+    parts.append("Ask me anything about the incident.")
+    return " ".join(parts)
+
+
 class FireCastBotManager:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -229,10 +253,28 @@ class FireCastBotManager:
         self._sessions: dict[str, FireCastBotSession] = {}
         self._lock = threading.Lock()
         self._speech_service_cache: dict[tuple[str, str], SpeechService] = {}
+        self._preset_cache: dict[str, dict[str, Any]] = self._build_preset_cache()
 
         # Background thread evicts sessions that have been idle past SESSION_TTL_SECONDS
         cleanup_thread = threading.Thread(target=self._session_cleanup_loop, daemon=True)
         cleanup_thread.start()
+
+    def _build_preset_cache(self) -> dict[str, dict[str, Any]]:
+        """Pre-process all preset PDFs once at startup so ingestion is instant."""
+        cache: dict[str, dict[str, Any]] = {}
+        for preset_id, preset in PRESET_REPORTS.items():
+            report_path = PRESET_REPORTS_DIR / str(preset["filename"])
+            if not report_path.exists():
+                continue
+            bundle = build_runtime_incident_report(
+                report_path.read_bytes(),
+                report_path.name,
+                self.settings.embedding_provider,
+                self.settings.embedding_model,
+            )
+            bundle["welcome_message"] = _build_welcome_message(bundle["incident_profile"])
+            cache[preset_id] = bundle
+        return cache
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -278,6 +320,7 @@ class FireCastBotManager:
             self.settings.embedding_provider,
             self.settings.embedding_model,
         )
+        welcome_message = _build_welcome_message(runtime_bundle["incident_profile"])
         with session._lock:
             session.incident_profile = runtime_bundle["incident_profile"]
             session.incident_chunks = runtime_bundle["incident_chunks"]
@@ -285,25 +328,31 @@ class FireCastBotManager:
             session.incident_keyword_index = runtime_bundle["incident_keyword_index"]
             session.incident_embedding_provider = runtime_bundle["embedding_provider"]
             session.incident_embedding_model = runtime_bundle["embedding_model"]
+            session.conversation = [{"role": "assistant", "content": welcome_message}]
         return {
             "documentsCount": len(session.incident_chunks),
             "incidentProfile": session.incident_profile,
         }
 
     def load_preset(self, session_id: str, preset_id: str) -> dict[str, Any]:
-        preset = PRESET_REPORTS.get(preset_id)
-        if preset is None:
+        if preset_id not in PRESET_REPORTS:
             raise ValueError(f"Unknown preset: {preset_id}")
-        report_path = PRESET_REPORTS_DIR / str(preset["filename"])
-        if not report_path.exists():
+        bundle = self._preset_cache.get(preset_id)
+        if bundle is None:
             raise FileNotFoundError(f"Preset report is unavailable: {preset_id}")
-        return self.load_pdf(
-            session_id,
-            UploadedFileAdapter(
-                _DiskFileAdapter(report_path),
-                default_name=report_path.name,
-            ),
-        )
+        session = self.get_session(session_id)
+        with session._lock:
+            session.incident_profile = bundle["incident_profile"]
+            session.incident_chunks = bundle["incident_chunks"]
+            session.incident_embeddings = bundle["incident_embeddings"]
+            session.incident_keyword_index = bundle["incident_keyword_index"]
+            session.incident_embedding_provider = bundle["embedding_provider"]
+            session.incident_embedding_model = bundle["embedding_model"]
+            session.conversation = [{"role": "assistant", "content": bundle["welcome_message"]}]
+        return {
+            "documentsCount": len(session.incident_chunks),
+            "incidentProfile": session.incident_profile,
+        }
 
     # ------------------------------------------------------------------
     # Query
@@ -615,15 +664,6 @@ def firecastbot_config():
             "defaultSpeechToTextProvider": settings.speech_to_text_provider,
             "defaultTextToSpeechProvider": settings.text_to_speech_provider,
             "providers": [_provider_status(provider_id) for provider_id in provider_ids],
-            "presets": [
-                {
-                    "id": preset_id,
-                    "label": str(preset["label"]),
-                    "available": (PRESET_REPORTS_DIR / str(preset["filename"])).exists(),
-                    "previewUrl": f"/api/firecastbot/presets/{preset_id}/pdf",
-                }
-                for preset_id, preset in PRESET_REPORTS.items()
-            ],
         }
     )
 

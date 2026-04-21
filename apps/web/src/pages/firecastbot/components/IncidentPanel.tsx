@@ -1,10 +1,15 @@
 import React from 'react';
 import { API_BASE_URL } from '../../../env';
-import type { ConversationEntry, Preset } from '../types';
+import type { ConversationEntry } from '../types';
 import styles from '../firecastbot.module.scss';
 
+const PRESETS = [
+  { id: 'low', label: 'Scenario C: Low Risk', previewUrl: '/api/firecastbot/presets/low/pdf' },
+  { id: 'medium', label: 'Scenario B: Medium Risk', previewUrl: '/api/firecastbot/presets/medium/pdf' },
+  { id: 'high', label: 'Scenario A: Critical Threat', previewUrl: '/api/firecastbot/presets/high/pdf' },
+];
+
 type Props = {
-  presets: Preset[];
   isBusy: boolean;
   sessionId: string;
   isIncidentSourceLocked: boolean;
@@ -78,7 +83,6 @@ ${rows}
 }
 
 export function IncidentPanel({
-  presets,
   isBusy,
   sessionId,
   isIncidentSourceLocked,
@@ -106,62 +110,35 @@ export function IncidentPanel({
         Start New Session
       </button>
 
-      <input
-        ref={pdfInputRef}
-        className={styles.hiddenInput}
-        type="file"
-        accept="application/pdf"
-        disabled={isIncidentSourceLocked}
-        onChange={(e) => setSelectedPdfName(e.target.files?.[0]?.name || '')}
-      />
-      <div className={`${styles.filePicker} ${isIncidentSourceLocked ? styles.lockedSection : ''}`}>
-        <button
-          type="button"
-          className={styles.fileTrigger}
-          disabled={isIncidentSourceLocked}
-          onClick={() => pdfInputRef.current?.click()}
-        >
-          Upload Incident PDF
-        </button>
-        <div className={styles.fileName}>{selectedPdfName || 'No file selected'}</div>
-      </div>
-      <button onClick={uploadPdf} disabled={isBusy || !sessionId || isIncidentSourceLocked}>
-        Load Report
-      </button>
-
       <div
         className={`${styles.presetSection} ${isIncidentSourceLocked ? styles.lockedSection : ''}`}
       >
         <p className={styles.fieldLabel}>Quick presets</p>
         <div className={styles.presetGrid}>
-          {presets.map((preset) => (
+          {PRESETS.map((preset) => (
             <div key={preset.id} className={styles.presetRow}>
               <button
                 type="button"
                 className={styles.presetButton}
                 onClick={() => ingestPreset(preset.id, preset.label)}
-                disabled={isBusy || !sessionId || !preset.available || isIncidentSourceLocked}
+                disabled={isBusy || !sessionId || isIncidentSourceLocked}
                 title={
                   isIncidentSourceLocked
                     ? 'This session already has an incident report loaded.'
-                    : preset.available
-                      ? `Load ${preset.label}`
-                      : `${preset.label} is not available in incident_reports`
+                    : `Load ${preset.label}`
                 }
               >
                 {preset.label}
               </button>
-              {preset.previewUrl && preset.available && (
-                <a
-                  href={`${API_BASE_URL}${preset.previewUrl}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.presetPreviewLink}
-                  title={`Preview ${preset.label} PDF`}
-                >
-                  Preview
-                </a>
-              )}
+              <a
+                href={`${API_BASE_URL}${preset.previewUrl}`}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.presetPreviewLink}
+                title={`Preview ${preset.label} PDF`}
+              >
+                Preview
+              </a>
             </div>
           ))}
         </div>

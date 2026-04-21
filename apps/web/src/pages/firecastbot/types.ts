@@ -13,14 +13,6 @@ export type FireCastBotConfig = {
   defaultSpeechToTextProvider: string;
   defaultTextToSpeechProvider: string;
   providers: Provider[];
-  presets: Preset[];
-};
-
-export type Preset = {
-  id: string;
-  label: string;
-  available: boolean;
-  previewUrl?: string;
 };
 
 export type ConversationEntry = {

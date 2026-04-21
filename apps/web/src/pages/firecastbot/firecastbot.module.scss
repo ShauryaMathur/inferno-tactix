@@ -391,6 +391,34 @@
   line-height: 1.5;
 }
 
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.suggestionChip {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 7px 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(46, 125, 82, 0.22) !important;
+  background: rgba(46, 125, 82, 0.06) !important;
+  color: #1a5c36 !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: rgba(46, 125, 82, 0.13) !important;
+    border-color: rgba(46, 125, 82, 0.38) !important;
+  }
+}
+
 .composerInputWrap {
   position: relative;
 

@@ -107,7 +107,6 @@ export default function FireCastBot() {
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
           <IncidentPanel
-            presets={session.config?.presets ?? []}
             isBusy={session.isBusy}
             sessionId={session.sessionId}
             isIncidentSourceLocked={session.isIncidentSourceLocked}

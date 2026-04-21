@@ -430,9 +430,7 @@ def build_incident_profile(
     section_map: dict[str, str],
     report_timestamp: str,
 ) -> dict[str, Any]:
-    incident_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or Path(
-        filename
-    ).stem.replace("_", " ")
+    incident_name = _search_label_value(full_text, FACT_FIELD_ALIASES["incident_name"]) or None
     operational_period = _search_label_value(
         full_text, FACT_FIELD_ALIASES["operational_period"]
     ) or _search_adjacent_label_value(full_text, FACT_FIELD_ALIASES["operational_period"])

@@ -2,6 +2,12 @@ import React from 'react';
 import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import styles from '../firecastbot.module.scss';
 
+const SUGGESTED_QUESTIONS = [
+  'How serious is this wildfire threat right now, and what parts of the area are most at risk?',
+  'What should I do in the next few hours to prepare my home and family if this fire gets worse?',
+  'Based on this incident report, should I stay ready to evacuate, and what warning signs should I watch for?',
+];
+
 type Props = {
   queryInput: string;
   setQueryInput: (v: string) => void;
@@ -23,9 +29,25 @@ export function Composer({
   handleMicClick,
   submitQuery,
 }: Props) {
+  const showSuggestions = isBotReady && !queryInput;
+
   return (
     <div className={`${styles.panel} ${styles.stickyComposer}`}>
       <h2>Chat</h2>
+      {showSuggestions && (
+        <div className={styles.suggestions}>
+          {SUGGESTED_QUESTIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className={styles.suggestionChip}
+              onClick={() => setQueryInput(q)}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
       <div className={styles.composerInputWrap}>
         <textarea
           value={queryInput}
