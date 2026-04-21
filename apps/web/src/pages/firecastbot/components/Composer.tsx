@@ -12,36 +12,39 @@ type Props = {
   queryInput: string;
   setQueryInput: (v: string) => void;
   isBotReady: boolean;
+  isBusy: boolean;
   canSubmitQuery: boolean;
   isListening: boolean;
   isRecording: boolean;
   handleMicClick: () => void;
   submitQuery: () => void;
+  submitQueryText: (q: string) => void;
 };
 
 export function Composer({
   queryInput,
   setQueryInput,
   isBotReady,
+  isBusy,
   canSubmitQuery,
   isListening,
   isRecording,
   handleMicClick,
   submitQuery,
+  submitQueryText,
 }: Props) {
-  const showSuggestions = isBotReady && !queryInput;
-
   return (
     <div className={`${styles.panel} ${styles.stickyComposer}`}>
       <h2>Chat</h2>
-      {showSuggestions && (
+      {isBotReady && (
         <div className={styles.suggestions}>
           {SUGGESTED_QUESTIONS.map((q) => (
             <button
               key={q}
               type="button"
               className={styles.suggestionChip}
-              onClick={() => setQueryInput(q)}
+              disabled={isBusy}
+              onClick={() => void submitQueryText(q)}
             >
               {q}
             </button>

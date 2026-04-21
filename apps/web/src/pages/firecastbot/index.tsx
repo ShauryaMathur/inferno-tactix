@@ -136,11 +136,13 @@ export default function FireCastBot() {
             queryInput={queryInput}
             setQueryInput={setQueryInput}
             isBotReady={session.isBotReady}
+            isBusy={session.isBusy}
             canSubmitQuery={canSubmitQuery}
             isListening={mic.isListening}
             isRecording={mic.isRecording}
             handleMicClick={mic.handleMicClick}
             submitQuery={session.submitQuery}
+            submitQueryText={session.submitQueryText}
           />
         </section>
       </div>

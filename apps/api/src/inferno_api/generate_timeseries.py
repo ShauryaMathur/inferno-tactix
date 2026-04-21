@@ -33,8 +33,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-import numpy as np
 import netCDF4
+import numpy as np
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter

@@ -151,16 +151,14 @@ export function useFireCastBotSession({
     });
   };
 
-  const submitQuery = async () => {
-    if (!queryInput.trim() || !sessionId) return;
+  const submitQueryText = async (query: string) => {
+    if (!query.trim() || !sessionId) return;
     setIsQuerying(true);
     await runTask(async () => {
-      const query = queryInput.trim();
-      setQueryInput('');
       const { data } = await withSessionRetry((id) =>
         axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
           session_id: id,
-          query,
+          query: query.trim(),
         })
       );
       applySnapshot(data);
@@ -169,6 +167,13 @@ export function useFireCastBotSession({
       onNewReply(reply, latestAssistantIndex);
     });
     setIsQuerying(false);
+  };
+
+  const submitQuery = async () => {
+    if (!queryInput.trim()) return;
+    const query = queryInput.trim();
+    setQueryInput('');
+    await submitQueryText(query);
   };
 
   const startNewSession = async () => {
@@ -205,6 +210,7 @@ export function useFireCastBotSession({
     uploadPdf,
     ingestPreset,
     submitQuery,
+    submitQueryText,
     startNewSession,
   };
 }

@@ -6,7 +6,7 @@ from flask_cors import CORS
 from .firecastbot import firecastbot_bp
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, max_age=600)
 # Hard ceiling on incoming request bodies (protects all upload endpoints)
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024  # 30 MB
 app.register_blueprint(firecastbot_bp)

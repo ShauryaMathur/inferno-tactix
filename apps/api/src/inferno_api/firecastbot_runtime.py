@@ -425,7 +425,6 @@ def _section_text(section_map: dict[str, str], *section_names: str) -> str:
 
 def build_incident_profile(
     incident_id: str,
-    filename: str,
     full_text: str,
     section_map: dict[str, str],
     report_timestamp: str,
@@ -733,9 +732,7 @@ def build_runtime_incident_report(
     )
     incident_id = f"{slugify(inferred_name)}_{datetime.now(timezone.utc).strftime('%Y_%m_%d')}"
     section_map = {section["section"]: section["text"] for section in sections}
-    profile = build_incident_profile(
-        incident_id, filename, full_text, section_map, report_timestamp
-    )
+    profile = build_incident_profile(incident_id, full_text, section_map, report_timestamp)
 
     chunks: list[dict[str, Any]] = []
     chunk_counter = 1
