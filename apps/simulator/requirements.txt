@@ -1,6 +1,6 @@
 gymnasium==1.0.0
 numpy==1.24.3
-pillow==10.4.0
+pillow==12.2.0
 stable-baselines3==2.4.1
 tensorboard==2.13.0
 tensorboard-data-server==0.7.2
