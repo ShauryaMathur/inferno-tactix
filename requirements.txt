@@ -130,7 +130,7 @@ transformers==4.46.3
 typeguard==2.13.3
 typing_extensions==4.13.2
 tzdata==2025.2
-urllib3==2.2.3
+urllib3==2.7.0
 watchdog==4.0.2
 wcwidth==0.2.13
 websockets==13.1
