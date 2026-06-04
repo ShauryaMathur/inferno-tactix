@@ -145,7 +145,7 @@
     "react-circular-input": "^0.2.4",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.30.0",
+    "react-router-dom": "^6.30.4",
     "sass": "^1.62.1",
     "screenfull": "^6.0.2",
     "shutterbug": "^1.5.0",
