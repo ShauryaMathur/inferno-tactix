@@ -125,7 +125,7 @@
     "@react-three/drei": "^9.72.2",
     "@react-three/fiber": "^8.13.0",
     "@svgr/webpack": "^8.0.1",
-    "axios": "^1.15.1",
+    "axios": "^1.17.0",
     "babel-core": "^6.26.3",
     "chart.js": "^4.4.9",
     "chartjs-plugin-annotation": "^0.5.7",
