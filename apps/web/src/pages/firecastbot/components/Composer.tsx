@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import styles from '../firecastbot.module.scss';
 
@@ -12,6 +12,7 @@ type Props = {
   queryInput: string;
   setQueryInput: (v: string) => void;
   isBotReady: boolean;
+  hasDocument: boolean;
   isBusy: boolean;
   canSubmitQuery: boolean;
   isListening: boolean;
@@ -25,6 +26,7 @@ export function Composer({
   queryInput,
   setQueryInput,
   isBotReady,
+  hasDocument,
   isBusy,
   canSubmitQuery,
   isListening,
@@ -33,6 +35,15 @@ export function Composer({
   submitQuery,
   submitQueryText,
 }: Props) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [queryInput]);
+
   return (
     <div className={`${styles.panel} ${styles.stickyComposer}`}>
       <h2>Chat</h2>
@@ -53,6 +64,7 @@ export function Composer({
       )}
       <div className={styles.composerInputWrap}>
         <textarea
+          ref={textareaRef}
           value={queryInput}
           onChange={(e) => setQueryInput(e.target.value)}
           onKeyDown={(e) => {
@@ -62,18 +74,18 @@ export function Composer({
             }
           }}
           placeholder={
-            isBotReady
+            hasDocument
               ? 'Ask a question about this wildfire situation...'
               : 'Load an incident report to start chatting...'
           }
-          disabled={!isBotReady}
-          rows={5}
+          disabled={!hasDocument || isBusy}
+          rows={1}
         />
         <button
           type="button"
           className={`${styles.micButton} ${isListening || isRecording ? styles.micButtonActive : ''}`}
           onClick={handleMicClick}
-          disabled={!isBotReady}
+          disabled={!hasDocument || isBusy}
           aria-label={
             isRecording ? 'Stop recording' : isListening ? 'Listening...' : 'Speak your question'
           }

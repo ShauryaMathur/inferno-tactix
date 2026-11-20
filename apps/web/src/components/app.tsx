@@ -26,8 +26,6 @@ export const AppComponent = observer(function WrappedComponent() {
     <HashRouter>
       <div id={styles.app}>
         <div className={styles.links}>
-          {/* <Link to="/">Home</Link> */}
-          <Link to="/about">Home</Link>
           <Link to="/firecastbot">FireCastBot</Link>
         </div>
 

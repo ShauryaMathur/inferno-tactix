@@ -60,3 +60,4 @@ research/reports/**/out/
 research/**/*.log
 /ops
 /.pylint.d
+*.parquet

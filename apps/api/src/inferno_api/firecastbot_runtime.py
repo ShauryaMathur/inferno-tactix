@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 from pypdf import PdfReader
 
-from firecastbot.config import Settings
+from firecastbot.config import Settings, get_settings
 from firecastbot.services.embedder_service import EmbedderService, prepare_query_texts
 
 os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
@@ -501,9 +501,39 @@ def build_incident_profile(
 
 @lru_cache(maxsize=8)
 def _embedder_service(provider: str, model_name: str) -> EmbedderService:
+    base_settings = get_settings()
     settings = Settings(
+        groq_api_key=base_settings.groq_api_key,
+        openai_api_key=base_settings.openai_api_key,
+        openrouter_api_key=base_settings.openrouter_api_key,
+        anthropic_api_key=base_settings.anthropic_api_key,
+        gemini_api_key=base_settings.gemini_api_key,
+        xai_api_key=base_settings.xai_api_key,
+        llm_provider=base_settings.llm_provider,
+        llm_model=base_settings.llm_model,
+        llm_max_tokens=base_settings.llm_max_tokens,
+        llm_temperature=base_settings.llm_temperature,
+        groq_model=base_settings.groq_model,
+        groq_max_tokens=base_settings.groq_max_tokens,
+        groq_temperature=base_settings.groq_temperature,
+        retrieval_k=base_settings.retrieval_k,
+        chat_recent_turn_limit=base_settings.chat_recent_turn_limit,
+        chat_summarize_after_turns=base_settings.chat_summarize_after_turns,
+        pdf_chunk_size=base_settings.pdf_chunk_size,
+        pdf_chunk_overlap=base_settings.pdf_chunk_overlap,
+        web_chunk_size=base_settings.web_chunk_size,
+        web_chunk_overlap=base_settings.web_chunk_overlap,
         embedding_provider=provider,
         embedding_model=model_name,
+        speech_to_text_provider=base_settings.speech_to_text_provider,
+        text_to_speech_provider=base_settings.text_to_speech_provider,
+        speech_to_text_model=base_settings.speech_to_text_model,
+        text_to_speech_model=base_settings.text_to_speech_model,
+        text_to_speech_voice=base_settings.text_to_speech_voice,
+        text_to_speech_format=base_settings.text_to_speech_format,
+        openrouter_base_url=base_settings.openrouter_base_url,
+        xai_base_url=base_settings.xai_base_url,
+        ollama_base_url=base_settings.ollama_base_url,
     )
     return EmbedderService(settings, provider=provider, model=model_name)
 

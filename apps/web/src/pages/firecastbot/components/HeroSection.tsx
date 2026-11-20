@@ -84,29 +84,27 @@ export function HeroSection({
         </div>
       </div>
 
-      <div className={styles.badge}>
-        <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ''}`} />
-        <span>FIRECASTBOT</span>
-        {sessionReadyAt && (
-          <span className={styles.sessionTime}>
-            · {sessionReadyAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
+      <div className={styles.heroRow}>
+        <div className={styles.badge}>
+          <span className={`${styles.badgeDot} ${isBotReady ? styles.badgeDotReady : ''}`} />
+          <span>FIRECASTBOT</span>
+          {sessionReadyAt && (
+            <span className={styles.sessionTime}>
+              · {sessionReadyAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+        <h2 className={styles.title}>Ask FireCastBot</h2>
+        {isLoading && <p className={styles.loadingText}>Starting&hellip;</p>}
+        {error && !isLoading && (
+          <div className={styles.errorRow}>
+            <p className={styles.error}>{error}</p>
+            <button type="button" className={styles.retryButton} onClick={retryBootstrap}>
+              Retry
+            </button>
+          </div>
         )}
       </div>
-      <h2 className={styles.title}>Ask FireCastBot</h2>
-      <p className={styles.subtitle}>
-        Upload an incident report, extract structured facts, and query it alongside doctrine and
-        safety references without leaving FireCastRL.
-      </p>
-      {isLoading && <p className={styles.loadingText}>Starting FireCastBot&hellip;</p>}
-      {error && !isLoading && (
-        <div className={styles.errorRow}>
-          <p className={styles.error}>{error}</p>
-          <button type="button" className={styles.retryButton} onClick={retryBootstrap}>
-            Retry
-          </button>
-        </div>
-      )}
     </section>
   );
 }

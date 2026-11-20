@@ -83,7 +83,8 @@ export default function FireCastBot() {
   }, [showSpeechSettings]);
 
   const selectedSttProvider = session.getSelectedProvider(speechToTextProviderId);
-  const canSubmitQuery = !session.isBusy && !!queryInput.trim() && session.isBotReady;
+  const hasDocument = session.documentsCount > 0;
+  const canSubmitQuery = !session.isBusy && !!queryInput.trim() && hasDocument;
 
   return (
     <div className={styles.container}>
@@ -136,6 +137,7 @@ export default function FireCastBot() {
             queryInput={queryInput}
             setQueryInput={setQueryInput}
             isBotReady={session.isBotReady}
+            hasDocument={hasDocument}
             isBusy={session.isBusy}
             canSubmitQuery={canSubmitQuery}
             isListening={mic.isListening}

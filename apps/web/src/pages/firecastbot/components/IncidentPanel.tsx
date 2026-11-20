@@ -5,8 +5,16 @@ import styles from '../firecastbot.module.scss';
 
 const PRESETS = [
   { id: 'low', label: 'Scenario C: Low Risk', previewUrl: '/api/firecastbot/presets/low/pdf' },
-  { id: 'medium', label: 'Scenario B: Medium Risk', previewUrl: '/api/firecastbot/presets/medium/pdf' },
-  { id: 'high', label: 'Scenario A: Critical Threat', previewUrl: '/api/firecastbot/presets/high/pdf' },
+  {
+    id: 'medium',
+    label: 'Scenario B: Medium Risk',
+    previewUrl: '/api/firecastbot/presets/medium/pdf',
+  },
+  {
+    id: 'high',
+    label: 'Scenario A: Critical Threat',
+    previewUrl: '/api/firecastbot/presets/high/pdf',
+  },
 ];
 
 type Props = {

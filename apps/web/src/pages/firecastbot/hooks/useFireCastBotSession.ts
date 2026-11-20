@@ -1,6 +1,14 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../../env';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableError = (exc: any): boolean => {
+  const status = exc?.response?.status;
+  if (!status) return true; // network error / timeout
+  return status >= 500 && status < 600;
+};
 import type { ConversationEntry, FireCastBotConfig, Provider, SessionSnapshot } from '../types';
 
 const SESSION_STORAGE_KEY = 'firecastbot-session-id';
@@ -154,19 +162,39 @@ export function useFireCastBotSession({
   const submitQueryText = async (query: string) => {
     if (!query.trim() || !sessionId) return;
     setIsQuerying(true);
-    await runTask(async () => {
-      const { data } = await withSessionRetry((id) =>
-        axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
-          session_id: id,
-          query: query.trim(),
-        })
-      );
-      applySnapshot(data);
-      const reply = data.reply as string;
-      const latestAssistantIndex = data.conversation.length - 1;
-      onNewReply(reply, latestAssistantIndex);
-    });
-    setIsQuerying(false);
+    try {
+      await runTask(async () => {
+        const MAX_ATTEMPTS = 3;
+        let lastError: any;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+          try {
+            const { data } = await axios.post(`${API_BASE_URL}/api/firecastbot/query`, {
+              session_id: sessionId,
+              query: query.trim(),
+            });
+            applySnapshot(data);
+            const reply = data.reply as string;
+            const latestAssistantIndex = data.conversation.length - 1;
+            onNewReply(reply, latestAssistantIndex);
+            return;
+          } catch (exc: any) {
+            if (isUnknownSessionError(exc)) {
+              throw new Error('Your session has expired. Please reload an incident report to continue.');
+            }
+            if (exc?.response?.status === 429) {
+              const retryAfter = exc.response.data?.retryAfter ?? 1;
+              throw new Error(`Too many requests — please wait ${Math.ceil(retryAfter)} second(s) and try again.`);
+            }
+            if (!isRetryableError(exc) || attempt === MAX_ATTEMPTS) throw exc;
+            lastError = exc;
+            await sleep(attempt * 1000); // 1s then 2s back-off
+          }
+        }
+        throw lastError;
+      });
+    } finally {
+      setIsQuerying(false);
+    }
   };
 
   const submitQuery = async () => {
@@ -180,10 +208,11 @@ export function useFireCastBotSession({
     await runTask(async () => {
       cancelBrowserSpeech();
       closeSettings();
+      await createFreshSession();
+      // Reset UI state only after the new session is confirmed
       setSelectedPdfName('');
       setQueryInput('');
       setSessionReadyAt(null);
-      await createFreshSession();
       if (pdfInputRef.current) pdfInputRef.current.value = '';
     });
   };
@@ -192,6 +221,7 @@ export function useFireCastBotSession({
     config,
     sessionId,
     conversation,
+    documentsCount,
     selectedPdfName,
     setSelectedPdfName,
     isBusy,

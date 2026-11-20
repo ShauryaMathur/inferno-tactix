@@ -126,12 +126,20 @@ class OpenAICompatibleChatClient:
         api_key: str,
         request: LLMRequest,
         base_url: str | None = None,
+        timeout: float = 45.0,
     ) -> None:
         try:
             from openai import OpenAI
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("Install the openai package to enable this provider.") from exc
-        client_kwargs = {"api_key": api_key}
+        try:
+            import httpx
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("Install httpx to configure request timeouts.") from exc
+        client_kwargs = {
+            "api_key": api_key,
+            "timeout": httpx.Timeout(timeout, connect=15.0, read=timeout, write=timeout, pool=timeout),
+        }
         if base_url:
             client_kwargs["base_url"] = base_url
         self.client = OpenAI(**client_kwargs)

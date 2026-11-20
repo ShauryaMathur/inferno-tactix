@@ -65,7 +65,7 @@ MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
 # Rate limiting — sliding-window, per-IP + per-session
 # ---------------------------------------------------------------------------
 
-IP_RATE_LIMIT_REQUESTS = 60   # shared IP (e.g. college NAT) — covers ~20 concurrent users
+IP_RATE_LIMIT_REQUESTS = 60  # shared IP (e.g. college NAT) — covers ~20 concurrent users
 IP_RATE_LIMIT_WINDOW = 1.0
 SESSION_RATE_LIMIT_REQUESTS = 3  # per individual session
 SESSION_RATE_LIMIT_WINDOW = 1.0

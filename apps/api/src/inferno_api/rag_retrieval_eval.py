@@ -143,11 +143,11 @@ def main() -> None:
     parser.add_argument("--cases", default="apps/api/evals/retrieval_cases.doctrine.json")
     parser.add_argument(
         "--doctrine-manifest",
-        default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.bge_base.json",
+        default="apps/firecastbot/incident_response_docs/doctrine_retrieval_manifest.json",
     )
     parser.add_argument("--k", type=int, default=5)
-    parser.add_argument("--output-json", default="apps/api/evals/retrieval_eval_bge_base.json")
-    parser.add_argument("--output-csv", default="apps/api/evals/retrieval_eval_bge_base.csv")
+    parser.add_argument("--output-json", default="apps/api/evals/retrieval_eval_openai_small.json")
+    parser.add_argument("--output-csv", default="apps/api/evals/retrieval_eval_openai_small.csv")
     args = parser.parse_args()
 
     case_records = load_json_records(Path(args.cases))

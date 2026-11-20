@@ -17,4 +17,4 @@ ENV API_PORT=6969
 
 EXPOSE 6969
 
-CMD ["gunicorn", "--workers=2", "--threads=4", "--worker-class=gthread", "--timeout=120", "--bind=0.0.0.0:6969", "inferno_api.app_firecastbot:app"]
+CMD ["gunicorn", "--workers=1", "--threads=8", "--worker-class=gthread", "--timeout=120", "--bind=0.0.0.0:6969", "inferno_api.app_firecastbot:app"]
